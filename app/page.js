@@ -21,9 +21,12 @@ export default function Home() {
           <p className="text-gray-600 text-center mb-4 flex-1">
             Kelola daftar produk dan stok barang Anda
           </p>
-          <button className="bg-blue-600 text-white py-2 px-4 rounded-lg mt-auto">
+          <Link
+            href="/products"
+            className="bg-blue-600 text-white py-2 px-4 rounded-lg mt-auto text-center"
+          >
             Kelola Produk
-          </button>
+          </Link>
         </div>
 
         {/* Card Kategori */}
@@ -35,9 +38,12 @@ export default function Home() {
           <p className="text-gray-600 text-center mb-4 flex-1">
             Atur kategori produk agar lebih rapi
           </p>
-          <button className="bg-green-600 text-white py-2 px-4 rounded-lg mt-auto">
+          <Link
+            href="/categories"
+            className="bg-green-600 text-white py-2 px-4 rounded-lg mt-auto text-center"
+          >
             Kelola Kategori
-          </button>
+          </Link>
         </div>
 
         {/* Card Kasir */}
@@ -49,9 +55,13 @@ export default function Home() {
           <p className="text-gray-600 text-center mb-4 flex-1">
             Mulai transaksi penjualan dengan cepat
           </p>
-          <button className="bg-purple-600 text-white py-2 px-4 rounded-lg mt-auto">
+
+          <Link
+            href="/cashier"
+            className="bg-purple-600 text-white py-2 px-4 rounded-lg mt-auto text-center"
+          >
             Buka Kasir
-          </button>
+          </Link>
         </div>
       </div>
     </main>
