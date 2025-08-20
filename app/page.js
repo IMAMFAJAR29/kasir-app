@@ -22,7 +22,7 @@ export default function Home() {
             Kelola daftar produk dan stok barang Anda
           </p>
           <Link
-            href="/products"
+            href="/admin/products"
             className="bg-blue-600 text-white py-2 px-4 rounded-lg mt-auto text-center"
           >
             Kelola Produk
@@ -39,7 +39,7 @@ export default function Home() {
             Atur kategori produk agar lebih rapi
           </p>
           <Link
-            href="/categories"
+            href="/admin/categories"
             className="bg-green-600 text-white py-2 px-4 rounded-lg mt-auto text-center"
           >
             Kelola Kategori
@@ -57,7 +57,7 @@ export default function Home() {
           </p>
 
           <Link
-            href="/cashier"
+            href="/pos"
             className="bg-purple-600 text-white py-2 px-4 rounded-lg mt-auto text-center"
           >
             Buka Kasir
