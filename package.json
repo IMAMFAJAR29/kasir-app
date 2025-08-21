@@ -17,6 +17,15 @@
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.4.6",
+    "prisma": "^6.14.0",
     "tailwindcss": "^4"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.14.0",
+    "lucide-react": "^0.540.0",
+    "next": "^15.5.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "sweetalert2": "^11.22.4"
   }
 }
