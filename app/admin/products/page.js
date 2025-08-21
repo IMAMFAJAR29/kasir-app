@@ -5,7 +5,9 @@ import Image from "next/image";
 import Swal from "sweetalert2";
 
 export default function AdminProductsPage() {
-  const [products, setProducts] = useState([]);
+  // ✅ State
+  const [products, setProducts] = useState([]); // daftar produk
+  const [categories, setCategories] = useState([]); // daftar kategori
   const [form, setForm] = useState({
     id: null,
     name: "",
@@ -14,21 +16,34 @@ export default function AdminProductsPage() {
     price: "",
     categoryId: "",
   });
-  const [categories, setCategories] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
 
   // ✅ Load Produk dari API
   async function loadProducts() {
-    const res = await fetch("/api/products");
-    const data = await res.json();
-    setProducts(data);
+    try {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+
+      // 🔑 Perbaikan 1: Pastikan data array sebelum set
+      setProducts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("❌ Error fetch products:", err);
+      setProducts([]); // fallback
+    }
   }
 
   // ✅ Load Kategori dari API
   async function loadCategories() {
-    const res = await fetch("/api/categories");
-    const data = await res.json();
-    setCategories(data);
+    try {
+      const res = await fetch("/api/categories");
+      const data = await res.json();
+
+      // 🔑 Perbaikan 2: Pastikan data array sebelum set
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("❌ Error fetch categories:", err);
+      setCategories([]); // fallback
+    }
   }
 
   useEffect(() => {
@@ -36,12 +51,13 @@ export default function AdminProductsPage() {
     loadCategories();
   }, []);
 
-  // ✅ Handle submit form (tambah / update produk)
+  // ✅ Handle Submit (Tambah/Update Produk)
   async function handleSubmit(e) {
     e.preventDefault();
 
     try {
       if (isEditing) {
+        // Update produk
         await fetch("/api/products", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -56,6 +72,7 @@ export default function AdminProductsPage() {
           timer: 2000,
         });
       } else {
+        // Tambah produk
         await fetch("/api/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -71,6 +88,7 @@ export default function AdminProductsPage() {
         });
       }
 
+      // Reset form
       setForm({
         id: null,
         name: "",
@@ -80,6 +98,8 @@ export default function AdminProductsPage() {
         categoryId: "",
       });
       setIsEditing(false);
+
+      // Reload data produk
       loadProducts();
     } catch (error) {
       Swal.fire({
@@ -90,7 +110,7 @@ export default function AdminProductsPage() {
     }
   }
 
-  // ✅ Handle ketika tombol "Edit" diklik
+  // ✅ Handle Edit Produk
   function handleEdit(product) {
     setForm({
       id: product.id,
@@ -104,7 +124,7 @@ export default function AdminProductsPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // ✅ Handle ketika tombol "Delete" diklik
+  // ✅ Handle Delete Produk
   async function handleDelete(id) {
     const confirm = await Swal.fire({
       title: "Yakin hapus produk?",
@@ -119,6 +139,7 @@ export default function AdminProductsPage() {
 
     if (confirm.isConfirmed) {
       try {
+        // 🔑 Perbaikan 3: pastikan endpoint DELETE ada (/api/products/[id])
         await fetch(`/api/products/${id}`, { method: "DELETE" });
 
         Swal.fire({
@@ -144,7 +165,7 @@ export default function AdminProductsPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Manajemen Produk</h1>
 
-      {/* ✅ FORM TAMBAH/EDIT PRODUK */}
+      {/* ✅ FORM TAMBAH / EDIT */}
       <form
         onSubmit={handleSubmit}
         className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10"
@@ -176,7 +197,9 @@ export default function AdminProductsPage() {
           placeholder="Deskripsi Produk"
           className="border p-2 rounded col-span-2"
           value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, description: e.target.value })
+          }
         />
         <select
           className="border p-2 rounded col-span-2"
@@ -232,7 +255,6 @@ export default function AdminProductsPage() {
                   {p.category?.name || "Tanpa Kategori"}
                 </span>
 
-                {/* Tombol Edit */}
                 <button
                   onClick={() => handleEdit(p)}
                   className="mt-4 bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
@@ -240,7 +262,6 @@ export default function AdminProductsPage() {
                   Edit
                 </button>
 
-                {/* Tombol Delete */}
                 <button
                   onClick={() => handleDelete(p.id)}
                   className="mt-2 bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
