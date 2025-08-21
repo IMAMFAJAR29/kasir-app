@@ -4,22 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "migrate:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js"
-  },
-  "dependencies": {
-    "@prisma/client": "^6.14.0",
-    "lucide-react": "^0.540.0",
-    "next": "15.4.6",
-    "prisma": "^6.14.0",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "sweetalert2": "^11.22.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
