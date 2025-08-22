@@ -56,3 +56,12 @@ model SaleItem {
 
   @@map("transaction_items")
 }
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String   // hashed password
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
