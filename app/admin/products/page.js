@@ -3,11 +3,14 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Swal from "sweetalert2";
+import readXlsxFile from "read-excel-file";
 
 export default function AdminProductsPage() {
   // ✅ State
-  const [products, setProducts] = useState([]); // daftar produk
-  const [categories, setCategories] = useState([]); // daftar kategori
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState({
     id: null,
     name: "",
@@ -18,17 +21,22 @@ export default function AdminProductsPage() {
   });
   const [isEditing, setIsEditing] = useState(false);
 
+  // 🔹 State untuk modal Import
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+
   // ✅ Load Produk dari API
   async function loadProducts() {
     try {
       const res = await fetch("/api/products");
       const data = await res.json();
-
-      // 🔑 Perbaikan 1: Pastikan data array sebelum set
-      setProducts(Array.isArray(data) ? data : []);
+      const arr = Array.isArray(data) ? data : [];
+      setProducts(arr);
+      setFilteredProducts(arr);
     } catch (err) {
       console.error("❌ Error fetch products:", err);
-      setProducts([]); // fallback
+      setProducts([]);
+      setFilteredProducts([]);
     }
   }
 
@@ -37,12 +45,10 @@ export default function AdminProductsPage() {
     try {
       const res = await fetch("/api/categories");
       const data = await res.json();
-
-      // 🔑 Perbaikan 2: Pastikan data array sebelum set
       setCategories(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("❌ Error fetch categories:", err);
-      setCategories([]); // fallback
+      setCategories([]);
     }
   }
 
@@ -51,44 +57,52 @@ export default function AdminProductsPage() {
     loadCategories();
   }, []);
 
-  // ✅ Handle Submit (Tambah/Update Produk)
+  // ✅ Filter produk saat search berubah
+  useEffect(() => {
+    if (!search) {
+      setFilteredProducts(products);
+    } else {
+      const lower = search.toLowerCase();
+      setFilteredProducts(
+        products.filter(
+          (p) =>
+            p.name.toLowerCase().includes(lower) ||
+            p.description?.toLowerCase().includes(lower) ||
+            p.category?.name?.toLowerCase().includes(lower)
+        )
+      );
+    }
+  }, [search, products]);
+
+  // ✅ Submit Produk (Tambah/Update)
   async function handleSubmit(e) {
     e.preventDefault();
-
     try {
       if (isEditing) {
-        // Update produk
         await fetch("/api/products", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
         });
-
         Swal.fire({
           icon: "success",
           title: "Produk diperbarui",
-          text: "Data produk berhasil diperbarui!",
-          showConfirmButton: false,
           timer: 2000,
+          showConfirmButton: false,
         });
       } else {
-        // Tambah produk
         await fetch("/api/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
         });
-
         Swal.fire({
           icon: "success",
           title: "Produk ditambahkan",
-          text: "Data produk berhasil ditambahkan!",
-          showConfirmButton: false,
           timer: 2000,
+          showConfirmButton: false,
         });
       }
-
-      // Reset form
       setForm({
         id: null,
         name: "",
@@ -98,19 +112,17 @@ export default function AdminProductsPage() {
         categoryId: "",
       });
       setIsEditing(false);
-
-      // Reload data produk
       loadProducts();
     } catch (error) {
       Swal.fire({
         icon: "error",
-        title: "Gagal menyimpan produk",
-        text: error.message || "Terjadi kesalahan!",
+        title: "Gagal simpan produk",
+        text: error.message,
       });
     }
   }
 
-  // ✅ Handle Edit Produk
+  // ✅ Edit Produk
   function handleEdit(product) {
     setForm({
       id: product.id,
@@ -124,7 +136,7 @@ export default function AdminProductsPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // ✅ Handle Delete Produk
+  // ✅ Delete Produk
   async function handleDelete(id) {
     const confirm = await Swal.fire({
       title: "Yakin hapus produk?",
@@ -139,25 +151,65 @@ export default function AdminProductsPage() {
 
     if (confirm.isConfirmed) {
       try {
-        // 🔑 Perbaikan 3: pastikan endpoint DELETE ada (/api/products/[id])
         await fetch(`/api/products/${id}`, { method: "DELETE" });
-
         Swal.fire({
           icon: "success",
           title: "Produk dihapus",
-          text: "Data produk berhasil dihapus!",
           timer: 2000,
           showConfirmButton: false,
         });
-
         loadProducts();
       } catch (error) {
         Swal.fire({
           icon: "error",
           title: "Gagal hapus produk",
-          text: error.message || "Terjadi kesalahan!",
+          text: error.message,
         });
       }
+    }
+  }
+
+  // ✅ Import Produk dari Excel
+  async function handleImportSubmit() {
+    if (!importFile) {
+      Swal.fire("Oops", "Silakan pilih file terlebih dahulu", "warning");
+      return;
+    }
+
+    try {
+      const rows = await readXlsxFile(importFile);
+      // Asumsi header: Nama | Harga | Deskripsi | URL Gambar | KategoriId
+      const imported = rows.slice(1).map((r) => ({
+        name: r[0],
+        price: r[1],
+        description: r[2] || "",
+        imageUrl: r[3] || "",
+        categoryId: r[4] || "",
+      }));
+
+      for (const p of imported) {
+        await fetch("/api/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(p),
+        });
+      }
+
+      Swal.fire({
+        icon: "success",
+        title: "Import produk berhasil!",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+      setShowImportModal(false);
+      setImportFile(null);
+      loadProducts();
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Gagal import produk",
+        text: error.message,
+      });
     }
   }
 
@@ -180,7 +232,7 @@ export default function AdminProductsPage() {
         />
         <input
           type="number"
-          placeholder="Harga (contoh: 10000)"
+          placeholder="Harga"
           className="border p-2 rounded"
           value={form.price}
           onChange={(e) => setForm({ ...form, price: e.target.value })}
@@ -197,9 +249,7 @@ export default function AdminProductsPage() {
           placeholder="Deskripsi Produk"
           className="border p-2 rounded col-span-2"
           value={form.description}
-          onChange={(e) =>
-            setForm({ ...form, description: e.target.value })
-          }
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
         <select
           className="border p-2 rounded col-span-2"
@@ -214,7 +264,6 @@ export default function AdminProductsPage() {
             </option>
           ))}
         </select>
-
         <button
           type="submit"
           className="bg-green-600 text-white px-4 py-2 rounded col-span-2 hover:bg-green-700 transition"
@@ -223,13 +272,34 @@ export default function AdminProductsPage() {
         </button>
       </form>
 
+      {/* ✅ BUTTON BUKA MODAL IMPORT */}
+      <div className="mb-6">
+        <button
+          onClick={() => setShowImportModal(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Import Produk
+        </button>
+      </div>
+
+      {/* ✅ SEARCH BAR */}
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="🔍 Cari produk..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="border p-2 rounded w-full md:max-w-sm"
+        />
+      </div>
+
       {/* ✅ DAFTAR PRODUK */}
       <h2 className="text-2xl font-semibold mb-4">Daftar Produk</h2>
-      {products.length === 0 ? (
-        <p className="text-gray-500">Belum ada produk</p>
+      {filteredProducts.length === 0 ? (
+        <p className="text-gray-500">Produk tidak ditemukan</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {products.map((p) => (
+          {filteredProducts.map((p) => (
             <div
               key={p.id}
               className="border rounded-lg shadow hover:shadow-lg transition bg-white flex flex-col"
@@ -261,7 +331,6 @@ export default function AdminProductsPage() {
                 >
                   Edit
                 </button>
-
                 <button
                   onClick={() => handleDelete(p.id)}
                   className="mt-2 bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
@@ -271,6 +340,53 @@ export default function AdminProductsPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ✅ MODAL IMPORT */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+            <h2 className="text-xl font-semibold mb-4">Import Produk</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Import menggunakan file <b>.xlsx</b> yang diexport dari Excel.{" "}
+              <br />
+              Dengan melakukan import, produk yang sudah ada akan ditambah
+              dengan produk baru dari file.
+            </p>
+
+            {/* Template Download */}
+            <a
+              href="/templates/import-template.xlsx"
+              download
+              className="text-blue-600 underline hover:text-blue-800"
+            >
+              📄 Template data baru
+            </a>
+
+            {/* Input File */}
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              onChange={(e) => setImportFile(e.target.files[0])}
+              className="border p-2 rounded w-full mb-4"
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="px-4 py-2 rounded border"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleImportSubmit}
+                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Import
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

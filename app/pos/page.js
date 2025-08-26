@@ -8,6 +8,7 @@ export default function PosPage() {
   const [cart, setCart] = useState([]);
   const [method, setMethod] = useState("cash");
   const [payment, setPayment] = useState("");
+  const [searchTerm, setSearchTerm] = useState(""); // 🔍 state pencarian
 
   useEffect(() => {
     fetch("/api/products")
@@ -134,6 +135,13 @@ export default function PosPage() {
     receiptWindow.print();
   };
 
+  // 🔍 filter produk sesuai searchTerm
+  const filteredProducts = products.filter((p) =>
+    [p.name, p.description, p.category?.name]
+      .filter(Boolean)
+      .some((field) => field.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -152,11 +160,20 @@ export default function PosPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Produk */}
         <div className="lg:col-span-2">
-          {products.length === 0 ? (
-            <p className="text-gray-500">Belum ada produk</p>
+          {/* 🔍 Search box */}
+          <input
+            type="text"
+            placeholder="Cari produk atau kategori..."
+            className="border p-2 rounded mb-6 w-full"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+
+          {filteredProducts.length === 0 ? (
+            <p className="text-gray-500">Produk tidak ditemukan</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {products.map((p) => (
+              {filteredProducts.map((p) => (
                 <div
                   key={p.id}
                   className="border rounded-xl shadow hover:shadow-lg transition bg-white cursor-pointer overflow-hidden"
