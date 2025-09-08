@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false); // 🔹 state loading
   const router = useRouter();
 
   const handleChange = (e) => {
@@ -13,7 +14,8 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage("Loading...");
+    setMessage("");
+    setLoading(true); // 🔹 mulai loading
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -32,7 +34,7 @@ export default function LoginPage() {
         localStorage.setItem("user", JSON.stringify(data.user));
         localStorage.setItem("token", data.token);
 
-        // simpan juga ke cookies (biar bisa dibaca middleware)
+        // simpan juga ke cookies
         document.cookie = `token=${data.token}; path=/;`;
         document.cookie = `user=${encodeURIComponent(
           JSON.stringify(data.user)
@@ -40,16 +42,17 @@ export default function LoginPage() {
 
         console.log("User disimpan:", data.user);
 
-        // redirect ke dashboard
         setTimeout(() => {
-          router.replace("/"); // pakai replace biar gak bisa back ke login
-        }, 200);
+          router.replace("/");
+        }, 500);
       } else {
         setMessage(`❌ ${data.error || "Login gagal"}`);
       }
     } catch (err) {
       console.error("Error saat login:", err);
       setMessage("❌ Terjadi error di server");
+    } finally {
+      setLoading(false); // 🔹 stop loading
     }
   };
 
@@ -75,11 +78,45 @@ export default function LoginPage() {
           className="w-full border px-3 py-2 rounded"
           required
         />
+
+        {/* 🔹 Tombol login + spinner */}
         <button
           type="submit"
-          className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition"
+          disabled={loading}
+          className={`w-full flex items-center justify-center gap-2 py-2 rounded text-white transition 
+            ${
+              loading
+                ? "bg-gray-500 cursor-not-allowed"
+                : "bg-green-600 hover:bg-green-700"
+            }`}
         >
-          Login
+          {loading ? (
+            <>
+              <svg
+                className="animate-spin h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4l3-3-3-3v4a12 12 0 00-12 12h4z"
+                ></path>
+              </svg>
+              Loading...
+            </>
+          ) : (
+            "Login"
+          )}
         </button>
       </form>
 
