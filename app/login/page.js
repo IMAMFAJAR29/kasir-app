@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false); // 🔹 state loading
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleChange = (e) => {
@@ -15,7 +15,7 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
-    setLoading(true); // 🔹 mulai loading
+    setLoading(true);
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -40,8 +40,6 @@ export default function LoginPage() {
           JSON.stringify(data.user)
         )}; path=/;`;
 
-        console.log("User disimpan:", data.user);
-
         setTimeout(() => {
           router.replace("/");
         }, 500);
@@ -52,82 +50,125 @@ export default function LoginPage() {
       console.error("Error saat login:", err);
       setMessage("❌ Terjadi error di server");
     } finally {
-      setLoading(false); // 🔹 stop loading
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto mt-10 p-6 border rounded-lg shadow">
-      <h1 className="text-2xl font-bold mb-4">Login</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="email"
-          name="email"
-          placeholder="Email"
-          value={form.email}
-          onChange={handleChange}
-          className="w-full border px-3 py-2 rounded"
-          required
-        />
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={handleChange}
-          className="w-full border px-3 py-2 rounded"
-          required
-        />
+    <section className="bg-gray-50 dark:bg-gray-900 min-h-screen flex items-center justify-center">
+      <div className="w-full bg-white rounded-lg shadow dark:border sm:max-w-md xl:p-0 dark:bg-gray-800 dark:border-gray-700">
+        <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
+          <h1 className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl dark:text-white">
+            Sign in to your account
+          </h1>
 
-        {/* 🔹 Tombol login + spinner */}
-        <button
-          type="submit"
-          disabled={loading}
-          className={`w-full flex items-center justify-center gap-2 py-2 rounded text-white transition 
-            ${
-              loading
-                ? "bg-gray-500 cursor-not-allowed"
-                : "bg-green-600 hover:bg-green-700"
-            }`}
-        >
-          {loading ? (
-            <>
-              <svg
-                className="animate-spin h-5 w-5 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4l3-3-3-3v4a12 12 0 00-12 12h4z"
-                ></path>
-              </svg>
-              Loading...
-            </>
-          ) : (
-            "Login"
+          {message && (
+            <p
+              className={`text-sm ${
+                message.includes("✅") ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {message}
+            </p>
           )}
-        </button>
-      </form>
 
-      {message && <p className="mt-4 text-center">{message}</p>}
+          <form className="space-y-4 md:space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <label
+                htmlFor="email"
+                className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+              >
+                Your email
+              </label>
+              <input
+                type="email"
+                name="email"
+                id="email"
+                placeholder="name@company.com"
+                value={form.email}
+                onChange={handleChange}
+                required
+                className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+                  focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
+                  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
+                  dark:text-white"
+              />
+            </div>
 
-      <p className="text-sm mt-4 text-center">
-        Belum punya akun?{" "}
-        <a href="/register" className="text-blue-600 hover:underline">
-          Register
-        </a>
-      </p>
-    </div>
+            <div>
+              <label
+                htmlFor="password"
+                className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+              >
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                id="password"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={handleChange}
+                required
+                className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+                  focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
+                  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
+                  dark:text-white"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full flex items-center justify-center gap-2 text-white 
+                font-medium rounded-lg text-sm px-5 py-2.5 text-center transition
+                ${
+                  loading
+                    ? "bg-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                }`}
+            >
+              {loading ? (
+                <>
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4l3-3-3-3v4a12 12 0 00-12 12h4z"
+                    ></path>
+                  </svg>
+                  Loading...
+                </>
+              ) : (
+                "Sign in"
+              )}
+            </button>
+
+            <p className="text-sm font-light text-gray-500 dark:text-gray-400">
+              Don’t have an account yet?{" "}
+              <a
+                href="/register"
+                className="font-medium text-blue-600 hover:underline dark:text-blue-500"
+              >
+                Sign up
+              </a>
+            </p>
+          </form>
+        </div>
+      </div>
+    </section>
   );
 }

@@ -7,7 +7,18 @@ const nextConfig = {
         hostname: "i.postimg.cc",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com", // biar gambar dari Cloudinary bisa tampil
+        pathname: "/**",
+      },
     ],
+  },
+
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "5mb", // ⬅️ batas upload file dinaikkan jadi 10 MB
+    },
   },
 };
 

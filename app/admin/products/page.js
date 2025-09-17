@@ -20,10 +20,40 @@ export default function AdminProductsPage() {
     categoryId: "",
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // 🔹 State untuk modal Import
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
+
+  // ✅ Upload ke Cloudinary
+  async function handleFileChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/product/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.url) {
+        setForm((prev) => ({ ...prev, imageUrl: data.url }));
+        Swal.fire("Sukses", "Gambar berhasil diupload", "success");
+      } else {
+        throw new Error(data.error || "Upload gagal");
+      }
+    } catch (err) {
+      Swal.fire("Error", err.message, "error");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   // ✅ Load Produk dari API
   async function loadProducts() {
@@ -84,24 +114,14 @@ export default function AdminProductsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
         });
-        Swal.fire({
-          icon: "success",
-          title: "Produk diperbarui",
-          timer: 2000,
-          showConfirmButton: false,
-        });
+        Swal.fire("Sukses", "Produk diperbarui", "success");
       } else {
         await fetch("/api/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
         });
-        Swal.fire({
-          icon: "success",
-          title: "Produk ditambahkan",
-          timer: 2000,
-          showConfirmButton: false,
-        });
+        Swal.fire("Sukses", "Produk ditambahkan", "success");
       }
       setForm({
         id: null,
@@ -114,11 +134,7 @@ export default function AdminProductsPage() {
       setIsEditing(false);
       loadProducts();
     } catch (error) {
-      Swal.fire({
-        icon: "error",
-        title: "Gagal simpan produk",
-        text: error.message,
-      });
+      Swal.fire("Error", "Gagal simpan produk", "error");
     }
   }
 
@@ -152,19 +168,10 @@ export default function AdminProductsPage() {
     if (confirm.isConfirmed) {
       try {
         await fetch(`/api/products/${id}`, { method: "DELETE" });
-        Swal.fire({
-          icon: "success",
-          title: "Produk dihapus",
-          timer: 2000,
-          showConfirmButton: false,
-        });
+        Swal.fire("Sukses", "Produk dihapus", "success");
         loadProducts();
       } catch (error) {
-        Swal.fire({
-          icon: "error",
-          title: "Gagal hapus produk",
-          text: error.message,
-        });
+        Swal.fire("Error", "Gagal hapus produk", "error");
       }
     }
   }
@@ -195,21 +202,12 @@ export default function AdminProductsPage() {
         });
       }
 
-      Swal.fire({
-        icon: "success",
-        title: "Import produk berhasil!",
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      Swal.fire("Sukses", "Import produk berhasil!", "success");
       setShowImportModal(false);
       setImportFile(null);
       loadProducts();
     } catch (error) {
-      Swal.fire({
-        icon: "error",
-        title: "Gagal import produk",
-        text: error.message,
-      });
+      Swal.fire("Error", "Gagal import produk", "error");
     }
   }
 
@@ -238,13 +236,47 @@ export default function AdminProductsPage() {
           onChange={(e) => setForm({ ...form, price: e.target.value })}
           required
         />
-        <input
-          type="text"
-          placeholder="URL Gambar"
-          className="border p-2 rounded col-span-2"
-          value={form.imageUrl}
-          onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-        />
+
+        {/* Upload Gambar */}
+        <div className="col-span-2 flex flex-col gap-2">
+          <input
+            type="text"
+            placeholder="Atau paste URL gambar"
+            className="border p-2 rounded"
+            value={form.imageUrl}
+            onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+          />
+
+          {/* input file hidden */}
+          <input
+            type="file"
+            id="uploadImage"
+            accept="image/*"
+            onChange={handleFileChange}
+            disabled={uploading}
+            className="hidden"
+          />
+
+          {/* custom button */}
+          <label
+            htmlFor="uploadImage"
+            className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer text-center hover:bg-blue-700"
+          >
+            {uploading ? "Uploading..." : "Upload Gambar"}
+          </label>
+
+          {/* preview gambar */}
+          {form.imageUrl && (
+            <Image
+              src={form.imageUrl}
+              alt="Preview"
+              width={120}
+              height={120}
+              className="rounded border"
+            />
+          )}
+        </div>
+
         <textarea
           placeholder="Deskripsi Produk"
           className="border p-2 rounded col-span-2"
