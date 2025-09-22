@@ -16,24 +16,24 @@ export async function POST(req) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Konversi file ke buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // pastikan file itu Blob
+    if (!(file instanceof Blob)) {
+      return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
+    }
 
-    // Upload ke Cloudinary
+    const buffer = Buffer.from(await file.arrayBuffer());
+
     const result = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: "products" },
-        (error, result) => {
+      cloudinary.uploader
+        .upload_stream({ folder: "products" }, (error, result) => {
           if (error) {
             console.error("Cloudinary upload error:", error);
             reject(error);
           } else {
             resolve(result);
           }
-        }
-      );
-      uploadStream.end(buffer);
+        })
+        .end(buffer);
     });
 
     return NextResponse.json({ url: result.secure_url });
@@ -45,11 +45,3 @@ export async function POST(req) {
     );
   }
 }
-
-// ⬇️ Fix body size limit
-export const config = {
-  api: {
-    bodyParser: false,
-    sizeLimit: "5mb", // bisa diatur lebih besar sesuai kebutuhan
-  },
-};
