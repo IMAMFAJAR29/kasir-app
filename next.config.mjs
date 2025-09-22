@@ -9,7 +9,7 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "res.cloudinary.com", // biar gambar dari Cloudinary bisa tampil
+        hostname: "res.cloudinary.com",
         pathname: "/**",
       },
     ],
