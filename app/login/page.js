@@ -1,6 +1,8 @@
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -18,33 +20,21 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+      // Login dengan credentials (email/password)
+      const res = await signIn("credentials", {
+        redirect: false,
+        email: form.email,
+        password: form.password,
+        callbackUrl: "/",
       });
 
-      const data = await res.json();
-      console.log("Respon dari API login:", data);
-
-      if (res.ok) {
-        setMessage();
-
-        // simpan user + token ke localStorage
-        localStorage.setItem("user", JSON.stringify(data.user));
-        localStorage.setItem("token", data.token);
-
-        // simpan juga ke cookies
-        document.cookie = `token=${data.token}; path=/;`;
-        document.cookie = `user=${encodeURIComponent(
-          JSON.stringify(data.user)
-        )}; path=/;`;
-
-        setTimeout(() => {
-          router.replace("/");
-        }, 500);
+      if (res?.error) {
+        setMessage(`❌ ${res.error}`);
       } else {
-        setMessage(`❌ ${data.error || "Login gagal"}`);
+        setMessage("✅ Login berhasil!");
+        setTimeout(() => {
+          router.replace(res.url || "/");
+        }, 500);
       }
     } catch (err) {
       console.error("Error saat login:", err);
@@ -56,7 +46,7 @@ export default function LoginPage() {
 
   return (
     <section className="bg-gray-50 dark:bg-gray-900 min-h-screen flex items-center justify-center">
-      <div className="w-full bg-white rounded-lg shadow dark:border sm:max-w-md xl:p-0 dark:bg-gray-800 dark:border-gray-700">
+      <div className="w-full bg-white rounded-lg shadow sm:max-w-md xl:p-0 dark:bg-gray-800">
         <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
           <h1 className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl dark:text-white">
             LOGIN
@@ -76,6 +66,7 @@ export default function LoginPage() {
           )}
 
           <form className="space-y-4 md:space-y-6" onSubmit={handleSubmit}>
+            {/* Email */}
             <div>
               <label
                 htmlFor="email"
@@ -98,6 +89,7 @@ export default function LoginPage() {
               />
             </div>
 
+            {/* Password */}
             <div>
               <label
                 htmlFor="password"
@@ -120,6 +112,7 @@ export default function LoginPage() {
               />
             </div>
 
+            {/* Button login */}
             <button
               type="submit"
               disabled={loading}
@@ -170,6 +163,41 @@ export default function LoginPage() {
               </a>
             </p>
           </form>
+
+          {/* Separator */}
+          <div className="my-4 flex items-center justify-center">
+            <span className="text-gray-400 text-sm">atau</span>
+          </div>
+
+          {/* Google Login */}
+          <button
+            onClick={() => signIn("google", { callbackUrl: "/" })}
+            className="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-100 text-black border border-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 transition"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 48 48"
+            >
+              <path
+                fill="#EA4335"
+                d="M24 9.5c3.9 0 6.6 1.7 8.1 3.1l5.9-5.9C34.1 3.6 29.5 2 24 2 14.7 2 7 7.7 3.7 16.1l6.9 5.4C12.6 14 17.9 9.5 24 9.5z"
+              />
+              <path
+                fill="#4285F4"
+                d="M46.5 24.5c0-1.5-.1-2.9-.3-4.3H24v8.1h12.7c-.6 3-2.3 5.6-4.9 7.3l7.7 6c4.5-4.2 7-10.4 7-17.1z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M10.6 28.3c-1-3-1-6.6 0-9.6l-6.9-5.4c-2.9 5.7-2.9 12.6 0 18.3l6.9-5.3z"
+              />
+              <path
+                fill="#34A853"
+                d="M24 46c6.5 0 12-2.1 16-5.8l-7.7-6c-2.1 1.4-4.9 2.3-8.3 2.3-6.1 0-11.4-4.1-13.4-9.7l-6.9 5.4C7 41.3 15 46 24 46z"
+              />
+            </svg>
+            Login dengan Google
+          </button>
         </div>
       </div>
     </section>

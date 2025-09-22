@@ -17,7 +17,7 @@ const nextConfig = {
 
   experimental: {
     serverActions: {
-      bodySizeLimit: "5mb", // ⬅️ batas upload file dinaikkan jadi 10 MB
+      bodySizeLimit: "5mb",
     },
   },
 };

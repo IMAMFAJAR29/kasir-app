@@ -1,35 +1,16 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { ShoppingCart, Package, Layers, LogOut } from "lucide-react";
 
 export default function Home() {
-  const router = useRouter();
-  const [user, setUser] = useState(null);
+  const { data: session, status } = useSession();
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (!savedUser) {
-      router.replace("/login");
-    } else {
-      setUser(JSON.parse(savedUser));
-    }
-  }, [router]);
+  if (status === "loading") return <p>Memuat dashboard...</p>;
+  if (!session) return <p>Unauthorized</p>; // middleware redirect ke /login
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    router.replace("/login");
-  };
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-gray-600">Memuat dashboard...</p>
-      </div>
-    );
-  }
+  const handleLogout = () => signOut({ callbackUrl: "/login" });
 
   return (
     <main className="p-8 max-w-5xl mx-auto">
@@ -47,12 +28,16 @@ export default function Home() {
         </button>
       </div>
 
+      {/* Welcome */}
       <p className="text-gray-600 mb-8">
         Selamat datang{" "}
-        <span className="font-semibold">{user.name || user.email}</span> di
-        aplikasi POS sederhana Saya.
+        <span className="font-semibold">
+          {session.user.name || session.user.email}
+        </span>{" "}
+        di aplikasi POS sederhana Saya.
       </p>
 
+      {/* Dashboard Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Card Produk */}
         <div className="border rounded-2xl shadow p-6 flex flex-col">
