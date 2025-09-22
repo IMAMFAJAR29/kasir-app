@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Swal from "sweetalert2";
 import readXlsxFile from "read-excel-file";
+import Button from "../../components/Button";
 
 export default function AdminProductsPage() {
   // ✅ State
@@ -36,10 +37,15 @@ export default function AdminProductsPage() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("/api/product/upload", {
+      const res = await fetch("/api/products/upload", {
         method: "POST",
         body: formData,
       });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
       const data = await res.json();
 
       if (data.url) {
@@ -258,11 +264,10 @@ export default function AdminProductsPage() {
           />
 
           {/* custom button */}
-          <label
-            htmlFor="uploadImage"
-            className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer text-center hover:bg-blue-700"
-          >
-            {uploading ? "Uploading..." : "Upload Gambar"}
+          <label htmlFor="uploadImage">
+            <Button as="span" className="min-w-[160px]">
+              {uploading ? "Uploading..." : "Upload Gambar"}
+            </Button>
           </label>
 
           {/* preview gambar */}
@@ -296,29 +301,28 @@ export default function AdminProductsPage() {
             </option>
           ))}
         </select>
-        <button
-          type="submit"
-          className="bg-green-600 text-white px-4 py-2 rounded col-span-2 hover:bg-green-700 transition"
-        >
-          {isEditing ? "Update Produk" : "Tambah Produk"}
-        </button>
+        <div className="mt-4">
+          <Button type="submit" className="min-w-[160px]">
+            {isEditing ? "Update Produk" : "Tambah Produk"}
+          </Button>
+        </div>
       </form>
 
       {/* ✅ BUTTON BUKA MODAL IMPORT */}
       <div className="mb-6">
-        <button
+        <Button
           onClick={() => setShowImportModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="min-w-[160px]"
         >
           Import Produk
-        </button>
+        </Button>
       </div>
 
       {/* ✅ SEARCH BAR */}
       <div className="mb-6">
         <input
           type="text"
-          placeholder="🔍 Cari produk..."
+          placeholder=" Cari produk..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border p-2 rounded w-full md:max-w-sm"
