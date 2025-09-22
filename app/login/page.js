@@ -28,7 +28,7 @@ export default function LoginPage() {
       console.log("Respon dari API login:", data);
 
       if (res.ok) {
-        setMessage("✅ Login berhasil!");
+        setMessage();
 
         // simpan user + token ke localStorage
         localStorage.setItem("user", JSON.stringify(data.user));
@@ -59,8 +59,11 @@ export default function LoginPage() {
       <div className="w-full bg-white rounded-lg shadow dark:border sm:max-w-md xl:p-0 dark:bg-gray-800 dark:border-gray-700">
         <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
           <h1 className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl dark:text-white">
-            Sign in to your account
+            LOGIN
           </h1>
+          <h2 className="text-sm font-medium text-gray-900 dark:text-white">
+            Isi form dibawah untuk masuk ke akun anda
+          </h2>
 
           {message && (
             <p
@@ -78,7 +81,7 @@ export default function LoginPage() {
                 htmlFor="email"
                 className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
               >
-                Your email
+                Email
               </label>
               <input
                 type="email"
@@ -158,12 +161,12 @@ export default function LoginPage() {
             </button>
 
             <p className="text-sm font-light text-gray-500 dark:text-gray-400">
-              Don’t have an account yet?{" "}
+              Tidak punya akun?{" "}
               <a
                 href="/register"
                 className="font-medium text-blue-600 hover:underline dark:text-blue-500"
               >
-                Sign up
+                Daftar Akun Baru
               </a>
             </p>
           </form>
