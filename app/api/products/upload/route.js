@@ -50,6 +50,6 @@ export async function POST(req) {
 export const config = {
   api: {
     bodyParser: false,
-    sizeLimit: "10mb", // bisa diatur lebih besar sesuai kebutuhan
+    sizeLimit: "5mb", // bisa diatur lebih besar sesuai kebutuhan
   },
 };
