@@ -43,7 +43,7 @@ export const authOptions = {
       return baseUrl; // semua login sukses diarahkan ke "/"
     },
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || "dev-secret",
   debug: true,
 };
 
