@@ -5,6 +5,7 @@ import Image from "next/image";
 import Swal from "sweetalert2";
 import readXlsxFile from "read-excel-file";
 import Button from "../../components/Button";
+import { Edit, Trash2 } from "lucide-react";
 
 export default function AdminProductsPage() {
   // ✅ State
@@ -14,12 +15,15 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState({
     id: null,
+    sku: "",
     name: "",
     description: "",
     imageUrl: "",
     price: "",
+    stock: "",
     categoryId: "",
   });
+
   const [isEditing, setIsEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -114,21 +118,29 @@ export default function AdminProductsPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     try {
+      const payload = {
+        ...form,
+        stock: Number(form.stock) || 0,
+        sku: form.sku?.trim() || undefined,
+      };
+
       if (isEditing) {
         await fetch("/api/products", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
         Swal.fire("Sukses", "Produk diperbarui", "success");
       } else {
         await fetch("/api/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
         Swal.fire("Sukses", "Produk ditambahkan", "success");
       }
+
+      // reset form termasuk sku & stock
       setForm({
         id: null,
         name: "",
@@ -136,7 +148,10 @@ export default function AdminProductsPage() {
         imageUrl: "",
         price: "",
         categoryId: "",
+        sku: "",
+        stock: "",
       });
+
       setIsEditing(false);
       loadProducts();
     } catch (error) {
@@ -148,10 +163,12 @@ export default function AdminProductsPage() {
   function handleEdit(product) {
     setForm({
       id: product.id,
+      sku: product.sku || "",
       name: product.name,
       description: product.description || "",
       imageUrl: product.imageUrl || "",
       price: product.price,
+      stock: product.stock || 0,
       categoryId: product.categoryId || "",
     });
     setIsEditing(true);
@@ -229,15 +246,43 @@ export default function AdminProductsPage() {
         <input
           type="text"
           placeholder="Nama Produk"
-          className="border p-2 rounded"
+          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
+             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
+             dark:text-white"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           required
         />
         <input
+          type="text"
+          placeholder="SKU Produk"
+          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
+             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
+             dark:text-white"
+          value={form.sku}
+          onChange={(e) => setForm({ ...form, sku: e.target.value })}
+        />
+
+        <input
+          type="number"
+          placeholder="Stok"
+          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
+             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
+             dark:text-white"
+          value={form.stock}
+          onChange={(e) => setForm({ ...form, stock: e.target.value })}
+        />
+
+        <input
           type="number"
           placeholder="Harga"
-          className="border p-2 rounded"
+          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
+             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
+             dark:text-white"
           value={form.price}
           onChange={(e) => setForm({ ...form, price: e.target.value })}
           required
@@ -248,7 +293,10 @@ export default function AdminProductsPage() {
           <input
             type="text"
             placeholder="Atau paste URL gambar"
-            className="border p-2 rounded"
+            className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
+             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
+             dark:text-white"
             value={form.imageUrl}
             onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
           />
@@ -284,23 +332,32 @@ export default function AdminProductsPage() {
 
         <textarea
           placeholder="Deskripsi Produk"
-          className="border p-2 rounded col-span-2"
+          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
+             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
+             dark:text-white"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
         <select
-          className="border p-2 rounded col-span-2"
+          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+             focus:ring-blue-600 focus:text-gray-900 block w-full p-2.5 
+             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
+             dark:text-white"
           value={form.categoryId}
           onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
           required
         >
-          <option value="">Pilih Kategori</option>
+          <option value="" disabled hidden>
+            Cari kategori...
+          </option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
         </select>
+
         <div className="mt-4">
           <Button type="submit" className="min-w-[160px]">
             {isEditing ? "Update Produk" : "Tambah Produk"}
@@ -325,7 +382,10 @@ export default function AdminProductsPage() {
           placeholder=" Cari produk..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border p-2 rounded w-full md:max-w-sm"
+          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
+             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
+             dark:text-white"
         />
       </div>
 
@@ -338,41 +398,41 @@ export default function AdminProductsPage() {
           {filteredProducts.map((p) => (
             <div
               key={p.id}
-              className="border rounded-lg shadow hover:shadow-lg transition bg-white flex flex-col"
+              className="rounded-lg shadow-md hover:shadow-lg transition bg-white flex flex-col overflow-hidden"
             >
-              <div className="relative w-full h-40 bg-gray-100 rounded-t-lg">
+              {/* Gambar */}
+              <div className="relative w-full h-48 bg-gray-50 flex items-center justify-center">
                 <Image
                   src={p.imageUrl || "/no-image.png"}
                   alt={p.name}
                   fill
                   unoptimized
-                  className="object-cover rounded-t-lg"
+                  className="object-contain p-4"
                 />
               </div>
-              <div className="p-4 flex-1 flex flex-col">
-                <h3 className="font-semibold text-lg">{p.name}</h3>
-                <p className="text-green-600 font-bold">
+
+              {/* Konten Tengah */}
+              <div className="p-4 flex flex-col items-center text-center">
+                <h3 className="font-semibold text-lg mb-2">{p.name}</h3>
+                <p className="text-gray-900 font-bold text-base mb-3">
                   Rp {Number(p.price).toLocaleString("id-ID")}
                 </p>
-                <p className="text-sm text-gray-600 mt-1 flex-1">
-                  {p.description}
-                </p>
-                <span className="inline-block mt-2 text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded">
-                  {p.category?.name || "Tanpa Kategori"}
-                </span>
 
-                <button
-                  onClick={() => handleEdit(p)}
-                  className="mt-4 bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(p.id)}
-                  className="mt-2 bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                >
-                  Delete
-                </button>
+                {/* Aksi */}
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => handleEdit(p)}
+                    className="p-2 rounded-full bg-yellow-100 hover:bg-yellow-200 text-yellow-600"
+                  >
+                    <Edit size={20} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(p.id)}
+                    className="p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-600"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -405,7 +465,10 @@ export default function AdminProductsPage() {
               type="file"
               accept=".xlsx, .xls"
               onChange={(e) => setImportFile(e.target.files[0])}
-              className="border p-2 rounded w-full mb-4"
+              className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
+             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
+             dark:text-white"
             />
 
             <div className="flex justify-end gap-2">

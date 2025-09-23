@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
 
 // GET /api/products
 export async function GET() {
@@ -12,7 +13,6 @@ export async function GET() {
     return NextResponse.json(products, { status: 200 });
   } catch (err) {
     console.error("Error fetch products:", err);
-    // balikin array kosong biar frontend aman
     return NextResponse.json([], { status: 200 });
   }
 }
@@ -21,7 +21,7 @@ export async function GET() {
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { name, description, imageUrl, price, categoryId } = body;
+    const { name, description, imageUrl, price, categoryId, sku, stock } = body;
 
     if (!name || !price) {
       return NextResponse.json(
@@ -35,6 +35,8 @@ export async function POST(req) {
       return NextResponse.json({ error: "Harga tidak valid" }, { status: 400 });
     }
 
+    const parsedStock = stock ? parseInt(stock) : 0;
+
     const newProduct = await prisma.product.create({
       data: {
         name,
@@ -42,6 +44,8 @@ export async function POST(req) {
         imageUrl,
         price: parsedPrice,
         categoryId: categoryId ? parseInt(categoryId) : null,
+        stock: parsedStock,
+        sku: sku && sku.trim() !== "" ? sku : uuidv4(), // auto generate kalau kosong
       },
     });
 
@@ -56,7 +60,8 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const { id, name, description, imageUrl, price, categoryId } = body;
+    const { id, name, description, imageUrl, price, categoryId, sku, stock } =
+      body;
 
     if (!id) {
       return NextResponse.json(
@@ -74,6 +79,8 @@ export async function PUT(req) {
     if (isNaN(parsedPrice)) {
       return NextResponse.json({ error: "Harga tidak valid" }, { status: 400 });
     }
+
+    const parsedStock = stock ? parseInt(stock) : 0;
 
     // Pastikan produk ada sebelum update
     const existing = await prisma.product.findUnique({
@@ -95,6 +102,8 @@ export async function PUT(req) {
         imageUrl,
         price: parsedPrice,
         categoryId: categoryId ? parseInt(categoryId) : null,
+        stock: parsedStock,
+        sku: sku && sku.trim() !== "" ? sku : existing.sku, // kalau kosong pakai yang lama
       },
     });
 
