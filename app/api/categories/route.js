@@ -1,47 +1,51 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { buildTree } from "@/lib/categoryTree";
 
-// GET: Ambil semua kategori
+// GET: ambil semua kategori (dalam bentuk tree)
 export async function GET() {
   try {
     const categories = await prisma.category.findMany({
       orderBy: { name: "asc" },
     });
 
-    // 🔑 Tambahan: pastikan selalu return array (walau kosong)
-    return NextResponse.json(categories ?? [], { status: 200 });
+    const tree = buildTree(categories);
+    return NextResponse.json(tree, { status: 200 });
   } catch (error) {
-    console.error("❌ Error fetching categories:", error);
-
-    // 🔑 Sebelumnya kamu return object { error: ... }
-    // ini bikin categories jadi object, bukan array.
-    // Jadi amanin supaya tetap array + flag error.
-    return NextResponse.json([], { status: 500 });
+    console.error(" Error fetching categories:", error);
+    return NextResponse.json(
+      { error: "Gagal mengambil kategori" },
+      { status: 500 }
+    );
   }
 }
 
-// POST: Tambah kategori baru
+// POST: tambah kategori baru
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { name, slug } = body;
+    const { name, parentId } = body;
 
-    // Validasi input
-    if (!name || !slug) {
-      // 🔑 Sama: return object error bikin .map() error
-      // solusinya tetap return array kosong di error case
-      return NextResponse.json([], { status: 400 });
+    if (!name) {
+      return NextResponse.json(
+        { error: "Name wajib diisi" },
+        { status: 400 } // ✅ 400 Bad Request
+      );
     }
 
-    // Buat kategori baru
     const newCategory = await prisma.category.create({
-      data: { name, slug },
+      data: {
+        name,
+        parentId: parentId || null,
+      },
     });
 
-    return NextResponse.json(newCategory, { status: 201 });
+    return NextResponse.json(newCategory, { status: 201 }); // ✅ 201 Created
   } catch (error) {
-    console.error("❌ Error creating category:", error);
-
-    return NextResponse.json([], { status: 500 });
+    console.error("Error creating category:", error);
+    return NextResponse.json(
+      { error: "Gagal membuat kategori" },
+      { status: 500 }
+    );
   }
 }
