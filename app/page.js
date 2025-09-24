@@ -1,35 +1,73 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
-import Link from "next/link";
-import { ShoppingCart, Package, Layers, LogOut } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Loader2, Package, Layers, ShoppingCart } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function Home() {
   const { data: session, status } = useSession();
 
-  if (status === "loading") return <p>Memuat dashboard...</p>;
-  if (!session) return <p>Unauthorized</p>; // middleware redirect ke /login
+  if (status === "loading") {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm z-50">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+          <p className="text-gray-600 font-medium">Memuat dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleLogout = () => signOut({ callbackUrl: "/login" });
+  if (!session) return <p>Unauthorized</p>;
+
+  // Dummy data untuk stat cards
+  const stats = [
+    {
+      id: 1,
+      label: "Total Produk",
+      value: 120,
+      icon: Package,
+      color: "text-blue-600",
+    },
+    {
+      id: 2,
+      label: "Total Kategori",
+      value: 8,
+      icon: Layers,
+      color: "text-green-600",
+    },
+    {
+      id: 3,
+      label: "Penjualan Hari Ini",
+      value: "Rp 2.500.000",
+      icon: ShoppingCart,
+      color: "text-purple-600",
+    },
+  ];
+
+  // Dummy data untuk grafik penjualan
+  const salesData = [
+    { day: "Sen", sales: 400 },
+    { day: "Sel", sales: 600 },
+    { day: "Rab", sales: 800 },
+    { day: "Kam", sales: 200 },
+    { day: "Jum", sales: 1000 },
+    { day: "Sab", sales: 700 },
+    { day: "Min", sales: 900 },
+  ];
 
   return (
-    <main className="p-8 max-w-5xl mx-auto">
-      {/* Header + Logout */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">
-          📊 Dashboard POS IMAM
-        </h1>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-        >
-          <LogOut className="w-5 h-5" />
-          Logout
-        </button>
-      </div>
-
+    <main className="p-8 max-w-6xl mx-auto">
       {/* Welcome */}
-      <p className="text-gray-600 mb-8">
+      <p className="text-gray-600 mb-8 dark:text-gray-300">
         Selamat datang{" "}
         <span className="font-semibold">
           {session.user.name || session.user.email}
@@ -37,57 +75,50 @@ export default function Home() {
         di aplikasi POS sederhana Saya.
       </p>
 
-      {/* Dashboard Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Card Produk */}
-        <div className="border rounded-2xl shadow p-6 flex flex-col">
-          <div className="flex justify-center mb-4">
-            <Package className="w-10 h-10 text-blue-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-center">Produk</h2>
-          <p className="text-gray-600 text-center mb-4 flex-1">
-            Kelola daftar produk dan stok barang Anda
-          </p>
-          <Link
-            href="/admin/products"
-            className="bg-blue-600 text-white py-2 px-4 rounded-lg mt-auto text-center"
-          >
-            Kelola Produk
-          </Link>
-        </div>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div
+              key={stat.id}
+              className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+                         shadow-sm p-6 flex items-center gap-4 
+                         dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            >
+              <Icon className={`w-10 h-10 ${stat.color}`} />
+              <div>
+                <p className="text-gray-600 dark:text-gray-300">{stat.label}</p>
+                <h2 className="text-2xl font-bold">{stat.value}</h2>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-        {/* Card Kategori */}
-        <div className="border rounded-2xl shadow p-6 flex flex-col">
-          <div className="flex justify-center mb-4">
-            <Layers className="w-10 h-10 text-green-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-center">Kategori</h2>
-          <p className="text-gray-600 text-center mb-4 flex-1">
-            Atur kategori produk agar lebih rapi
-          </p>
-          <Link
-            href="/admin/categories"
-            className="bg-green-600 text-white py-2 px-4 rounded-lg mt-auto text-center"
-          >
-            Kelola Kategori
-          </Link>
-        </div>
-
-        {/* Card Kasir */}
-        <div className="border rounded-2xl shadow p-6 flex flex-col">
-          <div className="flex justify-center mb-4">
-            <ShoppingCart className="w-10 h-10 text-purple-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-center">Kasir</h2>
-          <p className="text-gray-600 text-center mb-4 flex-1">
-            Mulai transaksi penjualan dengan cepat
-          </p>
-          <Link
-            href="/pos"
-            className="bg-purple-600 text-white py-2 px-4 rounded-lg mt-auto text-center"
-          >
-            Buka Kasir
-          </Link>
+      {/* Grafik Penjualan */}
+      <div
+        className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
+                   shadow-sm p-6 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+      >
+        <h2 className="text-xl font-semibold mb-4">
+          Penjualan 7 Hari Terakhir
+        </h2>
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={salesData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="day" />
+              <YAxis />
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="sales"
+                stroke="#4f46e5"
+                strokeWidth={2}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </main>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
-import { FcGoogle } from "react-icons/fc"; // ✅ Ikon Google
+import { FcGoogle, Loader2 } from "react-icons/fc"; // ✅ Ikon Google
 
 export default function LoginClient() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -30,21 +30,75 @@ export default function LoginClient() {
       });
 
       if (res?.error) {
-        setMessage(`❌ ${res.error}`);
-      } else {
-        setMessage("✅ Login berhasil!");
-        setTimeout(() => {
-          router.replace(res.url || "/");
-        }, 500);
+        // friendly message
+        const errStr = String(res.error || "").toLowerCase();
+        const isCredentialIssue =
+          /(credentials?|signin|user not found|invalid|401)/i.test(errStr);
+
+        if (isCredentialIssue) {
+          setMessage("Email atau password salah");
+        } else {
+          setMessage("Login gagal, coba lagi.");
+        }
+
+        setLoading(false); // stop loading kalau memang gagal
+        return;
       }
+
+      // sukses → langsung redirect
+      router.replace(res.url || "/");
     } catch (err) {
       console.error("Error saat login:", err);
-      setMessage("❌ Terjadi error di server");
-    } finally {
+      setMessage("Terjadi error di server");
       setLoading(false);
     }
   };
 
+  // === JSX Login Form ===
+  <form onSubmit={handleSubmit} className="space-y-4">
+    {/* Error Message */}
+    {message && (
+      <div className="p-3 rounded-lg text-sm border bg-red-100 text-red-700 border-red-300">
+        ❌ {message}
+      </div>
+    )}
+
+    {/* Input Email */}
+    <input
+      type="email"
+      value={form.email}
+      onChange={(e) => setForm({ ...form, email: e.target.value })}
+      placeholder="Email"
+      className="w-full p-2 border rounded-lg"
+      required
+    />
+
+    {/* Input Password */}
+    <input
+      type="password"
+      value={form.password}
+      onChange={(e) => setForm({ ...form, password: e.target.value })}
+      placeholder="Password"
+      className="w-full p-2 border rounded-lg"
+      required
+    />
+
+    {/* Tombol Login */}
+    <button
+      type="submit"
+      disabled={loading}
+      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-70"
+    >
+      {loading ? (
+        <>
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Login...</span>
+        </>
+      ) : (
+        "Login"
+      )}
+    </button>
+  </form>;
   return (
     <section className="bg-gray-50 dark:bg-gray-900 min-h-screen flex items-center justify-center">
       <div className="w-full bg-white rounded-lg shadow sm:max-w-md xl:p-0 dark:bg-gray-800">

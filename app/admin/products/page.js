@@ -5,7 +5,7 @@ import Image from "next/image";
 import Swal from "sweetalert2";
 import readXlsxFile from "read-excel-file";
 import Button from "../../components/Button";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, X, Upload, FileSpreadsheet } from "lucide-react";
 
 export default function AdminProductsPage() {
   // ✅ State
@@ -441,8 +441,16 @@ export default function AdminProductsPage() {
 
       {/* ✅ MODAL IMPORT */}
       {showImportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative">
+            {/* Tombol Close */}
+            <button
+              onClick={() => setShowImportModal(false)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
             <h2 className="text-xl font-semibold mb-4">Import Produk</h2>
             <p className="text-sm text-gray-600 mb-4">
               Import menggunakan file <b>.xlsx</b> yang diexport dari Excel.{" "}
@@ -455,32 +463,36 @@ export default function AdminProductsPage() {
             <a
               href="/templates/import-template.xlsx"
               download
-              className="text-blue-600 underline hover:text-blue-800"
+              className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4"
             >
-              📄 Template data baru
+              <FileSpreadsheet className="w-5 h-5" />
+              <span>Download Template Import</span>
             </a>
 
-            {/* Input File */}
-            <input
-              type="file"
-              accept=".xlsx, .xls"
-              onChange={(e) => setImportFile(e.target.files[0])}
-              className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
-             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
-             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
-             dark:text-white"
-            />
+            {/* Input File Custom */}
+            <label className="flex items-center gap-2 cursor-pointer bg-blue-50 border border-blue-300 text-blue-700 rounded-lg px-4 py-2 hover:bg-blue-100 mb-4 w-fit">
+              <Upload className="w-5 h-5" />
+              <span>Pilih file yang akan diimport</span>
+              <input
+                type="file"
+                accept=".xlsx, .xls"
+                onChange={(e) => setImportFile(e.target.files[0])}
+                className="hidden"
+              />
+            </label>
 
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowImportModal(false)}
-                className="px-4 py-2 rounded border"
-              >
-                Batal
-              </button>
+            {/* Tampilkan nama file kalau sudah dipilih */}
+            {importFile && (
+              <p className="text-sm text-gray-500 mb-4">
+                File dipilih:{" "}
+                <span className="font-medium">{importFile.name}</span>
+              </p>
+            )}
+
+            <div className="flex justify-end">
               <button
                 onClick={handleImportSubmit}
-                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
               >
                 Import
               </button>
