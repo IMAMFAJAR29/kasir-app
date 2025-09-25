@@ -1,14 +1,29 @@
 "use client";
 
+"use client";
+
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import {
+  CheckCircle,
+  Landmark,
+  Minus,
+  Plus,
+  QrCode,
+  Search,
+  ShoppingCart,
+  Trash2,
+  Wallet,
+} from "lucide-react";
+
+import Button from "../components/Button";
 
 export default function PosPage() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [method, setMethod] = useState("cash");
   const [payment, setPayment] = useState("");
-  const [searchTerm, setSearchTerm] = useState(""); // 🔍 state pencarian
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetch("/api/products")
@@ -41,7 +56,7 @@ export default function PosPage() {
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const change = method === "cash" ? payment - total : 0;
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (cart.length === 0) {
       alert("Keranjang masih kosong!");
       return;
@@ -50,32 +65,9 @@ export default function PosPage() {
       alert("Uang tunai tidak cukup!");
       return;
     }
-
-    try {
-      const res = await fetch("/api/sales", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: cart,
-          method,
-          payment,
-          total,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Gagal simpan transaksi");
-      const data = await res.json();
-      console.log("Transaksi tersimpan:", data);
-
-      // cetak struk
-      printReceipt();
-
-      setCart([]);
-      setPayment("");
-    } catch (err) {
-      alert("Error saat simpan transaksi");
-      console.error(err);
-    }
+    printReceipt();
+    setCart([]);
+    setPayment("");
   };
 
   const printReceipt = () => {
@@ -135,7 +127,7 @@ export default function PosPage() {
     receiptWindow.print();
   };
 
-  // 🔍 filter produk sesuai searchTerm
+  // filter produk sesuai searchTerm
   const filteredProducts = products.filter((p) =>
     [p.name, p.description, p.category?.name]
       .filter(Boolean)
@@ -143,10 +135,12 @@ export default function PosPage() {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">💳 Point of Sales</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+          <ShoppingCart size={28} /> Point of Sales
+        </h1>
         <span className="text-gray-500 text-sm">
           {new Date().toLocaleDateString("id-ID", {
             weekday: "long",
@@ -159,16 +153,23 @@ export default function PosPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Produk */}
-        <div className="lg:col-span-2">
-          {/* 🔍 Search box */}
-          <input
-            type="text"
-            placeholder="Cari produk atau kategori..."
-            className="border p-2 rounded mb-6 w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="lg:col-span-2 space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Cari produk atau kategori..."
+              className="pl-10 w-full bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
 
+          {/* List Produk */}
           {filteredProducts.length === 0 ? (
             <p className="text-gray-500">Produk tidak ditemukan</p>
           ) : (
@@ -176,28 +177,25 @@ export default function PosPage() {
               {filteredProducts.map((p) => (
                 <div
                   key={p.id}
-                  className="border rounded-xl shadow hover:shadow-lg transition bg-white cursor-pointer overflow-hidden"
                   onClick={() => addToCart(p)}
+                  className="rounded-lg shadow-md hover:shadow-lg transition bg-white cursor-pointer overflow-hidden"
                 >
-                  <div className="relative w-full h-40 bg-gray-100">
+                  <div className="relative w-full h-40 bg-gray-50 flex items-center justify-center">
                     <Image
                       src={p.imageUrl || "/no-image.png"}
                       alt={p.name}
                       fill
                       unoptimized
-                      className="object-cover"
+                      className="object-contain p-4"
                     />
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-lg">{p.name}</h3>
-                    <p className="text-green-600 font-bold">
+                  <div className="p-4 text-center">
+                    <h3 className="font-semibold text-lg mb-1">{p.name}</h3>
+                    <p className="text-green-600 font-bold mb-2">
                       Rp {Number(p.price).toLocaleString("id-ID")}
                     </p>
-                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                      {p.description}
-                    </p>
-                    <span className="inline-block mt-2 text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded-full">
-                      {p.category?.name || "Tanpa Kategori"}
+                    <span className="inline-block text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded-full">
+                      {p.category?.name || ""}
                     </span>
                   </div>
                 </div>
@@ -207,13 +205,15 @@ export default function PosPage() {
         </div>
 
         {/* Checkout */}
-        <div className="border rounded-xl shadow bg-white p-5">
-          <h2 className="text-xl font-bold mb-4">🛒 Keranjang</h2>
+        <div className="rounded-lg shadow-md bg-white p-5 flex flex-col">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Wallet size={22} /> Keranjang
+          </h2>
 
           {cart.length === 0 ? (
             <p className="text-gray-500">Keranjang kosong</p>
           ) : (
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
               {cart.map((item) => (
                 <div
                   key={item.id}
@@ -228,22 +228,22 @@ export default function PosPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => updateQty(item.id, item.qty - 1)}
-                      className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                      className="p-1 rounded-full bg-gray-100 hover:bg-gray-200"
                     >
-                      -
+                      <Minus size={16} />
                     </button>
                     <span>{item.qty}</span>
                     <button
                       onClick={() => updateQty(item.id, item.qty + 1)}
-                      className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                      className="p-1 rounded-full bg-gray-100 hover:bg-gray-200"
                     >
-                      +
+                      <Plus size={16} />
                     </button>
                     <button
                       onClick={() => removeFromCart(item.id)}
-                      className="ml-2 text-red-500 hover:text-red-700"
+                      className="p-1 text-red-500 hover:text-red-700"
                     >
-                      ✕
+                      <Trash2 size={18} />
                     </button>
                   </div>
                 </div>
@@ -252,48 +252,80 @@ export default function PosPage() {
           )}
 
           {/* Total & pembayaran */}
-          <div className="mt-4 border-t pt-4">
+          <div className="mt-4 border-t pt-4 space-y-3">
             <p className="text-lg font-bold text-gray-800">
               Total: Rp {total.toLocaleString("id-ID")}
             </p>
-
+            ...
             <div className="mt-3">
-              <label className="block font-semibold mb-1">
+              <label className="block font-semibold mb-2">
                 Metode Pembayaran
               </label>
-              <select
-                className="border p-2 rounded w-full"
-                value={method}
-                onChange={(e) => setMethod(e.target.value)}
-              >
-                <option value="cash">Tunai</option>
-                <option value="qris">QRIS</option>
-                <option value="transfer">Transfer</option>
-              </select>
-            </div>
+              <div className="grid grid-cols-3 gap-3">
+                {/* Tunai */}
+                <button
+                  type="button"
+                  onClick={() => setMethod("cash")}
+                  className={`flex flex-col items-center gap-1 border rounded-lg p-3 transition ${
+                    method === "cash"
+                      ? "border-green-600 bg-green-50 text-green-700 shadow"
+                      : "border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <Wallet className="w-6 h-6" />
+                  <span className="text-sm font-medium">Tunai</span>
+                </button>
 
+                {/* QRIS */}
+                <button
+                  type="button"
+                  onClick={() => setMethod("qris")}
+                  className={`flex flex-col items-center gap-1 border rounded-lg p-3 transition ${
+                    method === "qris"
+                      ? "border-green-600 bg-green-50 text-green-700 shadow"
+                      : "border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <QrCode className="w-6 h-6" />
+                  <span className="text-sm font-medium">QRIS</span>
+                </button>
+
+                {/* Transfer */}
+                <button
+                  type="button"
+                  onClick={() => setMethod("transfer")}
+                  className={`flex flex-col items-center gap-1 border rounded-lg p-3 transition ${
+                    method === "transfer"
+                      ? "border-green-600 bg-green-50 text-green-700 shadow"
+                      : "border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <Landmark className="w-6 h-6" />
+                  <span className="text-sm font-medium">Transfer</span>
+                </button>
+              </div>
+            </div>
             {method === "cash" && (
-              <div className="mt-3">
+              <div>
                 <label className="block font-semibold mb-1">Uang Tunai</label>
                 <input
                   type="number"
-                  className="border p-2 rounded w-full"
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm focus:ring-2 focus:ring-blue-600"
                   value={payment}
                   onChange={(e) => setPayment(Number(e.target.value))}
                 />
-                <p className="mt-2 text-sm">
+                <p className="mt-2 text-sm text-gray-600">
                   Kembalian: Rp{" "}
                   {change > 0 ? change.toLocaleString("id-ID") : 0}
                 </p>
               </div>
             )}
-
-            <button
+            <Button
               onClick={handleCheckout}
-              className="mt-4 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-xl w-full font-semibold shadow"
+              className="w-full flex items-center justify-center gap-2 min-w-[160px]"
             >
-              ✅ Bayar & Cetak Struk
-            </button>
+              <CheckCircle size={18} /> Bayar & Cetak Struk
+            </Button>
           </div>
         </div>
       </div>
