@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Swal from "sweetalert2";
 import readXlsxFile from "read-excel-file";
+import { Edit, Trash2, X, Upload, FileSpreadsheet, Save } from "lucide-react";
 import Button from "../../components/Button";
-import { Edit, Trash2, X, Upload, FileSpreadsheet } from "lucide-react";
 
 export default function AdminProductsPage() {
-  // ✅ State
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -23,71 +22,35 @@ export default function AdminProductsPage() {
     stock: "",
     categoryId: "",
   });
-
   const [isEditing, setIsEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
-
-  // 🔹 State untuk modal Import
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [categorySearch, setCategorySearch] = useState("");
 
-  // ✅ Upload ke Cloudinary
-  async function handleFileChange(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const res = await fetch("/api/products/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-
-      const data = await res.json();
-
-      if (data.url) {
-        setForm((prev) => ({ ...prev, imageUrl: data.url }));
-        Swal.fire("Sukses", "Gambar berhasil diupload", "success");
-      } else {
-        throw new Error(data.error || "Upload gagal");
-      }
-    } catch (err) {
-      Swal.fire("Error", err.message, "error");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  // ✅ Load Produk dari API
+  // Load products
   async function loadProducts() {
     try {
       const res = await fetch("/api/products");
       const data = await res.json();
-      const arr = Array.isArray(data) ? data : [];
-      setProducts(arr);
-      setFilteredProducts(arr);
+      setProducts(Array.isArray(data) ? data : []);
+      setFilteredProducts(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("❌ Error fetch products:", err);
+      console.error(err);
       setProducts([]);
       setFilteredProducts([]);
     }
   }
 
-  // ✅ Load Kategori dari API
+  // Load categories
   async function loadCategories() {
     try {
       const res = await fetch("/api/categories");
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("❌ Error fetch categories:", err);
+      console.error(err);
       setCategories([]);
     }
   }
@@ -97,89 +60,118 @@ export default function AdminProductsPage() {
     loadCategories();
   }, []);
 
-  // ✅ Filter produk saat search berubah
+  // Filter products
   useEffect(() => {
-    if (!search) {
-      setFilteredProducts(products);
-    } else {
-      const lower = search.toLowerCase();
-      setFilteredProducts(
-        products.filter(
-          (p) =>
-            p.name.toLowerCase().includes(lower) ||
-            p.description?.toLowerCase().includes(lower) ||
-            p.category?.name?.toLowerCase().includes(lower)
-        )
-      );
-    }
+    if (!search) return setFilteredProducts(products);
+    const lower = search.toLowerCase();
+    setFilteredProducts(
+      products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(lower) ||
+          p.description?.toLowerCase().includes(lower) ||
+          p.category?.name?.toLowerCase().includes(lower)
+      )
+    );
   }, [search, products]);
 
-  // ✅ Submit Produk (Tambah/Update)
+  // Flatten categories for modal
+  function flattenCategories(cats, prefix = "") {
+    return cats.flatMap((c) => [
+      { id: c.id, name: prefix ? `${prefix} > ${c.name}` : c.name },
+      ...(c.children?.length > 0
+        ? flattenCategories(
+            c.children,
+            prefix ? `${prefix} > ${c.name}` : c.name
+          )
+        : []),
+    ]);
+  }
+
+  // Upload image
+  async function handleFileChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("/api/products/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.url) {
+        setForm({ ...form, imageUrl: data.url });
+        Swal.fire("Sukses", "Gambar berhasil diupload", "success");
+      } else throw new Error(data.error || "Upload gagal");
+    } catch (err) {
+      Swal.fire("Error", err.message, "error");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  // Submit product
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!form.name || !form.price || !form.categoryId) {
+      Swal.fire("Warning", "Lengkapi form!", "warning");
+      return;
+    }
     try {
       const payload = {
         ...form,
         stock: Number(form.stock) || 0,
         sku: form.sku?.trim() || undefined,
       };
-
-      if (isEditing) {
-        await fetch("/api/products", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        Swal.fire("Sukses", "Produk diperbarui", "success");
-      } else {
-        await fetch("/api/products", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        Swal.fire("Sukses", "Produk ditambahkan", "success");
-      }
-
-      // reset form termasuk sku & stock
+      const method = isEditing ? "PUT" : "POST";
+      await fetch("/api/products", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      Swal.fire(
+        "Sukses",
+        `Produk ${isEditing ? "diperbarui" : "ditambahkan"}`,
+        "success"
+      );
       setForm({
         id: null,
+        sku: "",
         name: "",
         description: "",
         imageUrl: "",
         price: "",
-        categoryId: "",
-        sku: "",
         stock: "",
+        categoryId: "",
       });
-
       setIsEditing(false);
       loadProducts();
-    } catch (error) {
+    } catch {
       Swal.fire("Error", "Gagal simpan produk", "error");
     }
   }
 
-  // ✅ Edit Produk
-  function handleEdit(product) {
+  // Edit product
+  function handleEdit(p) {
     setForm({
-      id: product.id,
-      sku: product.sku || "",
-      name: product.name,
-      description: product.description || "",
-      imageUrl: product.imageUrl || "",
-      price: product.price,
-      stock: product.stock || 0,
-      categoryId: product.categoryId || "",
+      id: p.id,
+      sku: p.sku || "",
+      name: p.name,
+      description: p.description || "",
+      imageUrl: p.imageUrl || "",
+      price: p.price,
+      stock: p.stock || 0,
+      categoryId: p.categoryId || "",
     });
     setIsEditing(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // ✅ Delete Produk
+  // Delete product
   async function handleDelete(id) {
     const confirm = await Swal.fire({
       title: "Yakin hapus produk?",
-      text: "Data ini tidak bisa dikembalikan!",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -187,28 +179,22 @@ export default function AdminProductsPage() {
       confirmButtonText: "Ya, hapus!",
       cancelButtonText: "Batal",
     });
-
     if (confirm.isConfirmed) {
       try {
         await fetch(`/api/products/${id}`, { method: "DELETE" });
         Swal.fire("Sukses", "Produk dihapus", "success");
         loadProducts();
-      } catch (error) {
+      } catch {
         Swal.fire("Error", "Gagal hapus produk", "error");
       }
     }
   }
 
-  // ✅ Import Produk dari Excel
+  // Import Excel
   async function handleImportSubmit() {
-    if (!importFile) {
-      Swal.fire("Oops", "Silakan pilih file terlebih dahulu", "warning");
-      return;
-    }
-
+    if (!importFile) return Swal.fire("Oops", "Pilih file dulu", "warning");
     try {
       const rows = await readXlsxFile(importFile);
-      // Asumsi header: Nama | Harga | Deskripsi | URL Gambar | KategoriId
       const imported = rows.slice(1).map((r) => ({
         name: r[0],
         price: r[1],
@@ -216,7 +202,6 @@ export default function AdminProductsPage() {
         imageUrl: r[3] || "",
         categoryId: r[4] || "",
       }));
-
       for (const p of imported) {
         await fetch("/api/products", {
           method: "POST",
@@ -224,101 +209,90 @@ export default function AdminProductsPage() {
           body: JSON.stringify(p),
         });
       }
-
-      Swal.fire("Sukses", "Import produk berhasil!", "success");
+      Swal.fire("Sukses", "Import berhasil!", "success");
       setShowImportModal(false);
       setImportFile(null);
       loadProducts();
-    } catch (error) {
+    } catch {
       Swal.fire("Error", "Gagal import produk", "error");
     }
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Manajemen Produk</h1>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <h1 className="text-3xl font-bold">Manajemen Produk</h1>
 
-      {/* ✅ FORM TAMBAH / EDIT */}
+      {/* FORM */}
       <form
+        className="grid grid-cols-1 md:grid-cols-2 gap-4"
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10"
       >
+        {/* Nama Produk */}
         <input
           type="text"
           placeholder="Nama Produk"
-          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
-             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
-             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
-             dark:text-white"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
+          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
           required
         />
+
+        {/* SKU Produk */}
         <input
           type="text"
           placeholder="SKU Produk"
-          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
-             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
-             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
-             dark:text-white"
           value={form.sku}
           onChange={(e) => setForm({ ...form, sku: e.target.value })}
+          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
         />
 
+        {/* Stok */}
         <input
           type="number"
           placeholder="Stok"
-          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
-             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
-             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
-             dark:text-white"
           value={form.stock}
           onChange={(e) => setForm({ ...form, stock: e.target.value })}
+          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
         />
 
+        {/* Harga */}
         <input
           type="number"
           placeholder="Harga"
-          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
-             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
-             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
-             dark:text-white"
           value={form.price}
           onChange={(e) => setForm({ ...form, price: e.target.value })}
+          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
           required
         />
 
-        {/* Upload Gambar */}
+        {/* Upload Image */}
         <div className="col-span-2 flex flex-col gap-2">
           <input
             type="text"
             placeholder="Atau paste URL gambar"
-            className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
-             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
-             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
-             dark:text-white"
             value={form.imageUrl}
             onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
           />
-
-          {/* input file hidden */}
           <input
             type="file"
             id="uploadImage"
             accept="image/*"
             onChange={handleFileChange}
-            disabled={uploading}
             className="hidden"
+            disabled={uploading}
           />
-
-          {/* custom button */}
           <label htmlFor="uploadImage">
             <Button as="span" className="min-w-[160px]">
-              {uploading ? "Uploading..." : "Upload Gambar"}
+              {uploading ? (
+                "Uploading..."
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Upload size={16} /> Upload Gambar
+                </span>
+              )}
             </Button>
           </label>
-
-          {/* preview gambar */}
           {form.imageUrl && (
             <Image
               src={form.imageUrl}
@@ -330,77 +304,72 @@ export default function AdminProductsPage() {
           )}
         </div>
 
+        {/* Deskripsi */}
         <textarea
           placeholder="Deskripsi Produk"
-          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
-             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
-             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
-             dark:text-white"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
+          className="col-span-2 w-full bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+          rows={4}
         />
-        <select
-          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
-             focus:ring-blue-600 focus:text-gray-900 block w-full p-2.5 
-             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
-             dark:text-white"
-          value={form.categoryId}
-          onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-          required
-        >
-          <option value="" disabled hidden>
-            Cari kategori...
-          </option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
 
-        <div className="mt-4">
-          <Button type="submit" className="min-w-[160px]">
-            {isEditing ? "Update Produk" : "Tambah Produk"}
+        {/* Pilih Kategori */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Kategori
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowCategoryModal(true)}
+            className="w-full text-left bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+          >
+            {form.categoryId
+              ? flattenCategories(categories).find(
+                  (c) => c.id === Number(form.categoryId)
+                )?.name
+              : "Pilih kategori..."}
+          </button>
+        </div>
+
+        {/* Submit */}
+        <div className="mt-4 col-span-2">
+          <Button
+            type="submit"
+            className="flex items-center gap-2 min-w-[160px]"
+          >
+            <Save size={16} /> {isEditing ? "Update Produk" : "Tambah Produk"}
           </Button>
         </div>
       </form>
 
-      {/* ✅ BUTTON BUKA MODAL IMPORT */}
-      <div className="mb-6">
+      {/* Search */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+        <input
+          type="text"
+          placeholder="Cari produk..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full md:w-1/2 bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+        />
+
         <Button
           onClick={() => setShowImportModal(true)}
-          className="min-w-[160px]"
+          className="flex items-center gap-2 min-w-[160px]"
         >
-          Import Produk
+          <Upload size={16} /> Import Produk
         </Button>
       </div>
 
-      {/* ✅ SEARCH BAR */}
-      <div className="mb-6">
-        <input
-          type="text"
-          placeholder=" Cari produk..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg 
-             focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5 
-             dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 
-             dark:text-white"
-        />
-      </div>
-
-      {/* ✅ DAFTAR PRODUK */}
-      <h2 className="text-2xl font-semibold mb-4">Daftar Produk</h2>
-      {filteredProducts.length === 0 ? (
-        <p className="text-gray-500">Produk tidak ditemukan</p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {filteredProducts.map((p) => (
+      {/* Produk */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {filteredProducts.length === 0 ? (
+          <p className="text-gray-500 col-span-full">Produk tidak ditemukan</p>
+        ) : (
+          filteredProducts.map((p) => (
             <div
               key={p.id}
               className="rounded-lg shadow-md hover:shadow-lg transition bg-white flex flex-col overflow-hidden"
             >
-              {/* Gambar */}
               <div className="relative w-full h-48 bg-gray-50 flex items-center justify-center">
                 <Image
                   src={p.imageUrl || "/no-image.png"}
@@ -410,15 +379,11 @@ export default function AdminProductsPage() {
                   className="object-contain p-4"
                 />
               </div>
-
-              {/* Konten Tengah */}
               <div className="p-4 flex flex-col items-center text-center">
                 <h3 className="font-semibold text-lg mb-2">{p.name}</h3>
                 <p className="text-gray-900 font-bold text-base mb-3">
                   Rp {Number(p.price).toLocaleString("id-ID")}
                 </p>
-
-                {/* Aksi */}
                 <div className="flex gap-4">
                   <button
                     onClick={() => handleEdit(p)}
@@ -435,44 +400,33 @@ export default function AdminProductsPage() {
                 </div>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
 
-      {/* ✅ MODAL IMPORT */}
+      {/* Modal Import */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative">
-            {/* Tombol Close */}
             <button
               onClick={() => setShowImportModal(false)}
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
             >
-              <X className="w-5 h-5" />
+              <X size={20} />
             </button>
-
             <h2 className="text-xl font-semibold mb-4">Import Produk</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Import menggunakan file <b>.xlsx</b> yang diexport dari Excel.{" "}
-              <br />
-              Dengan melakukan import, produk yang sudah ada akan ditambah
-              dengan produk baru dari file.
+              Import menggunakan file <b>.xlsx</b>.
             </p>
-
-            {/* Template Download */}
             <a
               href="/templates/import-template.xlsx"
               download
               className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4"
             >
-              <FileSpreadsheet className="w-5 h-5" />
-              <span>Download Template Import</span>
+              <FileSpreadsheet size={16} /> Download Template
             </a>
-
-            {/* Input File Custom */}
             <label className="flex items-center gap-2 cursor-pointer bg-blue-50 border border-blue-300 text-blue-700 rounded-lg px-4 py-2 hover:bg-blue-100 mb-4 w-fit">
-              <Upload className="w-5 h-5" />
-              <span>Pilih file yang akan diimport</span>
+              <Upload size={16} /> Pilih file
               <input
                 type="file"
                 accept=".xlsx, .xls"
@@ -480,15 +434,12 @@ export default function AdminProductsPage() {
                 className="hidden"
               />
             </label>
-
-            {/* Tampilkan nama file kalau sudah dipilih */}
             {importFile && (
               <p className="text-sm text-gray-500 mb-4">
                 File dipilih:{" "}
                 <span className="font-medium">{importFile.name}</span>
               </p>
             )}
-
             <div className="flex justify-end">
               <button
                 onClick={handleImportSubmit}
@@ -497,6 +448,46 @@ export default function AdminProductsPage() {
                 Import
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pilih Kategori */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white w-full max-w-lg rounded-lg shadow-lg p-6 relative">
+            <h3 className="text-lg font-semibold mb-4">Pilih Kategori</h3>
+            <input
+              type="text"
+              placeholder="Cari kategori..."
+              value={categorySearch}
+              onChange={(e) => setCategorySearch(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:ring-2 focus:ring-blue-600"
+            />
+            <div className="max-h-64 overflow-y-auto space-y-2 border-t border-b border-gray-200">
+              {flattenCategories(categories)
+                .filter((c) =>
+                  c.name.toLowerCase().includes(categorySearch.toLowerCase())
+                )
+                .map((c) => (
+                  <div
+                    key={c.id}
+                    onClick={() => {
+                      setForm({ ...form, categoryId: c.id });
+                      setShowCategoryModal(false);
+                    }}
+                    className="cursor-pointer py-2 px-3 hover:bg-gray-50 rounded"
+                  >
+                    {c.name}
+                  </div>
+                ))}
+            </div>
+            <button
+              onClick={() => setShowCategoryModal(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}
