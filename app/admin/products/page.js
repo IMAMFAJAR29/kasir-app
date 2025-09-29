@@ -4,7 +4,15 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Swal from "sweetalert2";
 import readXlsxFile from "read-excel-file";
-import { Edit, Trash2, X, Upload, FileSpreadsheet, Save } from "lucide-react";
+import {
+  Edit,
+  Trash2,
+  X,
+  Upload,
+  FileSpreadsheet,
+  Save,
+  Printer,
+} from "lucide-react";
 import Button from "../../components/Button";
 
 export default function AdminProductsPage() {
@@ -28,6 +36,10 @@ export default function AdminProductsPage() {
   const [importFile, setImportFile] = useState(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
+  // 🔽 Tambahkan ini bersama state lain
+  const [showBarcodeModal, setShowBarcodeModal] = useState(false);
+  const [barcodeSearch, setBarcodeSearch] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   // Load products
   async function loadProducts() {
@@ -351,7 +363,12 @@ export default function AdminProductsPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="w-full md:w-1/2 bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
         />
-
+        <Button
+          onClick={() => setShowBarcodeModal(true)}
+          className="flex items-center gap-2 min-w-[160px] bg-green-600 hover:bg-green-700 text-white"
+        >
+          <Printer size={18} /> Cetak Barcode
+        </Button>
         <Button
           onClick={() => setShowImportModal(true)}
           className="flex items-center gap-2 min-w-[160px]"
@@ -487,6 +504,101 @@ export default function AdminProductsPage() {
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
             >
               ✕
+            </button>
+          </div>
+        </div>
+      )}
+      {showBarcodeModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white w-full max-w-lg rounded-xl shadow-xl p-6 relative">
+            <h3 className="text-lg font-semibold mb-4">
+              Pilih Produk untuk Cetak Barcode
+            </h3>
+
+            {/* Input search */}
+            <input
+              type="text"
+              placeholder="Cari produk / SKU..."
+              value={barcodeSearch}
+              onChange={(e) => setBarcodeSearch(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:ring-2 focus:ring-green-500"
+            />
+
+            {/* List produk */}
+            <div className="max-h-60 overflow-y-auto space-y-1 mb-4">
+              {products
+                .filter(
+                  (p) =>
+                    p.name
+                      .toLowerCase()
+                      .includes(barcodeSearch.toLowerCase()) ||
+                    p.sku.toLowerCase().includes(barcodeSearch.toLowerCase())
+                )
+                .map((p) => {
+                  const isSelected = selectedProduct?.id === p.id;
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => setSelectedProduct(isSelected ? null : p)}
+                      className={`flex justify-between items-center px-3 py-2 rounded-lg cursor-pointer transition ${
+                        isSelected
+                          ? "bg-blue-50 text-blue-600 font-semibold shadow"
+                          : "hover:bg-gray-50 text-gray-800"
+                      }`}
+                    >
+                      <span>
+                        {p.name}{" "}
+                        <span className="text-sm text-gray-500">({p.sku})</span>
+                      </span>
+                      {isSelected && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProduct(null);
+                          }}
+                          className="text-gray-400 hover:text-red-500"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Tombol aksi */}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowBarcodeModal(false)}
+                className="px-4 py-2 rounded-lg border hover:bg-gray-50"
+              >
+                Batal
+              </button>
+              {selectedProduct && (
+                <button
+                  onClick={() => {
+                    if (!selectedProduct) return;
+                    window.open(
+                      `/api/reports/barcode/${selectedProduct.id}`,
+                      "_blank"
+                    );
+                    setShowBarcodeModal(false);
+                    setSelectedProduct(null);
+                    setBarcodeSearch("");
+                  }}
+                  className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-2"
+                >
+                  <Printer size={18} /> Cetak
+                </button>
+              )}
+            </div>
+
+            {/* Tombol close (X) */}
+            <button
+              onClick={() => setShowBarcodeModal(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+            >
+              <X size={20} />
             </button>
           </div>
         </div>
