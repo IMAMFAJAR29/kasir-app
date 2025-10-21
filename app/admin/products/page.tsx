@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 
-// Import komponen utama
+// Komponen
 import ProductForm from "@/components/products/ProductForm";
 import ProductCard from "@/components/products/ProductCard";
 import ImportModal from "@/components/products/ImportModal";
@@ -14,7 +14,7 @@ import Button from "@/components/Button";
 // Icon
 import { ChevronDown } from "lucide-react";
 
-// Import tipe data
+// Tipe data
 import { ProductWithCategory, Category, FormProduct } from "@/types/products";
 
 export default function ProductsPage() {
@@ -23,6 +23,9 @@ export default function ProductsPage() {
   // =======================
   const [products, setProducts] = useState<ProductWithCategory[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [search, setSearch] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
 
   // State form produk
   const [form, setForm] = useState<FormProduct>({
@@ -35,72 +38,41 @@ export default function ProductsPage() {
     description: "",
     categoryId: undefined,
   });
-
   const [isEditing, setIsEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  // =======================
-  // STATE MODAL
-  // =======================
+  // State modal
   const [showProductFormModal, setShowProductFormModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
-
   const [selectedProduct, setSelectedProduct] =
     useState<ProductWithCategory | null>(null);
 
   // =======================
-  // STATE TAMBAHAN
-  // =======================
-  const [search, setSearch] = useState<string>("");
-  const [categorySearch, setCategorySearch] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-
-  // =======================
-  // FUNGSI FLATTEN KATEGORI (buat dropdown kategori bertingkat)
-  // =======================
-  function flattenCategories(cats: Category[], prefix = ""): Category[] {
-    return cats.flatMap((c) => [
-      {
-        ...c,
-        name: prefix ? `${prefix} > ${c.name}` : c.name,
-      },
-      ...(c.children?.length
-        ? flattenCategories(
-            c.children,
-            prefix ? `${prefix} > ${c.name}` : c.name
-          )
-        : []),
-    ]);
-  }
-
-  // =======================
-  // FETCH DATA PRODUK & KATEGORI DARI API
+  // FETCH DATA PRODUK & KATEGORI
   // =======================
   useEffect(() => {
-    async function fetchProducts() {
+    const fetchData = async () => {
       try {
-        const res = await fetch("/api/products");
-        const data: ProductWithCategory[] = await res.json();
-        setProducts(data);
-      } catch {
-        Swal.fire("Error", "Gagal ambil data produk", "error");
-      }
-    }
+        const [prodRes, catRes] = await Promise.all([
+          fetch("/api/products"),
+          fetch("/api/categories"),
+        ]);
 
-    async function fetchCategories() {
-      try {
-        const res = await fetch("/api/categories");
-        const data: Category[] = await res.json();
-        setCategories(data);
-      } catch {
-        Swal.fire("Error", "Gagal ambil data kategori", "error");
-      }
-    }
+        if (!prodRes.ok || !catRes.ok) throw new Error("Gagal memuat data");
 
-    fetchProducts();
-    fetchCategories();
+        const productsData: ProductWithCategory[] = await prodRes.json();
+        const categoriesData: Category[] = await catRes.json();
+
+        setProducts(productsData);
+        setCategories(categoriesData);
+      } catch {
+        Swal.fire("Error", "Gagal memuat produk atau kategori", "error");
+      }
+    };
+
+    fetchData();
   }, []);
 
   // =======================
@@ -123,7 +95,7 @@ export default function ProductsPage() {
   };
 
   // =======================
-  // IMPORT PRODUK DARI FILE EXCEL
+  // IMPORT PRODUK DARI FILE
   // =======================
   const handleImport = async (file: File) => {
     try {
@@ -141,8 +113,7 @@ export default function ProductsPage() {
       setProducts((prev) => [...imported, ...prev]);
       Swal.fire("Berhasil", "Produk berhasil diimport", "success");
       setShowImportModal(false);
-    } catch (err) {
-      console.error("Error import:", err);
+    } catch {
       Swal.fire("Error", "Gagal import produk", "error");
     }
   };
@@ -163,6 +134,7 @@ export default function ProductsPage() {
         body: formData,
       });
       if (!res.ok) throw new Error("Upload gagal");
+
       const data = await res.json();
       setForm((prev) => ({ ...prev, imageUrl: data.url }));
     } catch {
@@ -177,13 +149,14 @@ export default function ProductsPage() {
   // =======================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     try {
       let res;
       let result: ProductWithCategory;
 
-      // Jika sedang edit produk
+      // Update
       if (isEditing && form.id) {
-        res = await fetch(`/api/products`, {
+        res = await fetch("/api/products", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
@@ -191,13 +164,12 @@ export default function ProductsPage() {
         if (!res.ok) throw new Error("Gagal update produk");
         result = await res.json();
 
-        // Update produk di state
         setProducts((prev) =>
           prev.map((p) => (p.id === result.id ? result : p))
         );
         Swal.fire("Sukses", "Produk berhasil diupdate", "success");
       } else {
-        // Tambah produk baru
+        // Tambah baru
         res = await fetch("/api/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -206,7 +178,6 @@ export default function ProductsPage() {
         if (!res.ok) throw new Error("Gagal tambah produk");
         result = await res.json();
 
-        // Tambahkan ke list produk
         setProducts((prev) => [result, ...prev]);
         Swal.fire("Sukses", "Produk berhasil ditambahkan", "success");
       }
@@ -218,14 +189,29 @@ export default function ProductsPage() {
   };
 
   // =======================
+  // FLATTEN KATEGORI (UNTUK DROPDOWN)
+  // =======================
+  function flattenCategories(cats: Category[], prefix = ""): Category[] {
+    return cats.flatMap((c) => [
+      { ...c, name: prefix ? `${prefix} > ${c.name}` : c.name },
+      ...(c.children?.length
+        ? flattenCategories(
+            c.children,
+            prefix ? `${prefix} > ${c.name}` : c.name
+          )
+        : []),
+    ]);
+  }
+
+  // =======================
   // FILTER PRODUK BERDASARKAN SEARCH
   // =======================
-  const filteredProducts = products.filter((product) =>
-    product.name.toLowerCase().includes(search.toLowerCase())
+  const filteredProducts = products.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase())
   );
 
   // =======================
-  // FUNGSI BANTU MAPPING PRODUK -> FORM
+  // MAPPING PRODUK → FORM
   // =======================
   function mapProductToForm(p: ProductWithCategory): FormProduct {
     return {
@@ -241,16 +227,16 @@ export default function ProductsPage() {
   }
 
   // =======================
-  // RENDER UI
+  // RENDER
   // =======================
   return (
     <div className="p-4 pt-20">
-      {/* ===== Header ===== */}
+      {/* Header */}
       <div className="w-full p-4 bg-white shadow rounded-md">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <h1 className="text-xl font-bold text-gray-800">Daftar Produk</h1>
 
-          {/* Search Bar */}
+          {/* Search bar */}
           <div className="flex-grow max-w-md w-full">
             <input
               type="text"
@@ -261,7 +247,7 @@ export default function ProductsPage() {
             />
           </div>
 
-          {/* Tombol Tambah Produk (Dropdown) */}
+          {/* Tombol tambah produk */}
           <div className="relative flex-none">
             <Button
               onClick={() => setShowDropdown(!showDropdown)}
@@ -271,12 +257,11 @@ export default function ProductsPage() {
               <ChevronDown size={18} />
             </Button>
 
-            {/* Dropdown menu */}
             {showDropdown && (
               <div className="absolute right-0 mt-2 bg-white rounded-xl shadow-lg w-40 z-20">
                 <button
                   onClick={handleAddManual}
-                  className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-t-xl transition-colors"
+                  className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-t-xl transition"
                 >
                   Tambah Satuan
                 </button>
@@ -285,7 +270,7 @@ export default function ProductsPage() {
                     setShowImportModal(true);
                     setShowDropdown(false);
                   }}
-                  className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-b-xl transition-colors"
+                  className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-b-xl transition"
                 >
                   Import Produk
                 </button>
@@ -295,13 +280,12 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* ===== Grid Produk ===== */}
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      {/* Grid produk */}
+      <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {filteredProducts.map((product) => (
           <ProductCard
             key={product.id}
             product={product}
-            //  Fix TypeScript: ubah ke mapping manual
             onEdit={() => {
               setForm(mapProductToForm(product));
               setIsEditing(true);
@@ -330,10 +314,10 @@ export default function ProductsPage() {
         ))}
       </div>
 
-      {/* ===== Modal Product Form ===== */}
+      {/* Modal Form Produk */}
       {showProductFormModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-lg w-full max-w-xl relative">
+          <div className="bg-white p-6 rounded-lg w-full max-w-xl">
             <ProductForm
               form={form}
               setForm={setForm}
@@ -350,14 +334,14 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* ===== Modal Import Produk ===== */}
+      {/* Modal Import Produk */}
       <ImportModal
         show={showImportModal}
         onClose={() => setShowImportModal(false)}
         onImport={handleImport}
       />
 
-      {/* ===== Modal Kategori ===== */}
+      {/* Modal Kategori */}
       <CategoryModal
         show={showCategoryModal}
         onClose={() => setShowCategoryModal(false)}
@@ -368,7 +352,7 @@ export default function ProductsPage() {
         flattenCategories={flattenCategories}
       />
 
-      {/* ===== Modal Barcode ===== */}
+      {/* Modal Barcode */}
       <BarcodeModal
         show={showBarcodeModal}
         onClose={() => setShowBarcodeModal(false)}

@@ -41,7 +41,7 @@ export default function CategoryModal({
 
         {/* Title */}
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Layers className="w-5 h-5 text-green-600" />
+          <Layers className="w-5 h-5 text-blac-600" />
           Pilih Kategori
         </h2>
 

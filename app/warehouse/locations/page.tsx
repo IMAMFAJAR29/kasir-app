@@ -89,23 +89,67 @@ export default function LocationsPage() {
     const { value: formValues } = await Swal.fire({
       title: "Edit Lokasi",
       html: `
-        <input id="swal-name" class="swal2-input" placeholder="Nama" value="${
-          loc.name
-        }">
-        <input id="swal-address" class="swal2-input" placeholder="Alamat" value="${
-          loc.address || ""
-        }">
-      `,
-      focusConfirm: false,
+      <div style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 0.5rem;">
+        <!-- Nama Lokasi -->
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <label style="font-weight: 600; font-size: 0.95rem; color: #111827;"></label>
+          <input
+            id="swal-name"
+            placeholder="Nama Lokasi"
+            value="${loc.name}"
+            style="
+              width: 100%;
+              border-radius: 0.5rem;
+              border: 1px solid #d1d5db;
+              padding: 0.75rem 1rem;
+              font-size: 0.95rem;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            "
+          />
+        </div>
+
+        <!-- Alamat Lokasi -->
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <label style="font-weight: 600; font-size: 0.95rem; color: #111827;"></label>
+          <textarea
+            id="swal-address"
+            placeholder="Alamat"
+            style="
+              width: 100%;
+              min-height: 80px;
+              border-radius: 0.5rem;
+              border: 1px solid #d1d5db;
+              padding: 0.75rem 1rem;
+              font-size: 0.95rem;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+              resize: vertical;
+            "
+          >${loc.address || ""}</textarea>
+        </div>
+      </div>
+    `,
       showCancelButton: true,
-      confirmButtonText: "Simpan",
-      cancelButtonText: "Batal",
+      confirmButtonText: `<span class="flex items-center gap-2"><Check size="16"/> Simpan</span>`,
+      cancelButtonText: `<span class="flex items-center gap-2"><X size="16"/> Batal</span>`,
+      buttonsStyling: false,
+      customClass: {
+        popup: "rounded-2xl p-6 shadow-xl w-full max-w-lg",
+        confirmButton:
+          "bg-black hover:bg-black/80 text-white font-semibold px-6 py-2 rounded-lg flex justify-center items-center transition",
+        cancelButton:
+          "bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-2 rounded-lg flex justify-center items-center transition ml-2",
+      },
+      focusConfirm: false,
       preConfirm: () => {
         const name = (document.getElementById("swal-name") as HTMLInputElement)
           .value;
         const address = (
-          document.getElementById("swal-address") as HTMLInputElement
+          document.getElementById("swal-address") as HTMLTextAreaElement
         ).value;
+        if (!name.trim()) {
+          Swal.showValidationMessage("Nama lokasi tidak boleh kosong");
+          return false;
+        }
         return { name, address };
       },
     });
@@ -117,6 +161,7 @@ export default function LocationsPage() {
         body: JSON.stringify({ ...loc, ...formValues }),
       });
       fetchLocations();
+      Swal.fire("Berhasil", "Lokasi berhasil diperbarui", "success");
     }
   };
 

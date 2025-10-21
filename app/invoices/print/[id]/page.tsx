@@ -8,7 +8,7 @@ export default function PrintInvoicePage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔹 Fetch data invoice
+  // 🔹 Ambil data faktur dari API
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
@@ -26,10 +26,10 @@ export default function PrintInvoicePage() {
     fetchData();
   }, [id]);
 
-  // 🔹 Print otomatis
+  // 🔹 Cetak otomatis setelah data siap
   useEffect(() => {
     if (data) {
-      const timer = setTimeout(() => window.print(), 300);
+      const timer = setTimeout(() => window.print(), 800); // delay sedikit biar render penuh
       return () => clearTimeout(timer);
     }
   }, [data]);
@@ -39,7 +39,7 @@ export default function PrintInvoicePage() {
   if (!data)
     return <div className="p-6 text-red-500">Data faktur tidak ditemukan.</div>;
 
-  // 🔹 Hitung subtotal, pajak, total akhir
+  // 🔹 Hitung subtotal, pajak, dan total akhir
   const subtotal = data.items.reduce(
     (sum: number, i: any) => sum + Number(i.subtotal),
     0
@@ -47,15 +47,13 @@ export default function PrintInvoicePage() {
   const discount = Number(data.discount || 0);
   const shipping = Number(data.shipping || 0);
   const taxRate = data.tax ? Number(data.tax.rate) : 0;
-
-  // Pajak dihitung setelah dikurangi diskon, sebelum ongkir
   const taxableAmount = subtotal - discount;
   const taxAmount = data.tax ? (taxableAmount * taxRate) / 100 : 0;
-
   const totalFinal = taxableAmount + taxAmount + shipping;
 
   return (
-    <div className="print-wrapper">
+    // 🔹 Wrapper utama untuk area cetak
+    <div id="printArea" className="print-wrapper">
       <div className="max-w-3xl mx-auto p-8 bg-white text-gray-800 print:shadow-none print:bg-white">
         {/* Header */}
         <div className="text-center border-b pb-4 mb-6">
@@ -63,7 +61,7 @@ export default function PrintInvoicePage() {
           <p className="text-sm text-gray-600">Nomor: {data.invoiceNumber}</p>
         </div>
 
-        {/* Info Invoice */}
+        {/* Info Faktur */}
         <div className="grid grid-cols-2 text-sm mb-6">
           <div>
             <p>
@@ -84,7 +82,7 @@ export default function PrintInvoicePage() {
           </div>
         </div>
 
-        {/* Tabel Produk */}
+        {/* Daftar Produk */}
         <table className="w-full text-sm border border-gray-300 mb-6">
           <thead className="bg-gray-100 border-b">
             <tr>
