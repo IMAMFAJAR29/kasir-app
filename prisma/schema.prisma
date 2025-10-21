@@ -4,15 +4,18 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")          
-  directUrl = env("DATABASE_URL_UNPOOLED") 
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
-
-
+//
+// ===========================================
+// CATEGORY
+// ===========================================
 model Category {
   id        Int        @id @default(autoincrement())
   name      String
+  slug      String?    @unique
   parentId  Int?
   parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
   children  Category[] @relation("CategoryHierarchy")
@@ -21,35 +24,88 @@ model Category {
   updatedAt DateTime   @updatedAt
 }
 
-
+//
+// ===========================================
+// PRODUCT
+// ===========================================
 model Product {
-  id          Int        @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   name        String
+  slug        String?  @unique
   description String?
   imageUrl    String?
-  price       Decimal    @default(0.00)
-  categoryId  Int?
-  sku         String     @unique         
-  stock       Int        @default(0)     
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  category    Category?  @relation(fields: [categoryId], references: [id])
-  items       SaleItem[]
+  price       Decimal  @default(0.00)
+  sku         String   @unique
+  stock       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  categoryId   Int?
+  category     Category?             @relation(fields: [categoryId], references: [id])
+  items        SaleItem[]
+  stocks       ProductStock[]
+  adjustments  StockAdjustmentItem[]
+  invoiceItems InvoiceItem[]
 }
 
+//
+// ===========================================
+// LOCATION (Gudang / Cabang)
+// ===========================================
+model Location {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  stocks      ProductStock[]
+  sales       Sale[]
+  adjustments StockAdjustment[]
+  invoices    Invoice[]
+}
+
+//
+// ===========================================
+// PRODUCT STOCK (stok per lokasi)
+// ===========================================
+model ProductStock {
+  id         Int @id @default(autoincrement())
+  productId  Int
+  locationId Int
+  quantity   Int @default(0)
+
+  product  Product  @relation(fields: [productId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
+
+  @@unique([productId, locationId])
+}
+
+//
+// ===========================================
+// SALE / TRANSACTION (POS)
+// ===========================================
 model Sale {
-  id        Int        @id @default(autoincrement())
-  total     Decimal    @default(0.00)
-  method    String
-  payment   Decimal?
-  change    Decimal?
-  createdAt DateTime   @default(now())
-  items     SaleItem[]
+  id         Int      @id @default(autoincrement())
+  total      Decimal  @default(0.00)
+  method     String
+  payment    Decimal?
+  change     Decimal?
+  locationId Int?
+  createdAt  DateTime @default(now())
+
+  location Location?  @relation(fields: [locationId], references: [id])
+  items    SaleItem[]
+  invoices Invoice[]
 
   @@map("transactions")
 }
 
+//
+// ===========================================
+// SALE ITEM
+// ===========================================
 model SaleItem {
   id        Int     @id @default(autoincrement())
   saleId    Int
@@ -57,17 +113,145 @@ model SaleItem {
   qty       Int
   price     Decimal
   subtotal  Decimal @default(0.00)
-  product   Product @relation(fields: [productId], references: [id])
-  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  product Product @relation(fields: [productId], references: [id])
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   @@map("transaction_items")
 }
+
+//
+// ===========================================
+// CUSTOMER (Pelanggan)
+// ===========================================
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?  @unique
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoices Invoice[]
+}
+
+//
+// ===========================================
+// TAX (Pajak)
+// ===========================================
+model Tax {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  rate        Decimal   
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  invoices Invoice[]
+}
+
+//
+// ===========================================
+// INVOICE (Faktur Penjualan)
+// ===========================================
+model Invoice {
+  id            Int       @id @default(autoincrement())
+  invoiceNumber String    @unique
+  saleId        Int?
+  customerId    Int?
+  locationId    Int?
+  taxId         Int?      
+  refNo         String?
+  salesman      String?
+  date          DateTime? 
+  termin        Int?      
+  dueDate       DateTime?
+  discount      Decimal?  @default(0.00)
+  shipping      Decimal?  @default(0.00)
+  notes         String?
+  totalAmount   Decimal   @default(0.00)
+  paidAmount    Decimal   @default(0.00)
+  status        String    @default("unpaid")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // 🔹 Relasi
+  tax       Tax?          @relation(fields: [taxId], references: [id])
+  sale      Sale?         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  customer  Customer?     @relation(fields: [customerId], references: [id])
+  location  Location?     @relation(fields: [locationId], references: [id])
+  items     InvoiceItem[]
+
+  @@map("invoices")
+}
+
+//
+// ===========================================
+// INVOICE ITEM
+// ===========================================
+model InvoiceItem {
+  id        Int     @id @default(autoincrement())
+  invoiceId Int
+  productId Int
+  qty       Int
+  price     Decimal
+  subtotal  Decimal @default(0.00)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("invoice_items")
+}
+
+//
+// ===========================================
+// USER
+// ===========================================
 model User {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
-  password  String   // hashed password
+  password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+//
+// ===========================================
+// STOCK ADJUSTMENT
+// ===========================================
+model StockAdjustment {
+  id         Int      @id @default(autoincrement())
+  no         String   @unique 
+  date       DateTime @default(now())
+  locationId Int
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  location Location              @relation(fields: [locationId], references: [id])
+  items    StockAdjustmentItem[]
+
+  @@map("stock_adjustments")
+}
+
+//
+// ===========================================
+// STOCK ADJUSTMENT ITEM
+// ===========================================
+model StockAdjustmentItem {
+  id           Int      @id @default(autoincrement())
+  adjustmentId Int
+  productId    Int
+  oldQuantity  Int      @default(0)
+  newQuantity  Int      @default(0)
+  difference   Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  adjustment StockAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  product    Product         @relation(fields: [productId], references: [id])
+
+  @@map("stock_adjustment_items")
+}
