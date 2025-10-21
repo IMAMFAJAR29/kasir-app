@@ -164,7 +164,7 @@ export default function InvoicePage() {
                       <div
                         onClick={() => handleToggleStatus(inv)}
                         className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
-                          inv.status === "paid" ? "bg-green-500" : "bg-gray-300"
+                          inv.status === "paid" ? "bg-black" : "bg-gray-300"
                         }`}
                       >
                         <div
