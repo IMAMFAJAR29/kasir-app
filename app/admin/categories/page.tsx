@@ -203,7 +203,7 @@ export default function AdminCategoriesPage() {
                       parentName: "",
                     })
                   }
-                  className="w-4 h-4 text-green-600 border-gray-300"
+                  className="w-4 h-4 text-black-600 border-gray-300"
                 />
                 Kategori Utama
               </label>
@@ -213,7 +213,7 @@ export default function AdminCategoriesPage() {
                   value="sub"
                   checked={form.type === "sub"}
                   onChange={() => setForm({ ...form, type: "sub" })}
-                  className="w-4 h-4 text-green-600 border-gray-300"
+                  className="w-4 h-4 text-black-600 border-gray-300"
                 />
                 Sub Kategori
               </label>

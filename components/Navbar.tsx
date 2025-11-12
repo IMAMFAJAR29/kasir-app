@@ -39,7 +39,7 @@ export default function Navbar() {
 
         {/* === MENU DESKTOP === */}
         <nav className="hidden md:flex items-center justify-center gap-8">
-          {/* === MENU KATALOG === */}
+          {/* === KATALOG === */}
           <div className="relative group">
             <button className="flex items-center gap-2 text-gray-800 hover:text-black transition">
               <Package className="w-5 h-5" />
@@ -74,7 +74,7 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* === MENU PENJUALAN (dulu Kasir) === */}
+          {/* === PENJUALAN === */}
           <div className="relative group">
             <button className="flex items-center gap-2 text-gray-800 hover:text-black transition">
               <ShoppingCart className="w-5 h-5" />
@@ -93,35 +93,59 @@ export default function Navbar() {
                 />
               </svg>
             </button>
-
             <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg rounded p-2 min-w-[220px] z-50">
-              {/* Sub-menu Kasir */}
               <Link
                 href="/pos"
                 className="block px-3 py-2 hover:bg-gray-100 rounded"
               >
                 Kasir
               </Link>
-
-              {/* Sub-menu Transaksi Faktur */}
               <Link
                 href="/invoices"
                 className="block px-3 py-2 hover:bg-gray-100 rounded"
               >
                 Transaksi Faktur
               </Link>
-
-              {/* Sub-menu Kontak Pelanggan */}
               <Link
-                href="/sales/customers"
+                href="/sales/customers" // tetap ambil API customers untuk pemasok
                 className="block px-3 py-2 hover:bg-gray-100 rounded"
               >
-                Kontak Pelanggan
+                Kontak Pemasok
               </Link>
             </div>
           </div>
 
-          {/* === MENU GUDANG === */}
+          {/* === PEMBELIAN === */}
+          <div className="relative group">
+            <button className="flex items-center gap-2 text-gray-800 hover:text-black transition">
+              <FileText className="w-5 h-5" />
+              <span>Pembelian</span>
+              <svg
+                className="w-3 h-3 mt-1"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+
+            <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg rounded p-2 min-w-[200px] z-50">
+              <Link
+                href="/purchases"
+                className="block px-3 py-2 hover:bg-gray-100 rounded"
+              >
+                Transaksi Pembelian
+              </Link>
+            </div>
+          </div>
+
+          {/* === GUDANG === */}
           <div className="relative group">
             <button className="flex items-center gap-2 text-gray-800 hover:text-black transition">
               <Layers className="w-5 h-5" />
@@ -184,7 +208,7 @@ export default function Navbar() {
       {/* === MENU MOBILE === */}
       {menuOpen && (
         <div className="md:hidden bg-white shadow-lg rounded-b-2xl p-4 space-y-4 border-t">
-          {/* === MOBILE: KATALOG === */}
+          {/* MOBILE: KATALOG */}
           <div className="space-y-1">
             <span className="block text-gray-700 text-sm font-medium">
               Katalog
@@ -205,7 +229,7 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* === MOBILE: PENJUALAN === */}
+          {/* MOBILE: PENJUALAN */}
           <div className="space-y-1 pt-2 border-t">
             <span className="block text-gray-700 text-sm font-medium">
               Penjualan
@@ -224,9 +248,44 @@ export default function Navbar() {
             >
               Transaksi Faktur
             </Link>
+            <Link
+              href="/sales/customers"
+              onClick={() => setMenuOpen(false)}
+              className="block px-3 py-2 hover:bg-gray-100 rounded"
+            >
+              Kontak Pemasok
+            </Link>
           </div>
 
-          {/* === MOBILE: GUDANG === */}
+          {/* MOBILE: PEMBELIAN */}
+          <div className="space-y-1 pt-2 border-t">
+            <span className="block text-gray-700 text-sm font-medium">
+              Pembelian
+            </span>
+            <Link
+              href="/purchases"
+              onClick={() => setMenuOpen(false)}
+              className="block px-3 py-2 hover:bg-gray-100 rounded"
+            >
+              Daftar Pembelian
+            </Link>
+            <Link
+              href="/purchases/create"
+              onClick={() => setMenuOpen(false)}
+              className="block px-3 py-2 hover:bg-gray-100 rounded"
+            >
+              Tambah Pembelian
+            </Link>
+            <Link
+              href="/sales/customers"
+              onClick={() => setMenuOpen(false)}
+              className="block px-3 py-2 hover:bg-gray-100 rounded"
+            >
+              Kontak Pemasok
+            </Link>
+          </div>
+
+          {/* MOBILE: GUDANG */}
           <div className="pt-2 border-t space-y-1">
             <span className="block text-gray-700 text-sm font-medium">
               Gudang
@@ -247,7 +306,7 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* === USER + LOGOUT MOBILE === */}
+          {/* MOBILE: USER + LOGOUT */}
           <div className="border-t pt-4">
             <span className="block text-gray-700 text-sm mb-3 font-medium">
               {session?.user?.name || session?.user?.email || ""}

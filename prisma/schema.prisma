@@ -9,9 +9,9 @@ datasource db {
 }
 
 //
-// ===========================================
+// ===========================================================
 // CATEGORY
-// ===========================================
+// ===========================================================
 model Category {
   id        Int        @id @default(autoincrement())
   name      String
@@ -25,9 +25,9 @@ model Category {
 }
 
 //
-// ===========================================
+// ===========================================================
 // PRODUCT
-// ===========================================
+// ===========================================================
 model Product {
   id          Int      @id @default(autoincrement())
   name        String
@@ -46,12 +46,13 @@ model Product {
   stocks       ProductStock[]
   adjustments  StockAdjustmentItem[]
   invoiceItems InvoiceItem[]
+  purchaseItems PurchaseItem[]
 }
 
 //
-// ===========================================
+// ===========================================================
 // LOCATION (Gudang / Cabang)
-// ===========================================
+// ===========================================================
 model Location {
   id        Int      @id @default(autoincrement())
   name      String
@@ -64,12 +65,13 @@ model Location {
   sales       Sale[]
   adjustments StockAdjustment[]
   invoices    Invoice[]
+  purchases   Purchase[]
 }
 
 //
-// ===========================================
-// PRODUCT STOCK (stok per lokasi)
-// ===========================================
+// ===========================================================
+// PRODUCT STOCK (Stok per lokasi)
+// ===========================================================
 model ProductStock {
   id         Int @id @default(autoincrement())
   productId  Int
@@ -83,9 +85,9 @@ model ProductStock {
 }
 
 //
-// ===========================================
+// ===========================================================
 // SALE / TRANSACTION (POS)
-// ===========================================
+// ===========================================================
 model Sale {
   id         Int      @id @default(autoincrement())
   total      Decimal  @default(0.00)
@@ -103,9 +105,9 @@ model Sale {
 }
 
 //
-// ===========================================
+// ===========================================================
 // SALE ITEM
-// ===========================================
+// ===========================================================
 model SaleItem {
   id        Int     @id @default(autoincrement())
   saleId    Int
@@ -121,29 +123,31 @@ model SaleItem {
 }
 
 //
-// ===========================================
-// CUSTOMER (Pelanggan)
-// ===========================================
+// ===========================================================
+// CUSTOMER (Pelanggan & Pemasok)
+// ===========================================================
 model Customer {
   id        Int      @id @default(autoincrement())
   name      String
   email     String?  @unique
   phone     String?
   address   String?
+  type      String   @default("customer") // "customer" atau "supplier"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  invoices Invoice[]
+  invoices  Invoice[]
+  purchases Purchase[]
 }
 
 //
-// ===========================================
+// ===========================================================
 // TAX (Pajak)
-// ===========================================
+// ===========================================================
 model Tax {
   id          Int       @id @default(autoincrement())
   name        String    @unique
-  rate        Decimal   
+  rate        Decimal
   description String?
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
@@ -153,20 +157,20 @@ model Tax {
 }
 
 //
-// ===========================================
+// ===========================================================
 // INVOICE (Faktur Penjualan)
-// ===========================================
+// ===========================================================
 model Invoice {
   id            Int       @id @default(autoincrement())
   invoiceNumber String    @unique
   saleId        Int?
   customerId    Int?
   locationId    Int?
-  taxId         Int?      
+  taxId         Int?
   refNo         String?
   salesman      String?
-  date          DateTime? 
-  termin        Int?      
+  date          DateTime?
+  termin        Int?
   dueDate       DateTime?
   discount      Decimal?  @default(0.00)
   shipping      Decimal?  @default(0.00)
@@ -177,7 +181,6 @@ model Invoice {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  // 🔹 Relasi
   tax       Tax?          @relation(fields: [taxId], references: [id])
   sale      Sale?         @relation(fields: [saleId], references: [id], onDelete: Cascade)
   customer  Customer?     @relation(fields: [customerId], references: [id])
@@ -188,9 +191,9 @@ model Invoice {
 }
 
 //
-// ===========================================
+// ===========================================================
 // INVOICE ITEM
-// ===========================================
+// ===========================================================
 model InvoiceItem {
   id        Int     @id @default(autoincrement())
   invoiceId Int
@@ -206,25 +209,60 @@ model InvoiceItem {
 }
 
 //
-// ===========================================
-// USER
-// ===========================================
-model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ===========================================================
+// PURCHASE (Faktur Pembelian)
+// ===========================================================
+model Purchase {
+  id             Int       @id @default(autoincrement())
+  purchaseNumber String    @unique
+  supplierId     Int?
+  locationId     Int?
+  refNo          String?
+  buyer          String?
+  date           DateTime?
+  termin         Int?
+  dueDate        DateTime?
+  discount       Decimal?  @default(0.00)
+  shipping       Decimal?  @default(0.00)
+  notes          String?
+  totalAmount    Decimal   @default(0.00)
+  paidAmount     Decimal   @default(0.00)
+  status         String    @default("unpaid")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  supplier Customer? @relation(fields: [supplierId], references: [id])
+  location Location? @relation(fields: [locationId], references: [id])
+  items    PurchaseItem[]
+
+  @@map("purchases")
 }
 
 //
-// ===========================================
+// ===========================================================
+// PURCHASE ITEM
+// ===========================================================
+model PurchaseItem {
+  id         Int     @id @default(autoincrement())
+  purchaseId Int
+  productId  Int
+  qty        Int
+  price      Decimal
+  subtotal   Decimal @default(0.00)
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@map("purchase_items")
+}
+
+//
+// ===========================================================
 // STOCK ADJUSTMENT
-// ===========================================
+// ===========================================================
 model StockAdjustment {
   id         Int      @id @default(autoincrement())
-  no         String   @unique 
+  no         String   @unique
   date       DateTime @default(now())
   locationId Int
   note       String?
@@ -238,9 +276,9 @@ model StockAdjustment {
 }
 
 //
-// ===========================================
+// ===========================================================
 // STOCK ADJUSTMENT ITEM
-// ===========================================
+// ===========================================================
 model StockAdjustmentItem {
   id           Int      @id @default(autoincrement())
   adjustmentId Int
@@ -254,4 +292,17 @@ model StockAdjustmentItem {
   product    Product         @relation(fields: [productId], references: [id])
 
   @@map("stock_adjustment_items")
+}
+
+//
+// ===========================================================
+// USER (Akun Login)
+// ===========================================================
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

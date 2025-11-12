@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import prisma from "@/lib/prisma";
 
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
 
@@ -23,7 +23,6 @@ export async function POST(req) {
     if (!isPasswordValid)
       return NextResponse.json({ error: "Password salah" }, { status: 401 });
 
-    // Hanya kembalikan user object
     return NextResponse.json(
       { id: user.id.toString(), name: user.name, email: user.email },
       { status: 200 }

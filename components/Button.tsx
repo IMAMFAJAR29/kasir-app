@@ -1,10 +1,5 @@
 import React from "react";
 
-/**
- * 🧩 Button universal dengan dukungan `as` dan `variant`
- * - Bisa render <button>, <a>, atau komponen lain (via prop `as`)
- * - Menyediakan 4 style varian dasar: primary, secondary, outline, danger
- */
 type ButtonProps<T extends React.ElementType = "button"> = {
   children: React.ReactNode;
   as?: T;
@@ -15,7 +10,7 @@ type ButtonProps<T extends React.ElementType = "button"> = {
 export default function Button<T extends React.ElementType = "button">({
   children,
   as,
-  variant = "primary", // default: primary
+  variant = "primary",
   className = "",
   ...props
 }: ButtonProps<T>) {

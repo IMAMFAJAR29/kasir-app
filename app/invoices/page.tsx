@@ -20,9 +20,9 @@ export default function InvoicePage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
 
-  // 🔹 Ambil semua faktur
+  // Ambil semua faktur
   const fetchInvoices = async () => {
     try {
       setLoading(true);
@@ -41,7 +41,7 @@ export default function InvoicePage() {
     fetchInvoices();
   }, []);
 
-  // 🔹 Edit faktur → fetch detail dari backend
+  // Edit faktur → fetch detail dari backend
   const handleEdit = async (inv: Invoice) => {
     Swal.fire({
       title: "Memuat Faktur...",
@@ -53,7 +53,6 @@ export default function InvoicePage() {
     try {
       const res = await fetch(`/api/invoices/${inv.id}`);
       if (!res.ok) throw new Error("Gagal memuat data faktur");
-
       const data = await res.json();
       Swal.close();
       setEditingInvoice(data);
@@ -64,15 +63,13 @@ export default function InvoicePage() {
     }
   };
 
-  // 🔹 Cetak faktur
+  // Cetak faktur
   const handlePrint = (inv: Invoice) => {
     window.open(`/invoices/print/${inv.id}`, "_blank");
   };
 
-  // 🔹 Toggle status paid/unpaid
+  // Toggle status paid/unpaid
   const handleToggleStatus = async (inv: Invoice) => {
-    if (inv.status === "paid") return;
-
     const newStatus = inv.status === "paid" ? "unpaid" : "paid";
     try {
       const res = await fetch(`/api/invoices/${inv.id}/status`, {
@@ -90,9 +87,9 @@ export default function InvoicePage() {
     }
   };
 
-  // 🔹 Hapus faktur
+  // Hapus faktur
   const handleDelete = async (inv: Invoice) => {
-    if (inv.status === "paid") return;
+    if (inv.status === "paid") return; // tidak bisa hapus yang sudah lunas
     const confirm = await Swal.fire({
       title: "Hapus Faktur?",
       text: `Apakah kamu yakin ingin menghapus ${inv.invoiceNumber}?`,
@@ -105,7 +102,6 @@ export default function InvoicePage() {
     try {
       const res = await fetch(`/api/invoices/${inv.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Gagal hapus faktur");
-
       setInvoices((prev) => prev.filter((i) => i.id !== inv.id));
       Swal.fire("Terhapus!", "Faktur berhasil dihapus", "success");
     } catch (err) {
@@ -115,6 +111,7 @@ export default function InvoicePage() {
 
   return (
     <div className="p-6">
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold">Transaksi Faktur</h1>
         <Button
@@ -129,6 +126,7 @@ export default function InvoicePage() {
         </Button>
       </div>
 
+      {/* Tabel Faktur */}
       {loading ? (
         <div className="text-center py-10 text-gray-500">Memuat data...</div>
       ) : (
@@ -160,10 +158,12 @@ export default function InvoicePage() {
                     <td className="p-3 text-right">
                       Rp {inv.totalAmount.toLocaleString("id-ID")}
                     </td>
+
+                    {/* Status dengan toggle + keterangan */}
                     <td className="p-3 text-center">
                       <div
                         onClick={() => handleToggleStatus(inv)}
-                        className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                        className={`w-12 h-6 flex items-center rounded-full p-1 mx-auto cursor-pointer transition-colors ${
                           inv.status === "paid" ? "bg-black" : "bg-gray-300"
                         }`}
                       >
@@ -175,7 +175,12 @@ export default function InvoicePage() {
                           }`}
                         />
                       </div>
+                      <span className="block text-xs text-gray-500 mt-1">
+                        {inv.status === "paid" ? "Sudah Lunas" : "Belum Lunas"}
+                      </span>
                     </td>
+
+                    {/* Aksi */}
                     <td className="p-3 text-center flex justify-center gap-2">
                       <button
                         onClick={() => handleEdit(inv)}
@@ -225,6 +230,7 @@ export default function InvoicePage() {
         </div>
       )}
 
+      {/* Modal Invoice */}
       {showModal && (
         <InvoiceModal
           open={showModal}
