@@ -109,124 +109,266 @@ export default function InvoicePage() {
     }
   };
 
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "unpaid">("all");
+
+  // Metrics calculation
+  const totalAmount = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
+  const paidInvoices = invoices.filter((i) => i.status === "paid");
+  const unpaidInvoices = invoices.filter((i) => i.status !== "paid");
+  const paidAmount = paidInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
+  const unpaidAmount = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
+
+  // Filtered invoices
+  const filteredInvoices = invoices.filter((inv) => {
+    const matchesSearch =
+      inv.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
+      (inv.customerName && inv.customerName.toLowerCase().includes(search.toLowerCase()));
+
+    const matchesStatus =
+      statusFilter === "all" || inv.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
   return (
-    <div className="p-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Transaksi Faktur</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Transaksi Faktur Penjualan
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Daftar penagihan, riwayat invoice penjualan, dan kontrol status pelunasan
+          </p>
+        </div>
+
         <Button
           onClick={() => {
             setEditingInvoice(null);
             setShowModal(true);
           }}
-          className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition"
+          className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-xs"
         >
-          <Plus size={18} />
-          Tambah Faktur Baru
+          <Plus size={16} />
+          <span>Tambah Faktur Baru</span>
         </Button>
+      </div>
+
+      {/* Metrics Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs">
+          <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
+            Total Nilai Faktur
+          </span>
+          <p className="text-2xl font-bold text-slate-900 mt-1">
+            Rp {totalAmount.toLocaleString("id-ID")}
+          </p>
+          <span className="text-xs text-slate-500 mt-0.5 block">
+            {invoices.length} total transaksi tercatat
+          </span>
+        </div>
+
+        <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs">
+          <span className="text-xs text-emerald-600 font-medium uppercase tracking-wider">
+            Sudah Lunas
+          </span>
+          <p className="text-2xl font-bold text-emerald-600 mt-1">
+            Rp {paidAmount.toLocaleString("id-ID")}
+          </p>
+          <span className="text-xs text-slate-500 mt-0.5 block">
+            {paidInvoices.length} faktur terbayar
+          </span>
+        </div>
+
+        <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs">
+          <span className="text-xs text-amber-600 font-medium uppercase tracking-wider">
+            Menunggu Pelunasan
+          </span>
+          <p className="text-2xl font-bold text-amber-600 mt-1">
+            Rp {unpaidAmount.toLocaleString("id-ID")}
+          </p>
+          <span className="text-xs text-slate-500 mt-0.5 block">
+            {unpaidInvoices.length} faktur belum lunas
+          </span>
+        </div>
+      </div>
+
+      {/* Toolbar Filter & Search */}
+      <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* Status Filter Tabs */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setStatusFilter("all")}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+              statusFilter === "all"
+                ? "bg-white text-slate-900 shadow-xs"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Semua ({invoices.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("paid")}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+              statusFilter === "paid"
+                ? "bg-white text-emerald-700 shadow-xs"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Lunas ({paidInvoices.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("unpaid")}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+              statusFilter === "unpaid"
+                ? "bg-white text-amber-700 shadow-xs"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Belum Lunas ({unpaidInvoices.length})
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="w-full sm:max-w-xs">
+          <input
+            type="text"
+            placeholder="Cari nomor faktur / pelanggan..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:bg-white transition"
+          />
+        </div>
       </div>
 
       {/* Tabel Faktur */}
       {loading ? (
-        <div className="text-center py-10 text-gray-500">Memuat data...</div>
+        <div className="text-center py-16 text-slate-500 bg-white rounded-2xl border border-slate-200/80">
+          <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <p className="text-sm">Memuat data faktur...</p>
+        </div>
       ) : (
-        <div className="bg-white shadow-md rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-700">
-              <tr>
-                <th className="p-3 text-left w-12">No</th>
-                <th className="p-3 text-left">Nomor Faktur</th>
-                <th className="p-3 text-left">Pelanggan</th>
-                <th className="p-3 text-left">Gudang</th>
-                <th className="p-3 text-center">Tanggal</th>
-                <th className="p-3 text-right">Total</th>
-                <th className="p-3 text-center">Status</th>
-                <th className="p-3 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.length > 0 ? (
-                invoices.map((inv, i) => (
-                  <tr key={inv.id} className="border-t hover:bg-gray-50">
-                    <td className="p-3 text-center">{i + 1}</td>
-                    <td className="p-3 font-medium">{inv.invoiceNumber}</td>
-                    <td className="p-3">{inv.customerName ?? "-"}</td>
-                    <td className="p-3">{inv.locationName ?? "-"}</td>
-                    <td className="p-3 text-center">
-                      {new Date(inv.createdAt).toLocaleDateString("id-ID")}
-                    </td>
-                    <td className="p-3 text-right">
-                      Rp {inv.totalAmount.toLocaleString("id-ID")}
-                    </td>
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200/80">
+                <tr>
+                  <th className="p-4 w-12 text-center">No</th>
+                  <th className="p-4">Nomor Faktur</th>
+                  <th className="p-4">Pelanggan</th>
+                  <th className="p-4">Gudang</th>
+                  <th className="p-4 text-center">Tanggal</th>
+                  <th className="p-4 text-right">Total Tagihan</th>
+                  <th className="p-4 text-center">Status Pembayaran</th>
+                  <th className="p-4 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredInvoices.length > 0 ? (
+                  filteredInvoices.map((inv, i) => {
+                    const isPaid = inv.status === "paid";
 
-                    {/* Status dengan toggle + keterangan */}
-                    <td className="p-3 text-center">
-                      <div
-                        onClick={() => handleToggleStatus(inv)}
-                        className={`w-12 h-6 flex items-center rounded-full p-1 mx-auto cursor-pointer transition-colors ${
-                          inv.status === "paid" ? "bg-black" : "bg-gray-300"
-                        }`}
-                      >
-                        <div
-                          className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                            inv.status === "paid"
-                              ? "translate-x-6"
-                              : "translate-x-0"
-                          }`}
-                        />
-                      </div>
-                      <span className="block text-xs text-gray-500 mt-1">
-                        {inv.status === "paid" ? "Sudah Lunas" : "Belum Lunas"}
-                      </span>
-                    </td>
+                    return (
+                      <tr key={inv.id} className="hover:bg-slate-50/70 transition">
+                        <td className="p-4 text-center text-xs text-slate-400 font-mono">
+                          {i + 1}
+                        </td>
+                        <td className="p-4 font-semibold text-slate-900">
+                          {inv.invoiceNumber}
+                        </td>
+                        <td className="p-4 text-slate-700">
+                          {inv.customerName || "-"}
+                        </td>
+                        <td className="p-4 text-slate-500 text-xs">
+                          {inv.locationName || "-"}
+                        </td>
+                        <td className="p-4 text-center text-xs text-slate-600">
+                          {new Date(inv.createdAt).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </td>
+                        <td className="p-4 text-right font-bold text-slate-900">
+                          Rp {inv.totalAmount.toLocaleString("id-ID")}
+                        </td>
 
-                    {/* Aksi */}
-                    <td className="p-3 text-center flex justify-center gap-2">
-                      <button
-                        onClick={() => handleEdit(inv)}
-                        disabled={inv.status === "paid"}
-                        className={`p-2 rounded-lg hover:bg-gray-200 transition ${
-                          inv.status === "paid"
-                            ? "opacity-50 cursor-not-allowed"
-                            : ""
-                        }`}
-                      >
-                        <Edit size={16} />
-                      </button>
+                        {/* Status Toggle Pill */}
+                        <td className="p-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(inv)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition cursor-pointer select-none active:scale-95 border ${
+                              isPaid
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                            }`}
+                            title="Klik untuk ubah status"
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isPaid ? "bg-emerald-500" : "bg-amber-500"
+                              }`}
+                            />
+                            <span>{isPaid ? "Lunas" : "Belum Lunas"}</span>
+                          </button>
+                        </td>
 
-                      <button
-                        onClick={() => handleDelete(inv)}
-                        disabled={inv.status === "paid"}
-                        className={`p-2 rounded-lg hover:bg-gray-200 transition ${
-                          inv.status === "paid"
-                            ? "opacity-50 cursor-not-allowed"
-                            : ""
-                        }`}
-                      >
-                        <Trash size={16} className="text-red-500" />
-                      </button>
+                        {/* Aksi */}
+                        <td className="p-4 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => handleEdit(inv)}
+                              disabled={isPaid}
+                              title={isPaid ? "Faktur lunas tidak dapat diedit" : "Edit Faktur"}
+                              className={`p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer ${
+                                isPaid ? "opacity-40 cursor-not-allowed" : ""
+                              }`}
+                            >
+                              <Edit size={14} />
+                            </button>
 
-                      <button
-                        onClick={() => handlePrint(inv)}
-                        className="p-2 rounded-lg hover:bg-gray-200 transition"
-                      >
-                        <Printer size={16} />
-                      </button>
+                            <button
+                              onClick={() => handlePrint(inv)}
+                              title="Cetak Faktur"
+                              className="p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                            >
+                              <Printer size={14} />
+                            </button>
+
+                            <button
+                              onClick={() => handleDelete(inv)}
+                              disabled={isPaid}
+                              title={isPaid ? "Faktur lunas tidak dapat dihapus" : "Hapus Faktur"}
+                              className={`p-2 rounded-xl text-rose-600 hover:bg-rose-50 transition cursor-pointer ${
+                                isPaid ? "opacity-40 cursor-not-allowed" : ""
+                              }`}
+                            >
+                              <Trash size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="p-12 text-center text-slate-400"
+                    >
+                      Tidak ada data faktur yang cocok dengan filter
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="p-5 text-center text-gray-500 italic"
-                  >
-                    Belum ada faktur
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

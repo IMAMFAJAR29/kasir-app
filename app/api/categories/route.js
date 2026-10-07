@@ -27,20 +27,29 @@ export async function POST(req) {
     const { name, parentId } = body;
 
     if (!name) {
+      return NextResponse.json({ error: "Name wajib diisi" }, { status: 400 });
+    }
+
+    const normalizedParentId =
+      parentId === null || parentId === undefined || parentId === ""
+        ? null
+        : Number(parentId);
+
+    if (parentId !== null && parentId !== undefined && parentId !== "" && Number.isNaN(normalizedParentId)) {
       return NextResponse.json(
-        { error: "Name wajib diisi" },
-        { status: 400 } // ✅ 400 Bad Request
+        { error: "Parent ID tidak valid" },
+        { status: 400 }
       );
     }
 
     const newCategory = await prisma.category.create({
       data: {
         name,
-        parentId: parentId || null,
+        parentId: normalizedParentId,
       },
     });
 
-    return NextResponse.json(newCategory, { status: 201 }); // ✅ 201 Created
+    return NextResponse.json(newCategory, { status: 201 });
   } catch (error) {
     console.error("Error creating category:", error);
     return NextResponse.json(

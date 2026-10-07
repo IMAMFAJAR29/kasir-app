@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { JSX } from "react";
 import Swal from "sweetalert2";
-import { Trash2, Plus, Save } from "lucide-react";
+import { Trash2, Plus, Save, Folder } from "lucide-react";
 import Button from "@/components/Button";
 
 // ======= Interface =======
@@ -115,62 +115,111 @@ export default function AdminCategoriesPage() {
 
   // ======= Render daftar kategori =======
   function renderList(cats: Category[], prefix = ""): JSX.Element[] {
-    return cats.flatMap((c) => [
-      <div
-        key={c.id}
-        className="flex justify-between items-center bg-white p-3 rounded-lg shadow mb-2"
-      >
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={selected.includes(c.id)}
-            onChange={(e) => {
-              if (e.target.checked) setSelected((prev) => [...prev, c.id]);
-              else setSelected((prev) => prev.filter((s) => s !== c.id));
-            }}
-            className="w-4 h-4"
-          />
-          <span className="text-gray-800">
-            {prefix ? `${prefix} > ${c.name}` : c.name}
-          </span>
+    return cats.map((c) => {
+      const hasChildren = Array.isArray(c.children) && c.children.length > 0;
+
+      return (
+        <div
+          key={c.id}
+          className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs hover:shadow-md transition space-y-3"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 text-amber-700 flex items-center justify-center font-bold shrink-0">
+                <Folder size={18} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900 text-sm sm:text-base">
+                  {prefix ? `${prefix} > ${c.name}` : c.name}
+                </h3>
+                {hasChildren && (
+                  <p className="text-xs text-slate-400">
+                    {c.children!.length} subkategori
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setForm({
+                    type: "sub",
+                    name: "",
+                    parentId: c.id,
+                    parentName: c.name,
+                  });
+                  setShowAddModal(true);
+                }}
+                className="px-2.5 py-1 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition"
+              >
+                + Sub
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(c.id)}
+                className="p-1.5 text-xs text-rose-500 hover:bg-rose-50 rounded-lg transition"
+                title="Hapus Kategori"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Subkategori list */}
+          {hasChildren && (
+            <div className="pl-6 border-l-2 border-slate-100 ml-5 space-y-2 pt-1">
+              {renderList(
+                c.children!,
+                prefix ? `${prefix} > ${c.name}` : c.name
+              )}
+            </div>
+          )}
         </div>
-        {selected.includes(c.id) && (
-          <button
-            onClick={() => handleDelete(c.id)}
-            className="text-red-500 hover:text-red-700"
-          >
-            <Trash2 size={18} />
-          </button>
-        )}
-      </div>,
-      ...(Array.isArray(c.children) && c.children.length > 0
-        ? renderList(c.children, prefix ? `${prefix} > ${c.name}` : c.name)
-        : []),
-    ]);
+      );
+    });
   }
 
   // ======= JSX =======
   return (
-    <div className="pt-20 p-6 max-w-6xl mx-auto font-sans">
-      {/* Header: Search + Button Tambah */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      {/* Header Title */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Kategori Produk
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Kelola kelompok barang, subkategori, dan taksonomi produk
+          </p>
+        </div>
+
+        <Button
+          onClick={() => {
+            setForm({ type: "root", name: "", parentId: "", parentName: "" });
+            setShowAddModal(true);
+          }}
+          className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-xs"
+        >
+          <Plus size={16} />
+          <span>Tambah Kategori</span>
+        </Button>
+      </div>
+
+      {/* Search Filter */}
+      <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs">
         <input
           type="text"
           placeholder="Cari kategori..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:max-w-md border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black-500"
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:bg-white transition"
         />
-        <Button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-3 py-1 bg-black text-white rounded text-sm"
-        >
-          <Plus size={18} /> Tambah Kategori
-        </Button>
       </div>
 
-      {/* Daftar kategori */}
-      <div>
+      {/* Daftar Kategori */}
+      <div className="space-y-3.5">
         {categories.length > 0 ? (
           renderList(
             categories.filter((c) =>
@@ -178,55 +227,69 @@ export default function AdminCategoriesPage() {
             )
           )
         ) : (
-          <p className="text-gray-500">Belum ada kategori</p>
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-12 text-center">
+            <p className="font-semibold text-slate-700">Belum ada kategori</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Tambahkan kategori untuk memudahkan pengelompokan produk di kasir
+            </p>
+          </div>
         )}
       </div>
 
       {/* Modal Tambah Kategori */}
       {showAddModal && (
-        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white w-full max-w-lg rounded-lg shadow-lg p-6 relative">
-            <h3 className="text-lg font-semibold mb-4">Tambah Kategori</h3>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+          <div className="bg-white w-full max-w-lg rounded-3xl border border-slate-200 shadow-2xl p-6 relative">
+            <h3 className="text-lg font-bold text-slate-900 mb-1">
+              {form.type === "sub" ? "Tambah Sub Kategori" : "Tambah Kategori Baru"}
+            </h3>
+            <p className="text-xs text-slate-500 mb-5">
+              {form.type === "sub"
+                ? `Menambahkan subkategori di bawah ${form.parentName || "induk"}`
+                : "Buat kategori utama baru untuk produk Anda"}
+            </p>
 
             {/* Pilih jenis kategori */}
-            <div className="mb-4 flex gap-6">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  value="root"
-                  checked={form.type === "root"}
-                  onChange={() =>
-                    setForm({
-                      ...form,
-                      type: "root",
-                      parentId: "",
-                      parentName: "",
-                    })
-                  }
-                  className="w-4 h-4 text-black-600 border-gray-300"
-                />
+            <div className="mb-5 grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+              <button
+                type="button"
+                onClick={() =>
+                  setForm({
+                    ...form,
+                    type: "root",
+                    parentId: "",
+                    parentName: "",
+                  })
+                }
+                className={`py-2 text-xs font-semibold rounded-lg transition ${
+                  form.type === "root"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
                 Kategori Utama
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  value="sub"
-                  checked={form.type === "sub"}
-                  onChange={() => setForm({ ...form, type: "sub" })}
-                  className="w-4 h-4 text-black-600 border-gray-300"
-                />
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, type: "sub" })}
+                className={`py-2 text-xs font-semibold rounded-lg transition ${
+                  form.type === "sub"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
                 Sub Kategori
-              </label>
+              </button>
             </div>
 
             {/* Pilih induk langsung jika sub kategori */}
-            {form.type === "sub" && (
-              <div className="mb-4 max-h-64 overflow-y-auto border border-gray-200 rounded-md">
-                {flattenCategories(categories)
-                  .filter((c) =>
-                    c.name.toLowerCase().includes(search.toLowerCase())
-                  )
-                  .map((c) => (
+            {form.type === "sub" && !form.parentName && (
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  Pilih Kategori Induk:
+                </label>
+                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 bg-slate-50">
+                  {flattenCategories(categories).map((c) => (
                     <div
                       key={c.id}
                       onClick={() =>
@@ -236,44 +299,62 @@ export default function AdminCategoriesPage() {
                           parentName: c.name,
                         })
                       }
-                      className={`cursor-pointer py-2 px-3 hover:bg-gray-50 ${
-                        form.parentId === c.id ? "bg-green-100" : ""
+                      className={`cursor-pointer p-2.5 text-xs transition ${
+                        form.parentId === c.id
+                          ? "bg-indigo-50 text-indigo-700 font-bold"
+                          : "hover:bg-white text-slate-700"
                       }`}
                     >
                       {c.name}
                     </div>
                   ))}
+                </div>
               </div>
             )}
 
             {/* Input nama kategori */}
             {(form.type === "root" || form.parentId) && (
-              <div className="mt-4">
+              <div className="space-y-4">
                 {form.parentName && (
-                  <p className="text-sm text-gray-700 mb-1">
-                    Kategori Induk:{" "}
-                    <span className="font-medium">{form.parentName}</span>
-                  </p>
+                  <div className="p-2.5 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-800">
+                    Kategori Induk: <span className="font-bold">{form.parentName}</span>
+                  </div>
                 )}
-                <input
-                  type="text"
-                  placeholder="Nama kategori"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-3 focus:ring-2 focus:ring-black-500"
-                />
-                <Button
-                  onClick={handleSubmit}
-                  className="flex items-center gap-2 px-3 py-1 bg-black text-white rounded text-sm"
-                >
-                  <Save size={18} /> Simpan
-                </Button>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                    Nama Kategori
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Makanan Ringan"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:bg-white transition"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAddModal(false)}
+                    className="text-xs py-2 rounded-xl"
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    className="text-xs py-2 rounded-xl bg-slate-900 text-white flex items-center gap-1.5"
+                  >
+                    <Save size={14} />
+                    <span>Simpan Kategori</span>
+                  </Button>
+                </div>
               </div>
             )}
 
             <button
               onClick={() => setShowAddModal(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100 transition"
             >
               ✕
             </button>

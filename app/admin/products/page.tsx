@@ -204,11 +204,36 @@ export default function ProductsPage() {
   }
 
   // =======================
-  // FILTER PRODUK BERDASARKAN SEARCH
+  // FILTER PRODUK
   // =======================
-  const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all");
+  const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "low_stock" | "out_of_stock">("all");
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.sku && p.sku.toLowerCase().includes(search.toLowerCase()));
+
+    const matchesCategory =
+      selectedCategoryFilter === "all" ||
+      String(p.category?.id) === selectedCategoryFilter;
+
+    let matchesStock = true;
+    if (stockFilter === "in_stock") matchesStock = p.stock > 5;
+    else if (stockFilter === "low_stock") matchesStock = p.stock > 0 && p.stock <= 5;
+    else if (stockFilter === "out_of_stock") matchesStock = p.stock <= 0;
+
+    return matchesSearch && matchesCategory && matchesStock;
+  });
+
+  // Metrik ringkasan
+  const totalInventoryValue = products.reduce(
+    (sum, p) => sum + Number(p.price) * p.stock,
+    0
   );
+  const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= 5).length;
+  const outOfStockCount = products.filter((p) => p.stock <= 0).length;
 
   // =======================
   // MAPPING PRODUK → FORM
@@ -230,49 +255,45 @@ export default function ProductsPage() {
   // RENDER
   // =======================
   return (
-    <div className="p-4 pt-20">
-      {/* Header */}
-      <div className="w-full p-4 bg-white shadow rounded-md">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <h1 className="text-xl font-bold text-gray-800">Daftar Produk</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      {/* Header & Title */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Katalog Produk
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Kelola data barang, harga jual, barcode, dan stok inventaris
+          </p>
+        </div>
 
-          {/* Search bar */}
-          <div className="flex-grow max-w-md w-full">
-            <input
-              type="text"
-              placeholder="Cari produk..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
-
-          {/* Tombol tambah produk */}
-          <div className="relative flex-none">
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2.5">
+          <div className="relative">
             <Button
               onClick={() => setShowDropdown(!showDropdown)}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-xs"
             >
-              Tambah Produk
-              <ChevronDown size={18} />
+              <span>+ Tambah Produk</span>
+              <ChevronDown size={16} />
             </Button>
 
             {showDropdown && (
-              <div className="absolute right-0 mt-2 bg-white rounded-xl shadow-lg w-40 z-20">
+              <div className="absolute right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl w-48 z-30 p-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
                 <button
                   onClick={handleAddManual}
-                  className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-t-xl transition"
+                  className="block w-full text-left px-3.5 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition cursor-pointer font-medium"
                 >
-                  Tambah Satuan
+                  Input Satuan
                 </button>
                 <button
                   onClick={() => {
                     setShowImportModal(true);
                     setShowDropdown(false);
                   }}
-                  className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-b-xl transition"
+                  className="block w-full text-left px-3.5 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition cursor-pointer font-medium"
                 >
-                  Import Produk
+                  Import File Excel
                 </button>
               </div>
             )}
@@ -280,44 +301,255 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Grid produk */}
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {filteredProducts.map((product) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            onEdit={() => {
-              setForm(mapProductToForm(product));
-              setIsEditing(true);
-              setShowProductFormModal(true);
-            }}
-            onPrintBarcode={() => {
-              setSelectedProduct(product);
-              setShowBarcodeModal(true);
-            }}
-            onDelete={async () => {
-              const confirm = await Swal.fire({
-                title: "Hapus produk?",
-                icon: "warning",
-                showCancelButton: true,
-                confirmButtonText: "Ya, hapus",
-              });
-              if (confirm.isConfirmed) {
-                await fetch(`/api/products/${product.id}`, {
-                  method: "DELETE",
-                });
-                setProducts((prev) => prev.filter((p) => p.id !== product.id));
-                Swal.fire("Terhapus!", "Produk berhasil dihapus", "success");
-              }
-            }}
-          />
-        ))}
+      {/* Metric Mini Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs">
+          <span className="text-xs text-slate-400 font-medium">Total Item</span>
+          <p className="text-xl font-bold text-slate-900 mt-1">{products.length}</p>
+        </div>
+        <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs">
+          <span className="text-xs text-slate-400 font-medium">Nilai Inventaris</span>
+          <p className="text-xl font-bold text-slate-900 mt-1 truncate">
+            Rp {totalInventoryValue.toLocaleString("id-ID")}
+          </p>
+        </div>
+        <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs">
+          <span className="text-xs text-amber-600 font-medium">Stok Menipis</span>
+          <p className="text-xl font-bold text-amber-600 mt-1">{lowStockCount}</p>
+        </div>
+        <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs">
+          <span className="text-xs text-rose-600 font-medium">Stok Habis</span>
+          <p className="text-xl font-bold text-rose-600 mt-1">{outOfStockCount}</p>
+        </div>
       </div>
+
+      {/* Toolbar Filter & Search */}
+      <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs space-y-3">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          {/* Search */}
+          <div className="relative flex-1 max-w-md">
+            <input
+              type="text"
+              placeholder="Cari nama produk / SKU..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:bg-white transition"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Category Filter */}
+            <select
+              value={selectedCategoryFilter}
+              onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-950 transition cursor-pointer"
+            >
+              <option value="all">Semua Kategori</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Stock Filter */}
+            <select
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value as any)}
+              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-950 transition cursor-pointer"
+            >
+              <option value="all">Semua Status Stok</option>
+              <option value="in_stock">Tersedia (&gt;5)</option>
+              <option value="low_stock">Menipis (1-5)</option>
+              <option value="out_of_stock">Habis (0)</option>
+            </select>
+
+            {/* View Mode Switcher */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                  viewMode === "grid"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                Grid
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                  viewMode === "table"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                Tabel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Grid atau Table Produk */}
+      {viewMode === "grid" ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filteredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onEdit={() => {
+                setForm(mapProductToForm(product));
+                setIsEditing(true);
+                setShowProductFormModal(true);
+              }}
+              onPrintBarcode={() => {
+                setSelectedProduct(product);
+                setShowBarcodeModal(true);
+              }}
+              onDelete={async () => {
+                const confirm = await Swal.fire({
+                  title: "Hapus produk?",
+                  text: `Produk "${product.name}" akan dihapus permanen`,
+                  icon: "warning",
+                  showCancelButton: true,
+                  confirmButtonText: "Ya, hapus",
+                  cancelButtonText: "Batal",
+                  confirmButtonColor: "#e11d48",
+                });
+                if (confirm.isConfirmed) {
+                  await fetch(`/api/products/${product.id}`, {
+                    method: "DELETE",
+                  });
+                  setProducts((prev) => prev.filter((p) => p.id !== product.id));
+                  Swal.fire("Terhapus!", "Produk berhasil dihapus", "success");
+                }
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Table View */
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200/80">
+                <tr>
+                  <th className="p-4">Produk</th>
+                  <th className="p-4">SKU</th>
+                  <th className="p-4">Kategori</th>
+                  <th className="p-4 text-center">Stok</th>
+                  <th className="p-4 text-right">Harga</th>
+                  <th className="p-4 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredProducts.map((product) => {
+                  const isOutOfStock = product.stock <= 0;
+                  const isLowStock = product.stock > 0 && product.stock <= 5;
+
+                  return (
+                    <tr key={product.id} className="hover:bg-slate-50/70 transition">
+                      <td className="p-4 font-semibold text-slate-900">
+                        {product.name}
+                      </td>
+                      <td className="p-4 text-xs font-mono text-slate-500">
+                        {product.sku || "-"}
+                      </td>
+                      <td className="p-4 text-slate-600">
+                        {product.category?.name || "-"}
+                      </td>
+                      <td className="p-4 text-center">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                            isOutOfStock
+                              ? "bg-rose-50 text-rose-700"
+                              : isLowStock
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-emerald-50 text-emerald-700"
+                          }`}
+                        >
+                          {product.stock}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right font-bold text-slate-900">
+                        Rp {Number(product.price).toLocaleString("id-ID")}
+                      </td>
+                      <td className="p-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForm(mapProductToForm(product));
+                              setIsEditing(true);
+                              setShowProductFormModal(true);
+                            }}
+                            className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg transition"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedProduct(product);
+                              setShowBarcodeModal(true);
+                            }}
+                            className="p-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg border border-slate-200 transition"
+                            title="Barcode"
+                          >
+                            Barcode
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const confirm = await Swal.fire({
+                                title: "Hapus produk?",
+                                icon: "warning",
+                                showCancelButton: true,
+                                confirmButtonText: "Ya, hapus",
+                                cancelButtonText: "Batal",
+                                confirmButtonColor: "#e11d48",
+                              });
+                              if (confirm.isConfirmed) {
+                                await fetch(`/api/products/${product.id}`, {
+                                  method: "DELETE",
+                                });
+                                setProducts((prev) =>
+                                  prev.filter((p) => p.id !== product.id)
+                                );
+                                Swal.fire("Terhapus!", "Produk berhasil dihapus", "success");
+                              }
+                            }}
+                            className="p-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                            title="Hapus"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {filteredProducts.length === 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center">
+          <p className="font-semibold text-slate-700">Tidak ada produk yang cocok</p>
+          <p className="text-xs text-slate-400 mt-1">Coba sesuaikan kata kunci atau filter Anda</p>
+        </div>
+      )}
 
       {/* Modal Form Produk */}
       {showProductFormModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-lg w-full max-w-xl">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
             <ProductForm
               form={form}
               setForm={setForm}

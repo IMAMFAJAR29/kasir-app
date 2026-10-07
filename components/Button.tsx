@@ -3,7 +3,8 @@ import React from "react";
 type ButtonProps<T extends React.ElementType = "button"> = {
   children: React.ReactNode;
   as?: T;
-  variant?: "primary" | "secondary" | "outline" | "danger"; // 🆕 tambah varian
+  variant?: "primary" | "secondary" | "outline" | "danger" | "success" | "ghost";
+  size?: "sm" | "md" | "lg";
   className?: string;
 } & React.ComponentPropsWithoutRef<T>;
 
@@ -11,29 +12,40 @@ export default function Button<T extends React.ElementType = "button">({
   children,
   as,
   variant = "primary",
+  size = "md",
   className = "",
   ...props
 }: ButtonProps<T>) {
   const Tag = as || "button";
 
-  // 🎨 Style dasar
-  const baseStyle =
-    "px-4 py-2 rounded-lg font-medium transition-colors duration-200 inline-flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2";
+  const sizeStyles = {
+    sm: "px-3 py-1.5 text-xs font-medium rounded-lg gap-1.5",
+    md: "px-4 py-2 text-sm font-medium rounded-xl gap-2",
+    lg: "px-5 py-2.5 text-base font-semibold rounded-xl gap-2.5",
+  };
 
-  // 🎨 Style per varian
+  const baseStyle =
+    "inline-flex items-center justify-center font-medium transition-all duration-150 select-none focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer active:scale-[0.98]";
+
   const variants = {
-    primary: "bg-black text-white hover:bg-gray-800 focus:ring-gray-700",
+    primary:
+      "bg-slate-900 text-white hover:bg-slate-800 shadow-sm hover:shadow focus:ring-slate-950",
     secondary:
-      "bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-400",
+      "bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200/80 focus:ring-slate-400",
     outline:
-      "border border-gray-400 text-gray-700 hover:bg-gray-100 focus:ring-gray-400",
-    danger: "bg-red-500 text-white hover:bg-red-600 focus:ring-red-500",
+      "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-sm focus:ring-slate-400",
+    danger:
+      "bg-rose-600 text-white hover:bg-rose-700 shadow-sm focus:ring-rose-500",
+    success:
+      "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm focus:ring-emerald-500",
+    ghost:
+      "text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:ring-slate-300",
   };
 
   return (
     <Tag
       {...props}
-      className={`${baseStyle} ${variants[variant]} ${className}`}
+      className={`${baseStyle} ${sizeStyles[size]} ${variants[variant]} ${className}`}
     >
       {children}
     </Tag>

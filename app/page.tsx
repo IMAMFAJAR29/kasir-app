@@ -20,11 +20,11 @@ export default function HomeRedirect() {
   }, [status, router]);
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm z-50">
-      <div className="flex flex-col items-center gap-3">
-        <Loader2 className="w-10 h-10 text-black animate-spin" />
-        <p className="text-gray-600 font-medium">
-          {status === "loading" ? "" : ""}
+    <div className="fixed inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-md z-50">
+      <div className="flex flex-col items-center gap-3 bg-white p-6 rounded-2xl shadow-xl border border-slate-200/80">
+        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+        <p className="text-xs font-semibold text-slate-600 tracking-wider">
+          Memuat POS Imam...
         </p>
       </div>
     </div>

@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { LayoutDashboard } from "lucide-react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
+  LayoutDashboard,
   Package,
   Layers,
   ShoppingCart,
@@ -12,311 +13,374 @@ import {
   Menu,
   X,
   FileText,
+  ChevronDown,
+  Warehouse,
+  Tags,
+  Users,
+  FileCheck2,
 } from "lucide-react";
 
 export default function Navbar() {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
 
-  if (status === "loading") return null;
-  if (!session) return null;
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        userDropdownRef.current &&
+        !userDropdownRef.current.contains(event.target as Node)
+      ) {
+        setUserDropdownOpen(false);
+      }
+    }
 
-  const handleLogout = () => signOut({ callbackUrl: "/login" });
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  if (status === "loading" || !session) return null;
+
+  const handleLogout = () => signOut({ callbackUrl: "/auth" });
+
+  const isActive = (path: string) => {
+    if (path === "/" || path === "/admin/dashboard") {
+      return pathname === "/" || pathname === "/admin/dashboard";
+    }
+    return pathname.startsWith(path);
+  };
+
+  const userName =
+    session?.user?.name || session?.user?.email?.split("@")?.[0] || "User";
+  const userInitial = userName.charAt(0).toUpperCase();
 
   return (
-    <header className="w-full fixed top-0 left-0 z-50 bg-white shadow-md rounded-b-2xl">
-      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-        {/* === LOGO === */}
-        <div className="flex items-center">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-xl font-bold text-gray-900 hover:text-gray-700 transition"
-          >
-            <LayoutDashboard className="w-6 h-6 text-gray-800" />
-            <span className="tracking-wide">POS IMAM</span>
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="flex items-center gap-6">
+          <Link href="/admin/dashboard" className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-900 text-white">
+              <ShoppingCart className="h-4 w-4" />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-base font-semibold tracking-tight text-slate-900">
+                POS IMAM
+              </span>
+            </div>
           </Link>
+
+          <nav className="hidden items-center gap-1 lg:flex">
+            <Link
+              href="/admin/dashboard"
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                isActive("/admin/dashboard")
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              <span>Dashboard</span>
+            </Link>
+
+            <div className="group relative">
+              <button
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  isActive("/admin/products") || isActive("/admin/categories")
+                    ? "bg-slate-100 text-slate-900"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                <Package className="h-4 w-4" />
+                <span>Katalog</span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+              </button>
+
+              <div className="absolute left-0 top-full hidden pt-2 group-hover:block z-50">
+                <div className="min-w-[210px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                  <Link
+                    href="/admin/products"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <Package className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Daftar Produk</div>
+                      <div className="text-[11px] text-slate-500">Kelola stok & harga</div>
+                    </div>
+                  </Link>
+                  <Link
+                    href="/admin/categories"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <Tags className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Kategori Produk</div>
+                      <div className="text-[11px] text-slate-500">Hierarki & subkategori</div>
+                    </div>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <div className="group relative">
+              <button
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  isActive("/invoices") || isActive("/sales/customers")
+                    ? "bg-slate-100 text-slate-900"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                <FileCheck2 className="h-4 w-4" />
+                <span>Penjualan</span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+              </button>
+
+              <div className="absolute left-0 top-full hidden pt-2 group-hover:block z-50">
+                <div className="min-w-[220px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                  <Link
+                    href="/invoices"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <FileText className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Faktur Penjualan</div>
+                      <div className="text-[11px] text-slate-500">Tagihan & status bayar</div>
+                    </div>
+                  </Link>
+                  <Link
+                    href="/sales/customers"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <Users className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Kontak Pelanggan</div>
+                      <div className="text-[11px] text-slate-500">Data customer & pemasok</div>
+                    </div>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <Link
+              href="/purchases"
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                isActive("/purchases")
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+              <span>Pembelian</span>
+            </Link>
+
+            <div className="group relative">
+              <button
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  isActive("/warehouse")
+                    ? "bg-slate-100 text-slate-900"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                <Warehouse className="h-4 w-4" />
+                <span>Gudang</span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+              </button>
+
+              <div className="absolute left-0 top-full hidden pt-2 group-hover:block z-50">
+                <div className="min-w-[200px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                  <Link
+                    href="/warehouse/stock"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <Layers className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Stok Gudang</div>
+                      <div className="text-[11px] text-slate-500">Inventaris & mutasi</div>
+                    </div>
+                  </Link>
+                  <Link
+                    href="/warehouse/locations"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <Warehouse className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Lokasi Gudang</div>
+                      <div className="text-[11px] text-slate-500">Cabang & penyimpanan</div>
+                    </div>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </nav>
         </div>
 
-        {/* === MENU DESKTOP === */}
-        <nav className="hidden md:flex items-center justify-center gap-8">
-          {/* === KATALOG === */}
-          <div className="relative group">
-            <button className="flex items-center gap-2 text-gray-800 hover:text-black transition">
-              <Package className="w-5 h-5" />
-              <span>Katalog</span>
-              <svg
-                className="w-3 h-3 mt-1"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-            <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg rounded p-2 min-w-[170px] z-50">
-              <Link
-                href="/admin/products"
-                className="block px-3 py-2 hover:bg-gray-100 rounded"
-              >
-                Produk
-              </Link>
-              <Link
-                href="/admin/categories"
-                className="block px-3 py-2 hover:bg-gray-100 rounded"
-              >
-                Kategori
-              </Link>
-            </div>
-          </div>
-
-          {/* === PENJUALAN === */}
-          <div className="relative group">
-            <button className="flex items-center gap-2 text-gray-800 hover:text-black transition">
-              <ShoppingCart className="w-5 h-5" />
-              <span>Penjualan</span>
-              <svg
-                className="w-3 h-3 mt-1"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-            <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg rounded p-2 min-w-[220px] z-50">
-              <Link
-                href="/pos"
-                className="block px-3 py-2 hover:bg-gray-100 rounded"
-              >
-                Kasir
-              </Link>
-              <Link
-                href="/invoices"
-                className="block px-3 py-2 hover:bg-gray-100 rounded"
-              >
-                Transaksi Faktur
-              </Link>
-              <Link
-                href="/sales/customers" // tetap ambil API customers untuk pemasok
-                className="block px-3 py-2 hover:bg-gray-100 rounded"
-              >
-                Kontak Pemasok
-              </Link>
-            </div>
-          </div>
-
-          {/* === PEMBELIAN === */}
-          <div className="relative group">
-            <button className="flex items-center gap-2 text-gray-800 hover:text-black transition">
-              <FileText className="w-5 h-5" />
-              <span>Pembelian</span>
-              <svg
-                className="w-3 h-3 mt-1"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-
-            <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg rounded p-2 min-w-[200px] z-50">
-              <Link
-                href="/purchases"
-                className="block px-3 py-2 hover:bg-gray-100 rounded"
-              >
-                Transaksi Pembelian
-              </Link>
-            </div>
-          </div>
-
-          {/* === GUDANG === */}
-          <div className="relative group">
-            <button className="flex items-center gap-2 text-gray-800 hover:text-black transition">
-              <Layers className="w-5 h-5" />
-              <span>Gudang</span>
-              <svg
-                className="w-3 h-3 mt-1"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-            <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg rounded p-2 min-w-[150px] z-50">
-              <Link
-                href="/warehouse/locations"
-                className="block px-3 py-2 hover:bg-gray-100 rounded"
-              >
-                Lokasi
-              </Link>
-              <Link
-                href="/warehouse/stock"
-                className="block px-3 py-2 hover:bg-gray-100 rounded"
-              >
-                Stock
-              </Link>
-            </div>
-          </div>
-        </nav>
-
-        {/* === USER + LOGOUT DESKTOP === */}
-        <div className="hidden md:flex items-center gap-4">
-          <span className="text-gray-700 text-sm font-medium">
-            {session?.user?.name || session?.user?.email || ""}
-          </span>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition"
+        <div className="flex items-center gap-3">
+          <Link
+            href="/pos"
+            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+              pathname === "/pos"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+            }`}
           >
-            <Power className="w-4 h-4" />
-            Logout
+            <ShoppingCart className="h-4 w-4" />
+            <span className="hidden sm:inline">Kasir POS</span>
+          </Link>
+
+          <div className="relative" ref={userDropdownRef}>
+            <button
+              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-1.5 pl-2 text-left transition hover:bg-slate-50"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-xs font-semibold text-white">
+                {userInitial}
+              </div>
+              <span className="hidden text-sm font-medium text-slate-700 md:inline">
+                {userName}
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+            </button>
+
+            {userDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-sm z-50">
+                <div className="mb-1 border-b border-slate-100 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                    Masuk sebagai
+                  </p>
+                  <p className="truncate text-sm font-semibold text-slate-900">
+                    {userName}
+                  </p>
+                  <p className="truncate text-xs text-slate-500">
+                    {session?.user?.email || ""}
+                  </p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+                >
+                  <Power className="h-4 w-4" />
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="rounded-lg border border-slate-200 p-2 text-slate-700 hover:bg-slate-50 lg:hidden"
+            aria-label="Toggle Menu"
+          >
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
-
-        {/* === TOGGLE MENU MOBILE === */}
-        <button
-          className="md:hidden text-gray-800"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Toggle Menu"
-        >
-          {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
       </div>
 
-      {/* === MENU MOBILE === */}
       {menuOpen && (
-        <div className="md:hidden bg-white shadow-lg rounded-b-2xl p-4 space-y-4 border-t">
-          {/* MOBILE: KATALOG */}
-          <div className="space-y-1">
-            <span className="block text-gray-700 text-sm font-medium">
-              Katalog
-            </span>
+        <div className="border-t border-slate-200 bg-white px-4 py-4 lg:hidden">
+          <div className="space-y-2">
             <Link
-              href="/admin/products"
+              href="/admin/dashboard"
               onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2 hover:bg-gray-100 rounded"
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium ${
+                isActive("/admin/dashboard")
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
             >
-              Produk
+              <LayoutDashboard className="h-4 w-4" />
+              <span>Dashboard</span>
             </Link>
-            <Link
-              href="/admin/categories"
-              onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2 hover:bg-gray-100 rounded"
-            >
-              Kategori Produk
-            </Link>
-          </div>
 
-          {/* MOBILE: PENJUALAN */}
-          <div className="space-y-1 pt-2 border-t">
-            <span className="block text-gray-700 text-sm font-medium">
-              Penjualan
-            </span>
             <Link
               href="/pos"
               onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2 hover:bg-gray-100 rounded"
+              className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700"
             >
-              Kasir
+              <ShoppingCart className="h-4 w-4 text-slate-700" />
+              <span>Kasir POS</span>
             </Link>
-            <Link
-              href="/invoices"
-              onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2 hover:bg-gray-100 rounded"
-            >
-              Transaksi Faktur
-            </Link>
-            <Link
-              href="/sales/customers"
-              onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2 hover:bg-gray-100 rounded"
-            >
-              Kontak Pemasok
-            </Link>
-          </div>
 
-          {/* MOBILE: PEMBELIAN */}
-          <div className="space-y-1 pt-2 border-t">
-            <span className="block text-gray-700 text-sm font-medium">
-              Pembelian
-            </span>
-            <Link
-              href="/purchases"
-              onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2 hover:bg-gray-100 rounded"
-            >
-              Daftar Pembelian
-            </Link>
-            <Link
-              href="/purchases/create"
-              onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2 hover:bg-gray-100 rounded"
-            >
-              Tambah Pembelian
-            </Link>
-            <Link
-              href="/sales/customers"
-              onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2 hover:bg-gray-100 rounded"
-            >
-              Kontak Pemasok
-            </Link>
-          </div>
+            <div className="pt-2">
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                Katalog
+              </p>
+              <Link
+                href="/admin/products"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <Package className="h-4 w-4 text-slate-400" />
+                <span>Produk</span>
+              </Link>
+              <Link
+                href="/admin/categories"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <Tags className="h-4 w-4 text-slate-400" />
+                <span>Kategori</span>
+              </Link>
+            </div>
 
-          {/* MOBILE: GUDANG */}
-          <div className="pt-2 border-t space-y-1">
-            <span className="block text-gray-700 text-sm font-medium">
-              Gudang
-            </span>
-            <Link
-              href="/warehouse/locations"
-              onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2 hover:bg-gray-100 rounded"
-            >
-              Lokasi
-            </Link>
-            <Link
-              href="/warehouse/stock"
-              onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2 hover:bg-gray-100 rounded"
-            >
-              Stock
-            </Link>
-          </div>
+            <div className="pt-2">
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                Transaksi
+              </p>
+              <Link
+                href="/invoices"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <FileText className="h-4 w-4 text-slate-400" />
+                <span>Faktur Penjualan</span>
+              </Link>
+              <Link
+                href="/purchases"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <FileCheck2 className="h-4 w-4 text-slate-400" />
+                <span>Pembelian</span>
+              </Link>
+              <Link
+                href="/sales/customers"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <Users className="h-4 w-4 text-slate-400" />
+                <span>Kontak Pelanggan</span>
+              </Link>
+            </div>
 
-          {/* MOBILE: USER + LOGOUT */}
-          <div className="border-t pt-4">
-            <span className="block text-gray-700 text-sm mb-3 font-medium">
-              {session?.user?.name || session?.user?.email || ""}
-            </span>
+            <div className="pt-2">
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                Gudang
+              </p>
+              <Link
+                href="/warehouse/stock"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <Layers className="h-4 w-4 text-slate-400" />
+                <span>Stok Gudang</span>
+              </Link>
+              <Link
+                href="/warehouse/locations"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <Warehouse className="h-4 w-4 text-slate-400" />
+                <span>Lokasi Gudang</span>
+              </Link>
+            </div>
+
             <button
               onClick={handleLogout}
-              className="flex items-center justify-center gap-2 w-full bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-100"
             >
-              <Power className="w-4 h-4" />
-              Logout
+              <Power className="h-4 w-4" />
+              <span>Logout</span>
             </button>
           </div>
         </div>

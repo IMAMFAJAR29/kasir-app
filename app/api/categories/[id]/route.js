@@ -27,11 +27,23 @@ export async function PUT(req, { params }) {
     const body = await req.json();
     const { name, parentId } = body;
 
+    const normalizedParentId =
+      parentId === null || parentId === undefined || parentId === ""
+        ? null
+        : Number(parentId);
+
+    if (parentId !== null && parentId !== undefined && parentId !== "" && Number.isNaN(normalizedParentId)) {
+      return NextResponse.json(
+        { error: "Parent ID tidak valid" },
+        { status: 400 }
+      );
+    }
+
     const updatedCategory = await prisma.category.update({
       where: { id: Number(params.id) },
       data: {
         ...(name && { name }),
-        parentId: parentId ?? null, // null = jadi root
+        parentId: normalizedParentId,
       },
     });
 

@@ -7,8 +7,8 @@ import Navbar from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "POS IMAM",
-  description: "POS TERBAIK",
+  title: "POS IMAM - Sistem Kasir & Inventaris Toko",
+  description: "Aplikasi POS kasir, manajemen faktur, stok gudang, dan laporan terpadu",
 };
 
 export default async function RootLayout({
@@ -23,13 +23,13 @@ export default async function RootLayout({
     pathname.startsWith("/auth") || pathname.startsWith("/login");
 
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="id">
+      <body className={`${inter.className} min-h-screen bg-[var(--background)] text-slate-900 antialiased`}>
         <Providers>
-          {!hideNavbar && <Navbar />}{" "}
-          {/* ✅ tampilkan jika bukan halaman auth */}
-          <main className="pt-16">{children}</main>{" "}
-          {/* beri padding biar ga ketutup navbar */}
+          {!hideNavbar && <Navbar />}
+          <main className={hideNavbar ? "" : "pt-16 min-h-screen"}>
+            {children}
+          </main>
         </Providers>
       </body>
     </html>
