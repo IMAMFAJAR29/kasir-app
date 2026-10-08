@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Loader2 } from "lucide-react";
+import BrandLoader from "@/components/BrandLoader";
 
 export default function HomeRedirect() {
   const { data: session, status } = useSession();
@@ -20,13 +20,9 @@ export default function HomeRedirect() {
   }, [status, router]);
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-md z-50">
-      <div className="flex flex-col items-center gap-3 bg-white p-6 rounded-2xl shadow-xl border border-slate-200/80">
-        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-        <p className="text-xs font-semibold text-slate-600 tracking-wider">
-          Memuat POS Imam...
-        </p>
-      </div>
-    </div>
+    <BrandLoader
+      label="Memuat Anima POS..."
+      className="fixed inset-0 z-50"
+    />
   );
 }

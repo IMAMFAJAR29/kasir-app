@@ -1,29 +1,48 @@
 /* ====== Import Tailwind ====== */
 @import "tailwindcss";
 
-/* ====== Variabel Warna & Font ====== */
+/* ====== Anima POS design tokens ====== */
 :root {
-  --background: #f4f6f8;
-  --foreground: #111827;
+  --brand-navy: #10243a;
+  --brand-blue: #1769e0;
+  --brand-teal: #12bda5;
+  --brand-purple: #6256e8;
+  --background: #f7f9fc;
+  --foreground: var(--brand-navy);
   --card: #ffffff;
-  --card-foreground: #111827;
-  --primary: #111827;
+  --card-foreground: var(--brand-navy);
+  --primary: var(--brand-blue);
   --primary-foreground: #ffffff;
   --muted: #6b7280;
-  --muted-background: #eef2f6;
-  --border: #e5e7eb;
+  --muted-background: #f1f5f9;
+  --border: #e3eaf2;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-purple: var(--brand-purple);
+  --color-indigo-50: #eff6ff;
+  --color-indigo-100: #dbeafe;
+  --color-indigo-200: #bfdbfe;
+  --color-indigo-300: #93c5fd;
+  --color-indigo-400: #60a5fa;
+  --color-indigo-500: #3b82f6;
+  --color-indigo-600: var(--brand-blue);
+  --color-indigo-700: #1d4ed8;
+  --color-indigo-800: #1e40af;
+  --color-indigo-900: #1e3a8a;
+  --color-indigo-950: #172554;
 }
 
 /* ====== Style Umum ====== */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
@@ -39,6 +58,78 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  border-radius: 0.75rem;
+}
+
+.form-control {
+  width: 100%;
+  min-height: 2.625rem;
+  border: 1px solid #dbe3ed;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  padding: 0.625rem 0.875rem;
+  color: var(--brand-navy);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  transition: border-color 150ms ease, background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.form-control::placeholder {
+  color: #94a3b8;
+}
+
+.form-control:hover:not(:focus):not(:read-only):not(:disabled) {
+  border-color: #93c5fd;
+}
+
+.form-control:focus {
+  border-color: var(--brand-blue);
+  outline: none;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(23, 105, 224, 0.12);
+}
+
+.form-control:focus-visible {
+  outline: none;
+}
+
+.form-control:read-only {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.375rem;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1rem;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--brand-blue);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(23, 105, 224, 0.12);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover:not(:focus):not(:disabled),
+select:hover:not(:focus):not(:disabled),
+textarea:hover:not(:focus):not(:disabled) {
+  border-color: #93c5fd;
 }
 
 /* ====== Custom Smooth Scrollbar ====== */
@@ -76,15 +167,15 @@ input[type="number"].no-spinner {
 }
 
 .modern-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 1rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px 0 rgba(16, 36, 58, 0.04), 0 1px 2px -1px rgba(16, 36, 58, 0.04);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modern-card:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.07);
+  box-shadow: 0 4px 8px -2px rgba(16, 36, 58, 0.08), 0 2px 4px -2px rgba(16, 36, 58, 0.04);
 }
 
 /* ====== PRINT MODE ====== */

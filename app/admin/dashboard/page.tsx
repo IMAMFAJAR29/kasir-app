@@ -10,13 +10,13 @@ import {
   ShoppingCart,
   TrendingUp,
   ArrowUpRight,
-  PlusCircle,
   FileText,
   Layers,
   Sparkles,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import BrandLoader from "@/components/BrandLoader";
 import {
   BarChart,
   Bar,
@@ -118,10 +118,10 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] gap-3">
-        <div className="w-10 h-10 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-medium text-slate-500">Memuat data analitik...</p>
-      </div>
+      <BrandLoader
+        label="Memuat data analitik..."
+        className="min-h-[70vh]"
+      />
     );
   }
 
@@ -150,39 +150,22 @@ export default function DashboardPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
       {/* === HERO WELCOME HEADER === */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white p-6 sm:p-8 rounded-3xl shadow-lg relative overflow-hidden">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white text-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden">
         <div className="relative z-10 space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-indigo-300 text-xs font-medium mb-1">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium mb-1">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Sistem Kasir & Operasional Aktif</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             Ringkasan Bisnis & Performa
           </h1>
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-slate-500">
             {todayDateString} &bull; Pantau transaksi, stok, dan penjualan terkini secara real-time.
           </p>
         </div>
 
-        <div className="relative z-10 flex items-center gap-3">
-          <Link
-            href="/pos"
-            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-5 py-3 rounded-2xl shadow-lg hover:shadow-emerald-500/25 transition active:scale-[0.98]"
-          >
-            <ShoppingCart className="w-5 h-5" />
-            <span>Buka Kasir POS</span>
-          </Link>
-          <Link
-            href="/admin/products"
-            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-medium px-4 py-3 rounded-2xl backdrop-blur-md transition"
-          >
-            <PlusCircle className="w-5 h-5" />
-            <span className="hidden sm:inline">Tambah Produk</span>
-          </Link>
-        </div>
-
         {/* Decorative background glow */}
-        <div className="absolute right-0 top-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-0 w-72 h-72 bg-teal-100/60 rounded-full blur-3xl pointer-events-none" />
       </div>
 
       {/* === KPI STAT CARDS === */}
@@ -262,7 +245,7 @@ export default function DashboardPage() {
                   <Tooltip content={<CustomChartTooltip />} />
                   <Bar
                     dataKey="total"
-                    fill="#4f46e5"
+                    fill="#1769e0"
                     radius={[8, 8, 0, 0]}
                     maxBarSize={45}
                   />
@@ -327,7 +310,7 @@ export default function DashboardPage() {
                       {/* Progress bar perbandingan */}
                       <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mb-1.5">
                         <div
-                          className="bg-indigo-600 h-full rounded-full transition-all duration-500"
+                          className="bg-blue-600 h-full rounded-full transition-all duration-500"
                           style={{ width: `${percent}%` }}
                         />
                       </div>
@@ -441,6 +424,8 @@ function QuickActionLink({
   return (
     <Link
       href={href}
+      target={href === "/pos" ? "_blank" : undefined}
+      rel={href === "/pos" ? "noopener noreferrer" : undefined}
       className={`group p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs transition-all duration-150 hover:shadow-md ${color} active:scale-[0.98] flex flex-col justify-between`}
     >
       <div className="flex items-center justify-between mb-2">
@@ -450,7 +435,7 @@ function QuickActionLink({
         <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600 transition-colors" />
       </div>
       <div>
-        <h3 className="font-semibold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">
+        <h3 className="font-semibold text-sm text-slate-900 group-hover:text-blue-700 transition-colors">
           {title}
         </h3>
         <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{desc}</p>

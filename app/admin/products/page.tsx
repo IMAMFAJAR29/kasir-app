@@ -272,7 +272,7 @@ export default function ProductsPage() {
           <div className="relative">
             <Button
               onClick={() => setShowDropdown(!showDropdown)}
-              className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-xs"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
             >
               <span>+ Tambah Produk</span>
               <ChevronDown size={16} />

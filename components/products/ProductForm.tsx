@@ -40,7 +40,7 @@ export default function ProductForm({
         placeholder="Nama Produk"
         value={form.name}
         onChange={(e) => setForm({ ...form, name: e.target.value })}
-        className="w-full border border-gray-200 shadow-sm px-3 py-2 rounded-lg"
+        className="form-control"
         required
       />
 
@@ -50,7 +50,7 @@ export default function ProductForm({
         placeholder="SKU Produk"
         value={form.sku}
         onChange={(e) => setForm({ ...form, sku: e.target.value })}
-        className="w-full border border-gray-200 shadow-sm px-3 py-2 rounded-lg"
+        className="form-control"
       />
 
       {/* Stok */}
@@ -64,7 +64,7 @@ export default function ProductForm({
             stock: e.target.value === "" ? 0 : Number(e.target.value), // tetap number
           })
         }
-        className="w-full border border-gray-200 shadow-sm px-3 py-2 rounded-lg"
+        className="form-control"
       />
 
       {/* Harga */}
@@ -78,7 +78,7 @@ export default function ProductForm({
             price: e.target.value === "" ? 0 : Number(e.target.value),
           })
         }
-        className="w-full border border-gray-200 shadow-sm px-3 py-2 rounded-lg"
+        className="form-control"
         required
       />
 
@@ -90,7 +90,7 @@ export default function ProductForm({
           placeholder="Atau paste URL gambar"
           value={form.imageUrl}
           onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-          className="w-full border border-gray-200 shadow-sm px-3 py-2 rounded-lg"
+          className="form-control"
         />
 
         {/* Input file hidden */}
@@ -107,7 +107,7 @@ export default function ProductForm({
         <label htmlFor="uploadImage">
           <Button
             as="span"
-            className="flex items-center gap-2 px-3 py-1 bg-black text-white rounded text-sm"
+            className="flex items-center gap-2 bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
           >
             {uploading ? (
               "Uploading..."
@@ -137,7 +137,7 @@ export default function ProductForm({
         placeholder="Deskripsi Produk"
         value={form.description}
         onChange={(e) => setForm({ ...form, description: e.target.value })}
-        className="col-span-1 sm:col-span-2 border border-gray-200 shadow-sm px-3 py-2 rounded-lg"
+        className="form-control col-span-1 min-h-24 resize-y sm:col-span-2"
         rows={4}
       />
 
@@ -147,7 +147,7 @@ export default function ProductForm({
         <button
           type="button"
           onClick={() => setShowCategoryModal(true)} // ✅ ini harus jalan
-          className="w-full text-left border border-gray-200 shadow-sm px-3 py-2 rounded-lg"
+          className="form-control text-left"
         >
           {form.categoryId
             ? flattenCategories(categories).find(
@@ -160,14 +160,15 @@ export default function ProductForm({
       <div className="mt-4 col-span-1 sm:col-span-2 flex gap-2">
         <Button
           type="submit"
-          className="flex items-center gap-2 px-3 py-1 bg-black text-white rounded text-sm"
+          className="flex items-center gap-2 bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
         >
           <Save size={16} /> {isEditing ? "Update Produk" : "Tambah Produk"}
         </Button>
         <Button
           type="button"
           onClick={onClose}
-          className="flex items-center gap-2 px-3 py-1 bg-black text-white rounded text-sm"
+          variant="outline"
+          className="flex items-center gap-2 px-3 py-2 text-sm"
         >
           <X size={18} />
         </Button>

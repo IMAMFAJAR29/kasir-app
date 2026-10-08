@@ -235,11 +235,16 @@ export default function InvoiceModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] overflow-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-6 relative max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-6">
-          {invoice ? "Edit Faktur" : "Tambah Faktur Baru"}
-        </h2>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-slate-950/45 p-3 backdrop-blur-sm sm:p-5">
+      <div className="relative max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-6">
+        <div className="mb-6 border-b border-slate-100 pb-4">
+          <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+            {invoice ? "Edit Faktur" : "Tambah Faktur Baru"}
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Lengkapi informasi penjualan dan daftar produk.
+          </p>
+        </div>
 
         {/* Header Form */}
         <InvoiceFormHeader
@@ -284,9 +289,9 @@ export default function InvoiceModal({
         />
 
         {/* Daftar Produk */}
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="font-semibold">Produk</h3>
-          <Button onClick={() => setShowProductModal(true)}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-slate-800">Daftar Produk</h3>
+          <Button size="sm" onClick={() => setShowProductModal(true)}>
             <Plus size={16} /> Tambah Produk
           </Button>
         </div>
@@ -314,7 +319,7 @@ export default function InvoiceModal({
         <InvoiceNotes notes={notes} onChange={setNotes} />
 
         {/* Tombol Aksi */}
-        <div className="flex justify-end items-center mt-6 gap-2">
+        <div className="mt-6 flex flex-col-reverse items-stretch justify-end gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center">
           <Button onClick={handleSave}>
             {invoice ? "Update Faktur" : "Simpan Faktur"}
           </Button>

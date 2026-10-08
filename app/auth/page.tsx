@@ -4,13 +4,14 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Swal from "sweetalert2";
-import { FaGoogle } from "react-icons/fa";
+import { FcGoogle } from "react-icons/fc";
+import BrandLoader from "@/components/BrandLoader";
 import {
   Eye,
   EyeOff,
   Loader2,
-  Store,
   Mail,
   Lock,
   User,
@@ -39,16 +40,7 @@ export default function AuthPage() {
 
   // ⏳ Tampilkan animasi loading saat session masih dicek
   if (status === "loading") {
-    return (
-      <div className="flex flex-col justify-center items-center h-screen bg-slate-950 text-white gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
-        </div>
-        <p className="text-xs text-slate-400 tracking-wider font-medium">
-          Memuat sesi...
-        </p>
-      </div>
-    );
+    return <BrandLoader label="Memuat sesi..." />;
   }
 
   // 🧾 Handle input form
@@ -91,7 +83,7 @@ export default function AuthPage() {
             icon: "error",
             title: "Gagal Masuk",
             text: "Email atau password yang Anda masukkan salah.",
-            confirmButtonColor: "#4f46e5",
+            confirmButtonColor: "#1769e0",
           });
         }
       } finally {
@@ -112,7 +104,7 @@ export default function AuthPage() {
             icon: "success",
             title: "Pendaftaran Berhasil",
             text: "Akun berhasil dibuat! Silakan masuk dengan akun baru Anda.",
-            confirmButtonColor: "#4f46e5",
+            confirmButtonColor: "#1769e0",
           });
           setIsLogin(true);
         } else {
@@ -121,7 +113,7 @@ export default function AuthPage() {
             icon: "error",
             title: "Pendaftaran Gagal",
             text: data.error || "Gagal mendaftar akun baru",
-            confirmButtonColor: "#4f46e5",
+            confirmButtonColor: "#1769e0",
           });
         }
       } finally {
@@ -137,32 +129,37 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4 sm:p-6 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 sm:p-6 relative overflow-hidden">
       {/* Decorative ambient light */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-200/35 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-200/30 rounded-full blur-3xl pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
-        className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl flex flex-col md:flex-row overflow-hidden border border-slate-200/60 z-10"
+        className="relative bg-white rounded-3xl shadow-xl w-full max-w-4xl flex flex-col md:flex-row overflow-hidden border border-slate-200/80 z-10"
       >
-        {/* 🌑 Left brand panel */}
-        <div className="hidden md:flex w-5/12 flex-col justify-between p-10 text-white bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 relative overflow-hidden">
-          {/* Subtle background glow inside left panel */}
-          <div className="absolute -top-12 -left-12 w-48 h-48 bg-indigo-500/20 rounded-full blur-2xl" />
+        {/* Brand panel */}
+        <div className="hidden md:flex w-5/12 flex-col justify-between p-10 text-brand-navy bg-gradient-to-br from-teal-50 via-blue-50 to-white relative overflow-hidden">
+          <div className="absolute -top-12 -left-12 w-48 h-48 bg-teal-300/25 rounded-full blur-2xl" />
+          <div className="absolute -bottom-16 -right-12 w-52 h-52 bg-blue-300/20 rounded-full blur-3xl" />
 
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/40 text-white">
-                <Store className="w-5 h-5" />
-              </div>
+              <Image
+                src="/Logo.png.png"
+                alt="Logo Anima POS"
+                width={52}
+                height={52}
+                className="h-12 w-12 rounded-xl border border-white/80 bg-white object-contain shadow-sm"
+                priority
+              />
               <div>
                 <span className="font-bold text-lg tracking-tight">
-                  POS IMAM
+                  Anima POS
                 </span>
-                <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/30 text-indigo-300 border border-indigo-400/30">
+                <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200">
                   PRO
                 </span>
               </div>
@@ -171,49 +168,49 @@ export default function AuthPage() {
             <h1 className="text-2xl font-bold tracking-tight mb-3">
               Solusi Point of Sale & Inventaris Toko Modern
             </h1>
-            <p className="text-xs text-slate-400 leading-relaxed mb-8">
+            <p className="text-xs text-slate-600 leading-relaxed mb-8">
               Kelola kasir transaksi cepat, monitoring stok multi-gudang, dan
               cetak struk thermal dalam satu aplikasi terintegrasi.
             </p>
 
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-teal-100 border border-teal-200 flex items-center justify-center text-teal-700 shrink-0">
                   <Zap className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-200">
+                  <p className="text-xs font-semibold text-brand-navy">
                     Transaksi Kasir Kilat
                   </p>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-600">
                     Pencarian produk instan & hotkey cepat
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 shrink-0">
                   <BarChart3 className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-200">
+                  <p className="text-xs font-semibold text-brand-navy">
                     Laporan & Multi Gudang
                   </p>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-600">
                     Tracking stok real-time per lokasi cabang
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-purple-100 border border-purple-200 flex items-center justify-center text-purple-700 shrink-0">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-200">
+                  <p className="text-xs font-semibold text-brand-navy">
                     Aman & Terpercaya
                   </p>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-600">
                     Data terlindungi enkripsi session modern
                   </p>
                 </div>
@@ -221,13 +218,13 @@ export default function AuthPage() {
             </div>
           </div>
 
-          <div className="relative z-10 pt-8 border-t border-slate-800/80">
-            <p className="text-xs text-slate-400 mb-3">
+          <div className="relative z-10 pt-8 border-t border-slate-200">
+            <p className="text-xs text-slate-600 mb-3">
               {isLogin ? "Belum punya akun sistem?" : "Sudah memiliki akun?"}
             </p>
             <button
               onClick={toggleForm}
-              className="w-full py-2.5 px-4 rounded-xl border border-slate-700 text-slate-200 hover:bg-white hover:text-slate-900 transition-all font-medium text-xs flex items-center justify-center gap-2 group"
+              className="w-full py-2.5 px-4 rounded-xl border border-blue-200 text-brand-navy hover:bg-blue-50 hover:border-blue-300 transition-all font-medium text-xs flex items-center justify-center gap-2 group"
             >
               {isLogin ? "Daftar Akun Baru" : "Masuk ke Akun"}
               <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
@@ -236,8 +233,20 @@ export default function AuthPage() {
         </div>
 
         {/* ☀️ Right form panel */}
-        <div className="w-full md:w-7/12 p-8 sm:p-10 flex flex-col justify-center bg-white">
+        <div className="w-full md:w-7/12 p-6 sm:p-10 flex flex-col justify-center bg-white">
           <div className="max-w-md mx-auto w-full">
+            <div className="md:hidden flex items-center gap-3 mb-7">
+              <Image
+                src="/Logo.png.png"
+                alt="Logo Anima POS"
+                width={48}
+                height={48}
+                className="h-12 w-12 object-contain"
+              />
+              <span className="text-lg font-bold tracking-tight text-brand-navy">
+                Anima POS
+              </span>
+            </div>
             <div className="mb-6">
               <h2 className="text-2xl font-bold tracking-tight text-slate-900">
                 {isLogin ? "Selamat Datang Kembali" : "Daftar Akun Baru 🚀"}
@@ -257,7 +266,7 @@ export default function AuthPage() {
                   onClick={() => signIn("google", { callbackUrl: "/" })}
                   className="w-full py-2.5 px-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-700 font-medium text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-sm"
                 >
-                  <FaGoogle className="text-red-500 text-base" />
+                  <FcGoogle className="text-base" />
                   <span>Lanjutkan dengan Google</span>
                 </button>
 
@@ -291,7 +300,7 @@ export default function AuthPage() {
                       onChange={handleChange}
                       placeholder="Contoh: Admin Toko"
                       required
-                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400 text-slate-900"
+                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 text-slate-900"
                     />
                   </div>
                 </div>
@@ -311,7 +320,7 @@ export default function AuthPage() {
                     onChange={handleChange}
                     placeholder="nama@email.com"
                     required
-                    className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400 text-slate-900"
+                    className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 text-slate-900"
                   />
                 </div>
               </div>
@@ -330,7 +339,7 @@ export default function AuthPage() {
                     onChange={handleChange}
                     placeholder="••••••••"
                     required
-                    className="w-full pl-10 pr-10 py-2.5 text-sm bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400 text-slate-900"
+                    className="w-full pl-10 pr-10 py-2.5 text-sm bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 text-slate-900"
                   />
                   <button
                     type="button"
@@ -350,7 +359,7 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full mt-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-semibold text-sm transition-all shadow-md shadow-indigo-600/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
+                className="w-full mt-2 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold text-sm transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
               >
                 {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {isLogin ? "Masuk ke Sistem" : "Buat Akun Sekarang"}
@@ -365,7 +374,7 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={toggleForm}
-                className="text-indigo-600 font-semibold text-xs hover:underline"
+                className="text-blue-700 font-semibold text-xs hover:underline"
               >
                 {isLogin ? "Daftar Akun Baru" : "Masuk dengan akun yang ada"}
               </button>

@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
-import { ShoppingCart } from "lucide-react";
+import { CircleUserRound, ShoppingCart } from "lucide-react";
+import { useSession } from "next-auth/react";
 import ProductList from "@/components/pos/ProductList";
 import CartList from "@/components/pos/CartList";
 import PaymentSection from "@/components/pos/PaymentSection";
 import ReceiptModal from "@/components/pos/ReceiptModal";
+import BrandLoader from "@/components/BrandLoader";
 import { Product } from "@/types/products";
 import { CartItem } from "@/types/pos";
 
 export default function PosPage() {
+  const { data: session, status } = useSession();
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [method, setMethod] = useState<"cash" | "qris" | "transfer">("cash");
@@ -54,6 +57,12 @@ export default function PosPage() {
 
   // Hitung total keranjang
   const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const cashierName =
+    session?.user?.name || session?.user?.email?.split("@")[0] || "Kasir";
+
+  if (status === "loading") {
+    return <BrandLoader label="Memuat akun kasir..." />;
+  }
 
   // Bayar -> kirim transaksi ke backend, tampilkan modal
   const handlePay = async () => {
@@ -104,6 +113,28 @@ export default function PosPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      {session?.user && (
+        <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+              <CircleUserRound className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                Akun kasir
+              </p>
+              <p className="truncate text-sm font-semibold text-brand-navy">
+                {cashierName}
+              </p>
+            </div>
+          </div>
+          {session.user.email && (
+            <p className="hidden truncate text-xs text-slate-500 sm:block">
+              {session.user.email}
+            </p>
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Kolom Kiri: Katalog Produk */}
         <div className="lg:col-span-7 xl:col-span-8">

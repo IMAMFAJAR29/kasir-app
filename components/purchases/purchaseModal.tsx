@@ -41,8 +41,8 @@ export default function PurchaseModal({
     date: new Date().toISOString().slice(0, 10),
     termin: 0,
     dueDate: "",
-    discount: 0,
-    shipping: 0,
+    discount: "",
+    shipping: "",
     notes: "",
     status: "unpaid",
     items: [],
@@ -108,8 +108,8 @@ export default function PurchaseModal({
       dueDate: purchase.dueDate
         ? new Date(purchase.dueDate).toISOString().slice(0, 10)
         : "",
-      discount: Number(purchase.discount) ?? 0,
-      shipping: Number(purchase.shipping) ?? 0,
+      discount: Number(purchase.discount) || 0,
+      shipping: Number(purchase.shipping) || 0,
       notes: purchase.notes ?? "",
       status: purchase.status ?? "unpaid",
       items:
@@ -207,6 +207,8 @@ export default function PurchaseModal({
 
     const body = {
       ...formState,
+      discount: Number(formState.discount) || 0,
+      shipping: Number(formState.shipping) || 0,
       items: formState.items.map((i: any) => ({
         productId: i.id,
         qty: i.qty,
@@ -247,11 +249,16 @@ export default function PurchaseModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] overflow-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl p-6 relative max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-6">
-          {purchase ? "Edit Pembelian" : "Tambah Pembelian Baru"}
-        </h2>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-slate-950/45 p-3 backdrop-blur-sm sm:p-5">
+      <div className="relative max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-6">
+        <div className="mb-6 border-b border-slate-100 pb-4">
+          <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+            {purchase ? "Edit Pembelian" : "Tambah Pembelian Baru"}
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Lengkapi informasi pengadaan dan daftar produk.
+          </p>
+        </div>
 
         {/* Bagian Form Header */}
         <div className="mb-6">
@@ -264,11 +271,12 @@ export default function PurchaseModal({
         </div>
 
         {/* Bagian Daftar Produk */}
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="font-semibold">Daftar Produk</h3>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-slate-800">Daftar Produk</h3>
           <Button
+            variant="primary"
+            size="sm"
             onClick={() => setShowProductModal(true)}
-            className="bg-black text-white hover:bg-gray-800"
           >
             <Plus size={16} /> Tambah Produk
           </Button>
@@ -282,8 +290,8 @@ export default function PurchaseModal({
         />
 
         {/* Tombol Aksi */}
-        <div className="flex justify-end gap-2 mt-6">
-          <Button onClick={handleSave}>
+        <div className="mt-6 flex flex-col-reverse justify-end gap-2 border-t border-slate-100 pt-4 sm:flex-row">
+          <Button variant="primary" onClick={handleSave}>
             {purchase ? "Update Pembelian" : "Simpan Pembelian"}
           </Button>
           <Button onClick={onClose} variant="outline">

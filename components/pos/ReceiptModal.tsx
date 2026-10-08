@@ -39,7 +39,7 @@ export default function ReceiptModal({
     receiptWindow.document.write(`
       <html>
         <head>
-          <title>Struk Belanja - POS IMAM</title>
+          <title>Struk Belanja - Anima POS</title>
           <style>
             body { font-family: monospace; padding: 12px; width: 58mm; font-size: 11px; margin: 0 auto; color: #111; }
             h2 { text-align: center; margin: 0; font-size: 14px; }
@@ -54,7 +54,7 @@ export default function ReceiptModal({
           </style>
         </head>
         <body>
-          <h2>POS IMAM</h2>
+          <h2>Anima POS</h2>
           <p class="center">${date}</p>
           ${
             receiptData

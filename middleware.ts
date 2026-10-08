@@ -9,6 +9,6 @@ export const config = {
     // - Next.js internal (_next)
     // - Static files (favicon.ico, images, dsb)
     // - Halaman auth seperti login/register
-    "/((?!api|_next|favicon.ico|auth|login|register).*)",
+    "/((?!api|_next|favicon.ico|Logo\\.png\\.png|auth|login|register).*)",
   ],
 };

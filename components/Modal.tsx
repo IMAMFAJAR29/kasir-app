@@ -24,7 +24,7 @@ export default function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div
-        className={`bg-white rounded-2xl shadow-2xl border border-slate-200/80 w-full ${maxWidth} overflow-hidden transition-all`}
+        className={`bg-white rounded-3xl shadow-xl border border-slate-200/80 w-full ${maxWidth} overflow-hidden transition-all`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (

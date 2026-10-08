@@ -18,63 +18,60 @@ export default function InvoiceItemsList({
   onRemoveItem,
 }: InvoiceItemsListProps) {
   return (
-    <div className="border rounded-xl overflow-hidden">
-      {/* Header */}
-      <div className="grid grid-cols-[3fr_1fr_1fr_1fr_auto] gap-2 px-3 py-2 font-semibold bg-gray-100">
-        <span>Nama Produk</span>
-        <span className="text-center">Qty</span>
-        <span className="text-right">Harga/unit</span>
-        <span className="text-right">Total</span>
-        <span></span>
-      </div>
+    <div className="overflow-hidden rounded-2xl border border-slate-200">
+      <div className="overflow-x-auto">
+        <div className="grid min-w-[620px] grid-cols-[3fr_0.8fr_1.2fr_1.2fr_auto] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600">
+          <span>Nama Produk</span>
+          <span className="text-center">Qty</span>
+          <span className="text-right">Harga/unit</span>
+          <span className="text-right">Total</span>
+          <span></span>
+        </div>
 
-      {/* Items */}
-      <div className="divide-y">
-        {items.map((item, idx) => (
-          <div
-            key={idx}
-            className="grid grid-cols-[3fr_1fr_1fr_1fr_auto] gap-2 items-center px-3 py-2"
-          >
-            {/* Nama & SKU */}
-            <div>
-              <p className="font-medium">{item.name}</p>
-              {item.sku && (
-                <p className="text-xs text-gray-500">SKU: {item.sku}</p>
-              )}
-            </div>
-
-            {/* Qty */}
-            <input
-              type="number"
-              className="w-full rounded p-1 text-center border"
-              value={item.qty}
-              min={0}
-              onChange={(e) => onUpdateQty(idx, Number(e.target.value))}
-            />
-
-            {/* Harga/unit */}
-            <input
-              type="number"
-              className="w-full rounded p-1 text-right border"
-              value={item.price}
-              min={0}
-              onChange={(e) => onUpdatePrice(idx, Number(e.target.value))}
-            />
-
-            {/* Total */}
-            <span className="text-right font-medium">
-              {formatRupiah(item.qty * item.price)}
-            </span>
-
-            {/* Hapus */}
-            <button
-              onClick={() => onRemoveItem(idx)}
-              className="text-red-500 hover:text-red-700 flex items-center justify-center"
+        <div className="divide-y divide-slate-100">
+          {items.map((item, idx) => (
+            <div
+              key={idx}
+              className="grid min-w-[620px] grid-cols-[3fr_0.8fr_1.2fr_1.2fr_auto] items-center gap-3 px-4 py-3 text-sm text-slate-700"
             >
-              <Trash2 size={20} />
-            </button>
-          </div>
-        ))}
+              <div>
+                <p className="font-medium text-slate-800">{item.name}</p>
+                {item.sku && (
+                  <p className="text-xs text-slate-500">SKU: {item.sku}</p>
+                )}
+              </div>
+
+              <input
+                type="number"
+                className="form-control min-h-9 px-2 py-1 text-center"
+                value={item.qty}
+                min={0}
+                onChange={(e) => onUpdateQty(idx, Number(e.target.value))}
+              />
+
+              <input
+                type="number"
+                className="form-control min-h-9 px-2 py-1 text-right"
+                value={item.price}
+                min={0}
+                onChange={(e) => onUpdatePrice(idx, Number(e.target.value))}
+              />
+
+              <span className="text-right font-medium">
+                {formatRupiah(item.qty * item.price)}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => onRemoveItem(idx)}
+                aria-label={`Hapus ${item.name}`}
+                className="flex items-center justify-center rounded-lg p-2 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700"
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

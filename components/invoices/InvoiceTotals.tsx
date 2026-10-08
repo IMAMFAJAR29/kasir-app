@@ -36,14 +36,14 @@ export default function InvoiceTotals({
   const total = cleanSubtotal + taxAmount + cleanShipping - cleanDiscount;
 
   return (
-    <div className="bg-white shadow-md rounded-xl p-4 mt-6 space-y-4">
+    <div className="mt-5 space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
       {/* Header */}
-      <h3 className="text-lg font-bold border-b pb-2">Ringkasan Faktur</h3>
+      <h3 className="border-b border-slate-200 pb-2 text-sm font-semibold text-slate-800">Ringkasan Faktur</h3>
 
       {/* Subtotal */}
       <div className="flex justify-between text-sm">
         <span>Subtotal</span>
-        <span>{formatRupiah(cleanSubtotal)}</span>
+        <span className="font-medium text-slate-800">{formatRupiah(cleanSubtotal)}</span>
       </div>
 
       {/* Pajak */}
@@ -54,7 +54,7 @@ export default function InvoiceTotals({
           onChange={(e) =>
             onChangeTax(e.target.value ? Number(e.target.value) : null)
           }
-          className="rounded-xl px-2 py-1 shadow-sm focus:shadow-md outline-none transition w-32 text-right"
+          className="form-control ml-auto min-h-9 max-w-36 px-2 py-1 text-right"
         >
           <option value="">Tidak Ada</option>
           {taxes.map((t) => (
@@ -81,9 +81,9 @@ export default function InvoiceTotals({
           placeholder="0"
           inputMode="numeric"
           pattern="[0-9]*"
-          value={cleanShipping}
+          value={cleanShipping || ""}
           onChange={(e) => onChangeShipping(Number(e.target.value) || 0)}
-          className="rounded-xl px-2 py-1 shadow-sm focus:shadow-md outline-none transition w-32 text-right"
+          className="form-control ml-auto min-h-9 max-w-36 px-2 py-1 text-right"
         />
       </div>
 
@@ -95,18 +95,18 @@ export default function InvoiceTotals({
           placeholder="0"
           inputMode="numeric"
           pattern="[0-9]*"
-          value={cleanDiscount}
+          value={cleanDiscount || ""}
           onChange={(e) => onChangeDiscount(Number(e.target.value) || 0)}
-          className="rounded-xl px-2 py-1 shadow-sm focus:shadow-md outline-none transition w-32 text-right"
+          className="form-control ml-auto min-h-9 max-w-36 px-2 py-1 text-right"
         />
       </div>
 
-      <hr />
+      <hr className="border-slate-200" />
 
       {/* Total */}
       <div className="flex justify-between text-base font-semibold">
         <span>Total</span>
-        <span className="text-lg font-bold text-green-600">
+        <span className="text-lg font-bold text-blue-700">
           {formatRupiah(total)}
         </span>
       </div>

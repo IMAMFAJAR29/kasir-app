@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { JSX } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Swal from "sweetalert2";
-import { Trash2, Plus, Save, Folder } from "lucide-react";
+import { Trash2, Plus, Save, Folder, Search, ChevronRight } from "lucide-react";
 import Button from "@/components/Button";
 
 // ======= Interface =======
@@ -20,12 +19,36 @@ interface FormData {
   parentName: string;
 }
 
+interface FlatCategory extends Category {
+  depth: number;
+  path: string;
+}
+
+function flattenCategories(
+  categories: Category[],
+  prefix = ""
+): { id: number; name: string }[] {
+  return categories.flatMap((category) => [
+    { id: category.id, name: prefix ? `${prefix} > ${category.name}` : category.name },
+    ...(Array.isArray(category.children) && category.children.length > 0
+      ? flattenCategories(
+          category.children,
+          prefix ? `${prefix} > ${category.name}` : category.name
+        )
+      : []),
+  ]);
+}
+
 export default function AdminCategoriesPage() {
   // ======= State =======
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState<string>("");
   const [selected, setSelected] = useState<number[]>([]);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [categoryError, setCategoryError] = useState<string>("");
+  const [isBulkDeleting, setIsBulkDeleting] = useState<boolean>(false);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<FormData>({
     type: "root",
@@ -35,15 +58,35 @@ export default function AdminCategoriesPage() {
   });
 
   // ======= Load semua kategori =======
-  async function loadCategories(): Promise<void> {
-    const res = await fetch("/api/categories");
-    const data: Category[] = await res.json();
-    setCategories(data);
-  }
+  const loadCategories = useCallback(async (): Promise<void> => {
+    try {
+      const res = await fetch("/api/categories");
+      if (!res.ok) {
+        throw new Error(`Gagal mengambil kategori (HTTP ${res.status})`);
+      }
+
+      const data: Category[] = await res.json();
+      if (!Array.isArray(data)) {
+        throw new Error("Format data kategori tidak valid");
+      }
+
+      setCategories(data);
+      setCategoryError("");
+      const categoryIds = new Set(
+        flattenCategories(data).map((item) => item.id)
+      );
+      setSelected((current) => current.filter((id) => categoryIds.has(id)));
+    } catch (error) {
+      console.error("Error loading categories:", error);
+      setCategoryError("Gagal memuat kategori. Silakan coba lagi.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadCategories();
-  }, []);
+  }, [loadCategories]);
 
   // ======= Tambah kategori =======
   async function handleSubmit(e: React.FormEvent): Promise<void> {
@@ -90,105 +133,146 @@ export default function AdminCategoriesPage() {
       const res = await fetch(`/api/categories/${id}`, { method: "DELETE" });
       if (res.ok) {
         setSelected((prev) => prev.filter((s) => s !== id));
-        loadCategories();
+        await loadCategories();
       } else {
         Swal.fire({ icon: "error", title: "Gagal menghapus kategori" });
       }
     }
   }
 
-  // ======= Flatten kategori untuk modal list sub category =======
-  function flattenCategories(
-    cats: Category[],
-    prefix = ""
-  ): { id: number; name: string }[] {
-    return cats.flatMap((c) => [
-      { id: c.id, name: prefix ? `${prefix} > ${c.name}` : c.name },
-      ...(Array.isArray(c.children) && c.children.length > 0
-        ? flattenCategories(
-            c.children,
-            prefix ? `${prefix} > ${c.name}` : c.name
-          )
-        : []),
-    ]);
+  async function handleBulkDelete(): Promise<void> {
+    const selectedIds = [...selected];
+    if (selectedIds.length === 0 || isBulkDeleting) return;
+
+    const confirmation = await Swal.fire({
+      title: "Hapus kategori?",
+      text: `Anda akan menghapus ${selectedIds.length} kategori yang dipilih. Tindakan ini tidak dapat dibatalkan.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Hapus Kategori",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#e11d48",
+      cancelButtonColor: "#64748b",
+      reverseButtons: true,
+    });
+    if (!confirmation.isConfirmed) return;
+
+    const categoriesById = new Map(
+      allCategories.map((category) => [category.id, category])
+    );
+    const deletionOrder = selectedIds.sort(
+      (leftId, rightId) =>
+        (categoriesById.get(rightId)?.depth ?? 0) -
+        (categoriesById.get(leftId)?.depth ?? 0)
+    );
+    const deletedIds: number[] = [];
+    const failedIds: number[] = [];
+
+    setIsBulkDeleting(true);
+    try {
+      for (const id of deletionOrder) {
+        const response = await fetch(`/api/categories/${id}`, {
+          method: "DELETE",
+        });
+        if (response.ok) {
+          deletedIds.push(id);
+        } else {
+          failedIds.push(id);
+        }
+      }
+
+      setSelected((current) =>
+        current.filter((id) => !deletedIds.includes(id))
+      );
+      await loadCategories();
+
+      if (failedIds.length > 0) {
+        await Swal.fire({
+          icon: "error",
+          title: "Sebagian kategori gagal dihapus",
+          text: `${deletedIds.length} kategori berhasil dihapus; ${failedIds.length} kategori gagal dihapus.`,
+        });
+      } else {
+        await Swal.fire({
+          icon: "success",
+          title: "Kategori berhasil dihapus",
+          text: `${deletedIds.length} kategori telah dihapus.`,
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting selected categories:", error);
+      await loadCategories();
+      await Swal.fire({
+        icon: "error",
+        title: "Gagal menghapus kategori",
+        text: `${deletedIds.length} kategori berhasil dihapus sebelum terjadi kesalahan.`,
+      });
+    } finally {
+      setIsBulkDeleting(false);
+    }
   }
 
-  // ======= Render daftar kategori =======
-  function renderList(cats: Category[], prefix = ""): JSX.Element[] {
-    return cats.map((c) => {
-      const hasChildren = Array.isArray(c.children) && c.children.length > 0;
+  function flattenVisibleCategories(
+    cats: Category[],
+    prefix = "",
+    depth = 0
+  ): FlatCategory[] {
+    return cats.flatMap((category) => {
+      const path = prefix ? `${prefix} > ${category.name}` : category.name;
+      return [
+        { ...category, depth, path },
+        ...flattenVisibleCategories(category.children ?? [], path, depth + 1),
+      ];
+    });
+  }
 
-      return (
-        <div
-          key={c.id}
-          className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs hover:shadow-md transition space-y-3"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 text-amber-700 flex items-center justify-center font-bold shrink-0">
-                <Folder size={18} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-slate-900 text-sm sm:text-base">
-                  {prefix ? `${prefix} > ${c.name}` : c.name}
-                </h3>
-                {hasChildren && (
-                  <p className="text-xs text-slate-400">
-                    {c.children!.length} subkategori
-                  </p>
-                )}
-              </div>
-            </div>
+  const allCategories = flattenVisibleCategories(categories);
+  const filteredRoots = categories.filter((category) =>
+    category.name.toLowerCase().includes(search.toLowerCase())
+  );
+  const visibleCategories = flattenVisibleCategories(filteredRoots);
+  const visibleCategoryIds = visibleCategories.map((category) => category.id);
+  const selectedVisibleCount = visibleCategoryIds.filter((id) =>
+    selected.includes(id)
+  ).length;
+  const allVisibleSelected =
+    visibleCategoryIds.length > 0 &&
+    selectedVisibleCount === visibleCategoryIds.length;
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setForm({
-                    type: "sub",
-                    name: "",
-                    parentId: c.id,
-                    parentName: c.name,
-                  });
-                  setShowAddModal(true);
-                }}
-                className="px-2.5 py-1 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition"
-              >
-                + Sub
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDelete(c.id)}
-                className="p-1.5 text-xs text-rose-500 hover:bg-rose-50 rounded-lg transition"
-                title="Hapus Kategori"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate =
+        selectedVisibleCount > 0 && !allVisibleSelected;
+    }
+  }, [allVisibleSelected, selectedVisibleCount]);
 
-          {/* Subkategori list */}
-          {hasChildren && (
-            <div className="pl-6 border-l-2 border-slate-100 ml-5 space-y-2 pt-1">
-              {renderList(
-                c.children!,
-                prefix ? `${prefix} > ${c.name}` : c.name
-              )}
-            </div>
-          )}
-        </div>
-      );
+  function toggleCategory(id: number): void {
+    setSelected((current) =>
+      current.includes(id)
+        ? current.filter((selectedId) => selectedId !== id)
+        : [...current, id]
+    );
+  }
+
+  function toggleAllVisible(): void {
+    setSelected((current) => {
+      if (allVisibleSelected) {
+        return current.filter((id) => !visibleCategoryIds.includes(id));
+      }
+      return Array.from(new Set([...current, ...visibleCategoryIds]));
     });
   }
 
   // ======= JSX =======
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
       {/* Header Title */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Kategori Produk
+            Kategori
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Kelola kelompok barang, subkategori, dan taksonomi produk
@@ -200,40 +284,249 @@ export default function AdminCategoriesPage() {
             setForm({ type: "root", name: "", parentId: "", parentName: "" });
             setShowAddModal(true);
           }}
-          className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-xs"
+          className="flex items-center gap-2 bg-blue-600 text-white shadow-sm hover:bg-blue-700"
         >
           <Plus size={16} />
-          <span>Tambah Kategori</span>
+          <span>Tambah Baru</span>
         </Button>
       </div>
 
-      {/* Search Filter */}
-      <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs">
-        <input
-          type="text"
-          placeholder="Cari kategori..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:bg-white transition"
-        />
-      </div>
-
-      {/* Daftar Kategori */}
-      <div className="space-y-3.5">
-        {categories.length > 0 ? (
-          renderList(
-            categories.filter((c) =>
-              c.name.toLowerCase().includes(search.toLowerCase())
-            )
-          )
-        ) : (
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-12 text-center">
-            <p className="font-semibold text-slate-700">Belum ada kategori</p>
-            <p className="text-xs text-slate-400 mt-1">
-              Tambahkan kategori untuk memudahkan pengelompokan produk di kasir
-            </p>
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-800">Filter</h2>
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              disabled={!search}
+              className="text-xs font-medium text-blue-600 transition hover:text-blue-700 disabled:cursor-default disabled:text-slate-300"
+            >
+              Reset
+            </button>
           </div>
-        )}
+          <label className="relative block">
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              type="search"
+              placeholder="Cari kategori"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/15"
+            />
+          </label>
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            Cari berdasarkan nama kategori.
+          </p>
+        </aside>
+
+        <section className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-slate-600" aria-live="polite">
+              Total{" "}
+              <span className="ml-1 inline-flex min-w-7 items-center justify-center rounded-md bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
+                {allCategories.length}
+              </span>
+            </p>
+            {selected.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-rose-100 bg-rose-50/70 px-3 py-2">
+                <span className="text-sm font-medium text-slate-700">
+                  {selected.length} kategori dipilih
+                </span>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={isBulkDeleting}
+                  className="rounded-lg"
+                >
+                  <Trash2 size={14} />
+                  {isBulkDeleting ? "Menghapus..." : "Hapus Kategori"}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+            {categoryError ? (
+              <div className="p-8 text-center">
+                <p className="text-sm font-medium text-rose-700">{categoryError}</p>
+                <button
+                  type="button"
+                  onClick={loadCategories}
+                  className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                >
+                  Coba lagi
+                </button>
+              </div>
+            ) : isLoading ? (
+              <div className="space-y-3 p-5" aria-label="Memuat kategori">
+                {[0, 1, 2, 3].map((row) => (
+                  <div
+                    key={row}
+                    className="h-10 animate-pulse rounded-lg bg-slate-100"
+                  />
+                ))}
+              </div>
+            ) : visibleCategories.length === 0 ? (
+              <div className="px-6 py-14 text-center">
+                <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Folder size={20} />
+                </div>
+                <p className="text-sm font-semibold text-slate-800">
+                  {categories.length === 0
+                    ? "Belum ada kategori"
+                    : "Kategori tidak ditemukan"}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {categories.length === 0
+                    ? "Tambahkan kategori untuk mengelompokkan produk."
+                    : "Coba gunakan kata kunci pencarian lain."}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[620px] border-collapse text-left text-sm">
+                  <thead className="border-b border-slate-200 bg-slate-50/80">
+                    <tr>
+                      <th scope="col" className="w-12 px-4 py-3">
+                        <input
+                          ref={selectAllRef}
+                          type="checkbox"
+                          aria-label="Pilih semua kategori yang ditampilkan"
+                          checked={allVisibleSelected}
+                          onChange={toggleAllVisible}
+                          disabled={isBulkDeleting}
+                          className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                        />
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                      >
+                        Nama Kategori
+                      </th>
+                      <th
+                        scope="col"
+                        className="w-36 px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                      >
+                        Sub-kategori
+                      </th>
+                      <th
+                        scope="col"
+                        className="w-28 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500"
+                      >
+                        Aksi
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {visibleCategories.map((category) => {
+                      const hasChildren =
+                        Array.isArray(category.children) &&
+                        category.children.length > 0;
+                      const parentPath = category.path
+                        .split(" > ")
+                        .slice(0, -1)
+                        .join(" > ");
+
+                      return (
+                        <tr
+                          key={category.id}
+                          className={`group transition-colors hover:bg-blue-50/40 ${
+                            selected.includes(category.id) ? "bg-blue-50/50" : ""
+                          }`}
+                        >
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              aria-label={`Pilih kategori ${category.name}`}
+                              checked={selected.includes(category.id)}
+                              onChange={() => toggleCategory(category.id)}
+                              disabled={isBulkDeleting}
+                              className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <div
+                              className="flex min-w-0 items-center gap-2"
+                              style={{
+                                paddingLeft: `${Math.min(category.depth, 4) * 14}px`,
+                              }}
+                            >
+                              <Folder
+                                size={16}
+                                className="shrink-0 text-blue-600"
+                              />
+                              <div className="min-w-0">
+                                <p className="truncate font-medium text-slate-800">
+                                  {category.name}
+                                </p>
+                                {parentPath && (
+                                  <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-slate-400">
+                                    <ChevronRight
+                                      size={12}
+                                      className="shrink-0"
+                                    />
+                                    {parentPath}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                                hasChildren
+                                  ? "bg-teal-50 text-teal-700"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              {hasChildren ? "Ya" : "Tidak"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setForm({
+                                    type: "sub",
+                                    name: "",
+                                    parentId: category.id,
+                                    parentName: category.name,
+                                  });
+                                  setShowAddModal(true);
+                                }}
+                                aria-label={`Tambah subkategori di ${category.name}`}
+                                className="rounded-lg px-2 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+                              >
+                                + Sub
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(category.id)}
+                                disabled={isBulkDeleting}
+                                aria-label={`Hapus kategori ${category.name}`}
+                                title="Hapus Kategori"
+                                className="rounded-lg p-2 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
 
       {/* Modal Tambah Kategori */}
@@ -261,10 +554,10 @@ export default function AdminCategoriesPage() {
                     parentName: "",
                   })
                 }
-                className={`py-2 text-xs font-semibold rounded-lg transition ${
+                className={`py-2 text-xs font-semibold rounded-lg transition focus-visible:bg-blue-100 focus-visible:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 ${
                   form.type === "root"
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "bg-blue-600 text-white shadow-xs hover:bg-blue-700"
+                    : "text-slate-600 hover:bg-blue-50 hover:text-blue-700"
                 }`}
               >
                 Kategori Utama
@@ -272,10 +565,10 @@ export default function AdminCategoriesPage() {
               <button
                 type="button"
                 onClick={() => setForm({ ...form, type: "sub" })}
-                className={`py-2 text-xs font-semibold rounded-lg transition ${
+                className={`py-2 text-xs font-semibold rounded-lg transition focus-visible:bg-blue-100 focus-visible:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 ${
                   form.type === "sub"
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "bg-blue-600 text-white shadow-xs hover:bg-blue-700"
+                    : "text-slate-600 hover:bg-blue-50 hover:text-blue-700"
                 }`}
               >
                 Sub Kategori
@@ -343,7 +636,7 @@ export default function AdminCategoriesPage() {
                   </Button>
                   <Button
                     onClick={handleSubmit}
-                    className="text-xs py-2 rounded-xl bg-slate-900 text-white flex items-center gap-1.5"
+                    className="text-xs py-2 rounded-xl bg-blue-600 text-white flex items-center gap-1.5 hover:bg-blue-700"
                   >
                     <Save size={14} />
                     <span>Simpan Kategori</span>

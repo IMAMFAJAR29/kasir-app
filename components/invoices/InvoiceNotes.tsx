@@ -7,11 +7,14 @@ interface InvoiceNotesProps {
 
 export default function InvoiceNotes({ notes, onChange }: InvoiceNotesProps) {
   return (
-    <textarea
-      placeholder="Catatan..."
-      value={notes}
-      onChange={(e) => onChange(e.target.value)}
-      className="rounded-xl px-4 py-2 shadow-sm focus:shadow-md outline-none transition w-full mt-4"
-    />
+    <label className="mt-4 block">
+      <span className="form-label">Catatan</span>
+      <textarea
+        placeholder="Tambahkan catatan..."
+        value={notes}
+        onChange={(e) => onChange(e.target.value)}
+        className="form-control min-h-20 resize-y"
+      />
+    </label>
   );
 }
