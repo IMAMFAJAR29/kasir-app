@@ -114,9 +114,15 @@ export default function ReceiptModal({
           <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center mx-auto mb-2 text-white">
             <CheckCircle2 size={28} />
           </div>
-          <h2 className="text-base font-bold">Transaksi Berhasil</h2>
+          <h2 className="text-base font-bold">
+            {receiptData?.pendingSync
+              ? "Transaksi tersimpan offline"
+              : "Transaksi Berhasil"}
+          </h2>
           <p className="text-xs text-emerald-100 mt-0.5">
-            {receiptData?.invoiceNumber
+            {receiptData?.pendingSync
+              ? "Menunggu sinkronisasi saat internet tersedia"
+              : receiptData?.invoiceNumber
               ? `No. ${receiptData.invoiceNumber}`
               : "Pembayaran telah dicatat"}
           </p>

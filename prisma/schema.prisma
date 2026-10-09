@@ -95,11 +95,14 @@ model Sale {
   payment    Decimal?
   change     Decimal?
   locationId Int?
+  cashSessionId String?
+  clientTransactionId String? @unique
   createdAt  DateTime @default(now())
 
-  location Location?  @relation(fields: [locationId], references: [id])
-  items    SaleItem[]
-  invoices Invoice[]
+  location    Location?    @relation(fields: [locationId], references: [id])
+  cashSession CashSession? @relation(fields: [cashSessionId], references: [id])
+  items       SaleItem[]
+  invoices    Invoice[]
 
   @@map("transactions")
 }
@@ -302,7 +305,32 @@ model User {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
+  deletedEmailHash String?
   password  String
+  role      String   @default("ADMIN")
+  permissions Json   @default("{}")
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  cashSessions CashSession[]
+
+  @@index([deletedEmailHash])
+}
+
+model CashSession {
+  id          String    @id @default(uuid())
+  userId      String
+  openingCash Decimal   @default(0.00)
+  closingCash Decimal?
+  openedAt    DateTime  @default(now())
+  closedAt    DateTime?
+  notes       String?
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sales Sale[]
+
+  @@index([userId, openedAt])
+  @@index([closedAt])
+  @@map("cash_sessions")
 }

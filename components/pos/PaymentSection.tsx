@@ -10,6 +10,7 @@ type Method = "cash" | "qris" | "transfer";
 interface PaymentSectionProps {
   total: number;
   selected: Method;
+  offline?: boolean;
   onSelect: (method: Method) => void;
   onPay: (paymentAmount?: number) => void;
 }
@@ -17,6 +18,7 @@ interface PaymentSectionProps {
 export default function PaymentSection({
   total,
   selected,
+  offline = false,
   onSelect,
   onPay,
 }: PaymentSectionProps) {
@@ -31,6 +33,10 @@ export default function PaymentSection({
   const [paymentStatus, setPaymentStatus] = useState<
     "pending" | "settlement" | "expire"
   >("pending");
+
+  useEffect(() => {
+    if (offline && selected !== "cash") onSelect("cash");
+  }, [offline, onSelect, selected]);
 
   useEffect(() => {
     if (selected === "cash") {
@@ -143,6 +149,11 @@ export default function PaymentSection({
         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
           Pilih Metode Bayar
         </label>
+        {offline && (
+          <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Offline: hanya pembayaran tunai yang tersedia.
+          </p>
+        )}
         <div className="grid grid-cols-3 gap-2">
           {methods.map((m) => {
             const isSelected = selected === m.id;
@@ -150,12 +161,13 @@ export default function PaymentSection({
               <button
                 key={m.id}
                 type="button"
+                disabled={offline && m.id !== "cash"}
                 onClick={() => onSelect(m.id)}
                 className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl text-xs font-semibold border transition cursor-pointer select-none active:scale-[0.98] ${
                   isSelected
                     ? "bg-slate-900 text-white border-slate-900 shadow-xs"
                     : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                }`}
+                } disabled:cursor-not-allowed disabled:opacity-40`}
               >
                 {m.icon}
                 <span>{m.label}</span>

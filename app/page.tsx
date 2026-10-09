@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import BrandLoader from "@/components/BrandLoader";
+import { hasPermission } from "@/lib/permissions";
 
 export default function HomeRedirect() {
   const { data: session, status } = useSession();
@@ -11,13 +12,26 @@ export default function HomeRedirect() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      // Kalau sudah login, langsung ke dashboard
-      router.push("/admin/dashboard");
+      const destination = hasPermission(
+        session?.user?.role,
+        session?.user?.permissions,
+        "dashboard",
+        "view"
+      )
+        ? "/admin/dashboard"
+        : hasPermission(
+              session?.user?.role,
+              session?.user?.permissions,
+              "pos",
+              "view"
+            )
+          ? "/pos"
+          : "/auth";
+      router.replace(destination);
     } else if (status === "unauthenticated") {
-      // Kalau belum login, ke halaman auth
-      router.push("/auth");
+      router.replace("/auth");
     }
-  }, [status, router]);
+  }, [session?.user?.role, session?.user?.permissions, status, router]);
 
   return (
     <BrandLoader

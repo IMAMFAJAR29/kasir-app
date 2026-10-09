@@ -7,6 +7,8 @@ const prisma = new PrismaClient();
 export async function POST(req) {
   try {
     const { name, email, password } = await req.json();
+    const normalizedEmail =
+      typeof email === "string" ? email.trim().toLowerCase() : "";
 
     // 1. Validasi input
     if (!name || !email || !password) {
@@ -24,7 +26,7 @@ export async function POST(req) {
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       return NextResponse.json(
         { error: "Format email tidak valid" },
         { status: 400 }
@@ -33,7 +35,7 @@ export async function POST(req) {
 
     // 2. Cek email sudah ada atau belum
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (existingUser) {
@@ -46,12 +48,16 @@ export async function POST(req) {
     // 3. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Preserve the existing single-user setup when provisioning an empty database.
+    const role = (await prisma.user.count()) === 0 ? "ADMIN" : "CASHIER";
+
     // 4. Simpan user baru
     const newUser = await prisma.user.create({
       data: {
         name,
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
+        role,
       },
     });
 

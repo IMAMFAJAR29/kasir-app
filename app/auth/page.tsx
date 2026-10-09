@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,7 @@ import Image from "next/image";
 import Swal from "sweetalert2";
 import { FcGoogle } from "react-icons/fc";
 import BrandLoader from "@/components/BrandLoader";
+import { hasPermission } from "@/lib/permissions";
 import {
   Eye,
   EyeOff,
@@ -21,6 +22,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+type LoginRole = "CASHIER" | "ADMIN";
+
 export default function AuthPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -29,14 +32,47 @@ export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginRole, setLoginRole] = useState<LoginRole>("ADMIN");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const loginAttemptRef = useRef(false);
 
   // 🚀 Redirect langsung jika user sudah login
   useEffect(() => {
-    if (status === "authenticated") {
-      router.replace("/");
+    const areaModule = loginRole === "ADMIN" ? "dashboard" : "pos";
+    const canOpenSelectedArea = hasPermission(
+      session?.user?.role,
+      session?.user?.permissions,
+      areaModule,
+      "view"
+    ) || (
+      loginRole === "ADMIN" &&
+      hasPermission(
+        session?.user?.role,
+        session?.user?.permissions,
+        "systemSettings",
+        "view"
+      )
+    );
+
+    if (
+      status === "authenticated" &&
+      !loginAttemptRef.current &&
+      canOpenSelectedArea
+    ) {
+      const destination =
+        loginRole === "CASHIER"
+          ? "/pos"
+          : hasPermission(
+                session?.user?.role,
+                session?.user?.permissions,
+                "dashboard",
+                "view"
+              )
+            ? "/admin/dashboard"
+            : "/admin/settings";
+      router.replace(destination);
     }
-  }, [status, router]);
+  }, [loginRole, session?.user?.role, session?.user?.permissions, status, router]);
 
   // ⏳ Tampilkan animasi loading saat session masih dicek
   if (status === "loading") {
@@ -53,12 +89,14 @@ export default function AuthPage() {
 
     if (isLogin) {
       setIsLoading(true);
+      loginAttemptRef.current = true;
 
       try {
         const result = await signIn("credentials", {
           redirect: false,
           email: form.email,
           password: form.password,
+          area: loginRole === "ADMIN" ? "dashboard" : "pos",
         });
 
         if (result?.ok) {
@@ -69,24 +107,31 @@ export default function AuthPage() {
               const res = await fetch("/api/auth/session");
               const data = await res.json();
               if (data?.user) {
-                router.replace("/");
+                router.replace(loginRole === "CASHIER" ? "/pos" : "/admin/dashboard");
                 return;
               }
               await new Promise((r) => setTimeout(r, 300));
               retries++;
             }
-            router.replace("/");
+            router.replace(
+              loginRole === "CASHIER" ? "/pos" : "/admin/dashboard"
+            );
           };
           await checkSession();
         } else {
+          loginAttemptRef.current = false;
           Swal.fire({
             icon: "error",
             title: "Gagal Masuk",
-            text: "Email atau password yang Anda masukkan salah.",
+            text:
+              loginRole === "ADMIN"
+                ? "Pastikan email dan password benar serta akun memiliki role Admin."
+                : "Pastikan email dan password benar serta akun memiliki role Kasir.",
             confirmButtonColor: "#1769e0",
           });
         }
       } finally {
+        loginAttemptRef.current = false;
         setIsLoading(false);
       }
     } else {
@@ -247,23 +292,54 @@ export default function AuthPage() {
                 Anima POS
               </span>
             </div>
-            <div className="mb-6">
+            <div className="mb-5">
               <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-                {isLogin ? "Selamat Datang Kembali" : "Daftar Akun Baru 🚀"}
+                {isLogin
+                  ? loginRole === "ADMIN"
+                    ? "Login Dashboard"
+                    : "Login Kasir"
+                  : "Daftar Akun Baru 🚀"}
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 mt-1">
                 {isLogin
                   ? "Masuk untuk mengelola transaksi kasir dan stok tokomu."
-                  : "Buat akun operator atau admin untuk mulai bertransaksi."}
+                  : "Akun pertama mendapat akses admin; akun berikutnya terdaftar sebagai kasir."}
               </p>
             </div>
+
+            {isLogin && (
+              <div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+                {([
+                  ["ADMIN", "Login Dashboard"],
+                  ["CASHIER", "Login Kasir"],
+                ] as const).map(([role, label]) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => setLoginRole(role)}
+                    className={`rounded-lg px-3 py-2.5 text-xs font-semibold transition ${
+                      loginRole === role
+                        ? "bg-white text-blue-700 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* 🔘 Google OAuth Button */}
             {isLogin && (
               <div className="mb-6">
                 <button
                   type="button"
-                  onClick={() => signIn("google", { callbackUrl: "/" })}
+                  onClick={() =>
+                    signIn("google", {
+                      callbackUrl:
+                        loginRole === "CASHIER" ? "/pos" : "/admin/dashboard",
+                    })
+                  }
                   className="w-full py-2.5 px-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-700 font-medium text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-sm"
                 >
                   <FcGoogle className="text-base" />
@@ -362,7 +438,11 @@ export default function AuthPage() {
                 className="w-full mt-2 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold text-sm transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
               >
                 {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                {isLogin ? "Masuk ke Sistem" : "Buat Akun Sekarang"}
+                {isLogin
+                  ? loginRole === "ADMIN"
+                    ? "Masuk ke Dashboard"
+                    : "Masuk ke POS Kasir"
+                  : "Buat Akun Sekarang"}
               </button>
             </form>
 

@@ -19,7 +19,12 @@ import {
   Tags,
   Users,
   FileCheck2,
+  Settings2,
 } from "lucide-react";
+import {
+  hasPermission,
+  type PermissionModule,
+} from "@/lib/permissions";
 
 export default function Navbar() {
   const { data: session, status } = useSession();
@@ -56,12 +61,19 @@ export default function Navbar() {
   const userName =
     session?.user?.name || session?.user?.email?.split("@")?.[0] || "User";
   const userInitial = userName.charAt(0).toUpperCase();
+  const canView = (module: PermissionModule) =>
+    hasPermission(
+      session.user.role,
+      session.user.permissions,
+      module,
+      "view"
+    );
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-6">
-          <Link href="/admin/dashboard" className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5">
             <Image
               src="/Logo.png.png"
               alt="Logo Anima POS"
@@ -76,7 +88,7 @@ export default function Navbar() {
           </Link>
 
           <nav className="hidden items-center gap-1 lg:flex">
-            <Link
+            {canView("dashboard") && <Link
               href="/admin/dashboard"
               className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
                 isActive("/admin/dashboard")
@@ -86,9 +98,9 @@ export default function Navbar() {
             >
               <LayoutDashboard className="h-4 w-4" />
               <span>Dashboard</span>
-            </Link>
+            </Link>}
 
-            <div className="group relative">
+            {(canView("products") || canView("categories")) && <div className="group relative">
               <button
                 className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
                   isActive("/admin/products") || isActive("/admin/categories")
@@ -103,7 +115,7 @@ export default function Navbar() {
 
               <div className="absolute left-0 top-full hidden pt-2 group-hover:block z-50">
                 <div className="min-w-[210px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                  <Link
+                  {canView("products") && <Link
                     href="/admin/products"
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   >
@@ -112,8 +124,8 @@ export default function Navbar() {
                       <div className="font-medium">Daftar Produk</div>
                       <div className="text-[11px] text-slate-500">Kelola stok & harga</div>
                     </div>
-                  </Link>
-                  <Link
+                  </Link>}
+                  {canView("categories") && <Link
                     href="/admin/categories"
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   >
@@ -122,12 +134,12 @@ export default function Navbar() {
                       <div className="font-medium">Kategori Produk</div>
                       <div className="text-[11px] text-slate-500">Hierarki & subkategori</div>
                     </div>
-                  </Link>
+                  </Link>}
                 </div>
               </div>
-            </div>
+            </div>}
 
-            <div className="group relative">
+            {(canView("invoices") || canView("customers")) && <div className="group relative">
               <button
                 className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
                   isActive("/invoices") || isActive("/sales/customers")
@@ -142,7 +154,7 @@ export default function Navbar() {
 
               <div className="absolute left-0 top-full hidden pt-2 group-hover:block z-50">
                 <div className="min-w-[220px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                  <Link
+                  {canView("invoices") && <Link
                     href="/invoices"
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   >
@@ -151,8 +163,8 @@ export default function Navbar() {
                       <div className="font-medium">Faktur Penjualan</div>
                       <div className="text-[11px] text-slate-500">Tagihan & status bayar</div>
                     </div>
-                  </Link>
-                  <Link
+                  </Link>}
+                  {canView("customers") && <Link
                     href="/sales/customers"
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   >
@@ -161,12 +173,12 @@ export default function Navbar() {
                       <div className="font-medium">Kontak Pelanggan</div>
                       <div className="text-[11px] text-slate-500">Data customer & pemasok</div>
                     </div>
-                  </Link>
+                  </Link>}
                 </div>
               </div>
-            </div>
+            </div>}
 
-            <Link
+            {canView("purchases") && <Link
               href="/purchases"
               className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
                 isActive("/purchases")
@@ -176,9 +188,9 @@ export default function Navbar() {
             >
               <FileText className="h-4 w-4" />
               <span>Pembelian</span>
-            </Link>
+            </Link>}
 
-            <div className="group relative">
+            {(canView("inventory") || canView("warehouses")) && <div className="group relative">
               <button
                 className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
                   isActive("/warehouse")
@@ -193,7 +205,7 @@ export default function Navbar() {
 
               <div className="absolute left-0 top-full hidden pt-2 group-hover:block z-50">
                 <div className="min-w-[200px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                  <Link
+                  {canView("inventory") && <Link
                     href="/warehouse/stock"
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   >
@@ -202,8 +214,8 @@ export default function Navbar() {
                       <div className="font-medium">Stok Gudang</div>
                       <div className="text-[11px] text-slate-500">Inventaris & mutasi</div>
                     </div>
-                  </Link>
-                  <Link
+                  </Link>}
+                  {canView("warehouses") && <Link
                     href="/warehouse/locations"
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   >
@@ -212,15 +224,15 @@ export default function Navbar() {
                       <div className="font-medium">Lokasi Gudang</div>
                       <div className="text-[11px] text-slate-500">Cabang & penyimpanan</div>
                     </div>
-                  </Link>
+                  </Link>}
                 </div>
               </div>
-            </div>
+            </div>}
           </nav>
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
+          {canView("pos") && <Link
             href="/pos"
             target="_blank"
             rel="noopener noreferrer"
@@ -232,7 +244,7 @@ export default function Navbar() {
           >
             <ShoppingCart className="h-4 w-4" />
             <span className="hidden sm:inline">Kasir POS</span>
-          </Link>
+          </Link>}
 
           <div className="relative" ref={userDropdownRef}>
             <button
@@ -261,6 +273,18 @@ export default function Navbar() {
                     {session?.user?.email || ""}
                   </p>
                 </div>
+                {canView("systemSettings") && (
+                  <div className="border-b border-slate-100 py-1">
+                    <Link
+                      href="/admin/settings"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                    >
+                      <Settings2 className="h-4 w-4" />
+                      Pengaturan Sistem
+                    </Link>
+                  </div>
+                )}
                 <button
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
@@ -285,7 +309,19 @@ export default function Navbar() {
       {menuOpen && (
         <div className="border-t border-slate-200 bg-white px-4 py-4 lg:hidden">
           <div className="space-y-2">
-            <Link
+            {canView("systemSettings") && (
+              <div>
+                <Link
+                  href="/admin/settings"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-700"
+                >
+                  <Settings2 className="h-4 w-4" />
+                  Pengaturan Sistem
+                </Link>
+              </div>
+            )}
+            {canView("dashboard") && <Link
               href="/admin/dashboard"
               onClick={() => setMenuOpen(false)}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium ${
@@ -296,9 +332,9 @@ export default function Navbar() {
             >
               <LayoutDashboard className="h-4 w-4" />
               <span>Dashboard</span>
-            </Link>
+            </Link>}
 
-            <Link
+            {canView("pos") && <Link
               href="/pos"
               onClick={() => setMenuOpen(false)}
               target="_blank"
@@ -307,81 +343,81 @@ export default function Navbar() {
             >
               <ShoppingCart className="h-4 w-4 text-slate-700" />
               <span>Kasir POS</span>
-            </Link>
+            </Link>}
 
-            <div className="pt-2">
+            {(canView("products") || canView("categories")) && <div className="pt-2">
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                 Katalog
               </p>
-              <Link
+              {canView("products") && <Link
                 href="/admin/products"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 <Package className="h-4 w-4 text-slate-400" />
                 <span>Produk</span>
-              </Link>
-              <Link
+              </Link>}
+              {canView("categories") && <Link
                 href="/admin/categories"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 <Tags className="h-4 w-4 text-slate-400" />
                 <span>Kategori</span>
-              </Link>
-            </div>
+              </Link>}
+            </div>}
 
-            <div className="pt-2">
+            {(canView("invoices") || canView("purchases") || canView("customers")) && <div className="pt-2">
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                 Transaksi
               </p>
-              <Link
+              {canView("invoices") && <Link
                 href="/invoices"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 <FileText className="h-4 w-4 text-slate-400" />
                 <span>Faktur Penjualan</span>
-              </Link>
-              <Link
+              </Link>}
+              {canView("purchases") && <Link
                 href="/purchases"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 <FileCheck2 className="h-4 w-4 text-slate-400" />
                 <span>Pembelian</span>
-              </Link>
-              <Link
+              </Link>}
+              {canView("customers") && <Link
                 href="/sales/customers"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 <Users className="h-4 w-4 text-slate-400" />
                 <span>Kontak Pelanggan</span>
-              </Link>
-            </div>
+              </Link>}
+            </div>}
 
-            <div className="pt-2">
+            {(canView("inventory") || canView("warehouses")) && <div className="pt-2">
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                 Gudang
               </p>
-              <Link
+              {canView("inventory") && <Link
                 href="/warehouse/stock"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 <Layers className="h-4 w-4 text-slate-400" />
                 <span>Stok Gudang</span>
-              </Link>
-              <Link
+              </Link>}
+              {canView("warehouses") && <Link
                 href="/warehouse/locations"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 <Warehouse className="h-4 w-4 text-slate-400" />
                 <span>Lokasi Gudang</span>
-              </Link>
-            </div>
+              </Link>}
+            </div>}
 
             <button
               onClick={handleLogout}
