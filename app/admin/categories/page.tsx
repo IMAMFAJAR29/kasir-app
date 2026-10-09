@@ -267,7 +267,7 @@ export default function AdminCategoriesPage() {
 
   // ======= JSX =======
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto w-full max-w-screen-2xl space-y-6 px-4 py-6 sm:px-8 sm:py-8 xl:px-10">
       {/* Header Title */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

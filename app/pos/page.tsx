@@ -701,7 +701,6 @@ export default function PosPage() {
           opening={isOpeningSession}
           onOpeningCashChange={setOpeningCash}
           onOpen={handleOpenSession}
-          onLogout={() => void handleSignOut()}
         />
       ) : (
         <>

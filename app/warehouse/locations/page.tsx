@@ -196,7 +196,7 @@ export default function LocationsPage() {
   const inactiveCount = locations.length - activeCount;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-8 sm:px-8 xl:px-10 space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">

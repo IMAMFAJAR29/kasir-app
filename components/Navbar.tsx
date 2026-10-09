@@ -71,7 +71,7 @@ export default function Navbar() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 w-full max-w-screen-2xl items-center justify-between gap-4 px-4 sm:px-8 xl:px-10">
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-2.5">
             <Image

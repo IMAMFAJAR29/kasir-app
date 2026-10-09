@@ -1,12 +1,9 @@
-import { LogOut } from "lucide-react";
-
 interface OpenCashSessionFormProps {
   openingCash: string;
   online: boolean;
   opening: boolean;
   onOpeningCashChange: (value: string) => void;
   onOpen: (event: React.FormEvent<HTMLFormElement>) => void;
-  onLogout: () => void;
 }
 
 export default function OpenCashSessionForm({
@@ -15,7 +12,6 @@ export default function OpenCashSessionForm({
   opening,
   onOpeningCashChange,
   onOpen,
-  onLogout,
 }: OpenCashSessionFormProps) {
   return (
     <form
@@ -29,17 +25,6 @@ export default function OpenCashSessionForm({
             Catat modal awal laci kas sebelum mulai bertransaksi.
           </p>
         </div>
-        <a
-          href="/auth"
-          onClick={(event) => {
-            event.preventDefault();
-            onLogout();
-          }}
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </a>
       </div>
       <label
         className="mt-5 block text-sm font-semibold text-slate-700"

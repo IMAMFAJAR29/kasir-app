@@ -127,7 +127,7 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-8 xl:px-10">
         <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm">
           {error}
         </div>
@@ -148,7 +148,7 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-8 sm:px-8 xl:px-10 space-y-8">
       {/* === HERO WELCOME HEADER === */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white text-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden">
         <div className="relative z-10 space-y-1">
