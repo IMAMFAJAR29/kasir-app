@@ -47,6 +47,8 @@ model Product {
   adjustments  StockAdjustmentItem[]
   invoiceItems InvoiceItem[]
   purchaseItems PurchaseItem[]
+  expectedReceiptItems PurchaseReceiptItem[] @relation("ExpectedReceiptProduct")
+  actualReceiptItems   PurchaseReceiptItem[] @relation("ActualReceiptProduct")
 }
 
 //
@@ -237,6 +239,7 @@ model Purchase {
   supplier Customer? @relation(fields: [supplierId], references: [id])
   location Location? @relation(fields: [locationId], references: [id])
   items    PurchaseItem[]
+  receipts PurchaseReceipt[]
 
   @@map("purchases")
 }
@@ -255,8 +258,63 @@ model PurchaseItem {
 
   purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   product  Product  @relation(fields: [productId], references: [id])
+  receiptItems PurchaseReceiptItem[]
 
   @@map("purchase_items")
+}
+
+model PurchaseReceipt {
+  id                     Int      @id @default(autoincrement())
+  receiptNumber          String   @unique
+  requestKey             String   @unique
+  purchaseId             Int
+  supplierDeliveryNumber String?
+  receivedAt             DateTime @default(now())
+  receivedBy             String?
+  qcBy                   String?
+  status                 String   @default("DRAFT")
+  notes                  String?
+  qcCompletedAt          DateTime?
+  completedAt            DateTime?
+  stockPostedAt          DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  purchase Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  items    PurchaseReceiptItem[]
+
+  @@index([purchaseId, createdAt])
+  @@index([status])
+  @@map("purchase_receipts")
+}
+
+model PurchaseReceiptItem {
+  id                    Int     @id @default(autoincrement())
+  receiptId             Int
+  purchaseItemId        Int
+  productId             Int
+  expectedProductName   String
+  expectedSku           String
+  orderedQty            Int
+  remainingQtyAtReceipt Int
+  deliveryQty           Int     @default(0)
+  receivedQty           Int     @default(0)
+  orderDifference       Int     @default(0)
+  productMatches        Boolean @default(true)
+  actualProductId       Int?
+  actualProductName     String?
+  difference            Int     @default(0)
+  qcStatus              String  @default("PENDING")
+  notes                 String?
+
+  receipt      PurchaseReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  purchaseItem PurchaseItem    @relation(fields: [purchaseItemId], references: [id], onDelete: Restrict)
+  product      Product         @relation("ExpectedReceiptProduct", fields: [productId], references: [id], onDelete: Restrict)
+  actualProduct Product?        @relation("ActualReceiptProduct", fields: [actualProductId], references: [id], onDelete: SetNull)
+
+  @@unique([receiptId, purchaseItemId])
+  @@index([purchaseItemId])
+  @@map("purchase_receipt_items")
 }
 
 //

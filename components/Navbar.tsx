@@ -20,6 +20,7 @@ import {
   Users,
   FileCheck2,
   Settings2,
+  PackageCheck,
 } from "lucide-react";
 import {
   hasPermission,
@@ -178,17 +179,43 @@ export default function Navbar() {
               </div>
             </div>}
 
-            {canView("purchases") && <Link
-              href="/purchases"
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                isActive("/purchases")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-              }`}
-            >
-              <FileText className="h-4 w-4" />
-              <span>Pembelian</span>
-            </Link>}
+            {canView("purchases") && <div className="group relative">
+              <button
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  isActive("/purchases")
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                <span>Pembelian</span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+              </button>
+              <div className="absolute left-0 top-full z-50 hidden pt-2 group-hover:block">
+                <div className="min-w-[220px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                  <Link
+                    href="/purchases"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <FileText className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Daftar Pembelian</div>
+                      <div className="text-[11px] text-slate-500">Purchase order & pembayaran</div>
+                    </div>
+                  </Link>
+                  <Link
+                    href="/purchases/receiving"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <PackageCheck className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Penerimaan Barang</div>
+                      <div className="text-[11px] text-slate-500">Pencatatan & pemeriksaan QC</div>
+                    </div>
+                  </Link>
+                </div>
+              </div>
+            </div>}
 
             {(canView("inventory") || canView("warehouses")) && <div className="group relative">
               <button
@@ -386,6 +413,14 @@ export default function Navbar() {
               >
                 <FileCheck2 className="h-4 w-4 text-slate-400" />
                 <span>Pembelian</span>
+              </Link>}
+              {canView("purchases") && <Link
+                href="/purchases/receiving"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <PackageCheck className="h-4 w-4 text-slate-400" />
+                <span>Penerimaan Barang</span>
               </Link>}
               {canView("customers") && <Link
                 href="/sales/customers"

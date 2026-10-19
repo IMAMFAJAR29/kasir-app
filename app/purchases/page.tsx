@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trash, Edit, Printer, Plus } from "lucide-react";
+import { Trash, Edit, Printer, Plus, PackageCheck } from "lucide-react";
 import Swal from "sweetalert2";
+import Link from "next/link";
 import Button from "@/components/Button";
 import PurchaseModal from "@/components/purchases/purchaseModal";
 import { formatRupiah } from "@/lib/invoiceHelpers";
@@ -20,7 +21,7 @@ export default function PurchasePage() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
+  const [editingPurchase, setEditingPurchase] = useState<any | null>(null);
 
   // Fetch semua pembelian
   const fetchPurchases = async () => {
@@ -42,9 +43,25 @@ export default function PurchasePage() {
   }, []);
 
   // Edit transaksi
-  const handleEdit = (purchase: Purchase) => {
-    setEditingPurchase(purchase);
-    setShowModal(true);
+  const handleEdit = async (purchase: Purchase) => {
+    Swal.fire({
+      title: "Memuat Pembelian...",
+      text: "Mohon tunggu sebentar",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    try {
+      const res = await fetch(`/api/purchases/${purchase.id}`);
+      if (!res.ok) throw new Error("Gagal memuat detail pembelian");
+      const detail = await res.json();
+      Swal.close();
+      setEditingPurchase(detail);
+      setShowModal(true);
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Error", "Gagal memuat detail pembelian", "error");
+    }
   };
 
   // Hapus transaksi
@@ -103,16 +120,25 @@ export default function PurchasePage() {
           </p>
         </div>
 
-        <Button
-          onClick={() => {
-            setEditingPurchase(null);
-            setShowModal(true);
-          }}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-        >
-          <Plus size={16} />
-          <span>Tambah Pembelian Baru</span>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/purchases/receiving"
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            <PackageCheck size={16} />
+            <span>Penerimaan Barang</span>
+          </Link>
+          <Button
+            onClick={() => {
+              setEditingPurchase(null);
+              setShowModal(true);
+            }}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+          >
+            <Plus size={16} />
+            <span>Tambah Pembelian Baru</span>
+          </Button>
+        </div>
       </div>
 
       {/* Metric Summary Cards */}

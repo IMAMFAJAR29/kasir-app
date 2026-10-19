@@ -13,11 +13,15 @@ interface PurchaseItem {
 interface PurchasePreviewProps {
   items: PurchaseItem[];
   removeItem: (id: number) => void;
+  updateQty: (id: number, qty: number) => void;
+  updatePrice: (id: number, price: number) => void;
 }
 
 export default function PurchasePreview({
   items,
   removeItem,
+  updateQty,
+  updatePrice,
 }: PurchasePreviewProps) {
   const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
 
@@ -50,8 +54,22 @@ export default function PurchasePreview({
                 className="grid min-w-[580px] grid-cols-[2fr_0.7fr_1.2fr_1.2fr_auto] items-center gap-3 px-4 py-3 text-sm text-slate-700"
               >
                 <span>{item.name}</span>
-                <span className="text-center">{item.qty}</span>
-                <span className="text-right">{formatRupiah(item.price)}</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={item.qty}
+                  onChange={(e) => updateQty(item.id, Number(e.target.value))}
+                  aria-label={`Jumlah ${item.name}`}
+                  className="form-control px-2 py-1 text-center"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={item.price}
+                  onChange={(e) => updatePrice(item.id, Number(e.target.value))}
+                  aria-label={`Harga ${item.name}`}
+                  className="form-control px-2 py-1 text-right"
+                />
                 <span className="text-right">{formatRupiah(item.subtotal)}</span>
                 <button
                   type="button"

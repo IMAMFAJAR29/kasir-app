@@ -8,6 +8,22 @@ import PurchaseForm from "@/components/purchases/purchaseForm";
 import PurchasePreview from "@/components/purchases/purchasePreview";
 import ProductModal from "@/components/shared/ProductModal";
 
+const createEmptyFormState = () => ({
+  purchaseNumber: "",
+  supplierId: null,
+  locationId: null,
+  refNo: "",
+  buyer: "",
+  date: new Date().toISOString().slice(0, 10),
+  termin: 0,
+  dueDate: "",
+  discount: "",
+  shipping: "",
+  notes: "",
+  status: "unpaid",
+  items: [],
+});
+
 interface PurchaseModalProps {
   open: boolean;
   purchase?: any | null;
@@ -32,21 +48,7 @@ export default function PurchaseModal({
   // =============================
   // State form pembelian utama
   // =============================
-  const [formState, setFormState] = useState<any>({
-    purchaseNumber: "",
-    supplierId: null,
-    locationId: null,
-    refNo: "",
-    buyer: "",
-    date: new Date().toISOString().slice(0, 10),
-    termin: 0,
-    dueDate: "",
-    discount: "",
-    shipping: "",
-    notes: "",
-    status: "unpaid",
-    items: [],
-  });
+  const [formState, setFormState] = useState<any>(createEmptyFormState);
 
   const { supplierId, locationId } = formState;
 
@@ -93,7 +95,11 @@ export default function PurchaseModal({
   // Mode edit pembelian
   // =============================
   useEffect(() => {
-    if (!purchase || !open) return;
+    if (!open) return;
+    if (!purchase) {
+      setFormState(createEmptyFormState());
+      return;
+    }
 
     setFormState({
       purchaseNumber: purchase.purchaseNumber || "",
@@ -114,7 +120,7 @@ export default function PurchaseModal({
       status: purchase.status ?? "unpaid",
       items:
         purchase.items?.map((i: any) => ({
-          id: i.product?.id ?? i.id,
+          id: i.product?.id ?? i.productId ?? i.id,
           name: i.product?.name ?? i.name,
           sku: i.product?.sku ?? i.sku,
           qty: Number(i.qty),

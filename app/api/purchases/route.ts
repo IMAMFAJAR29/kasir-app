@@ -46,6 +46,8 @@ export async function POST(req: Request) {
       discount = 0,
       shipping = 0,
       buyer,
+      date,
+      termin,
     } = body;
 
     if (!supplierId || !locationId || !items || items.length === 0)
@@ -116,6 +118,8 @@ export async function POST(req: Request) {
         refNo: refNo || null,
         notes: notes || null,
         buyer: buyer || null,
+        date: date ? new Date(date) : null,
+        termin: termin === "" || termin == null ? null : Number(termin),
         discount,
         shipping,
         totalAmount,
