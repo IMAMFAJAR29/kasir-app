@@ -287,6 +287,7 @@ export default function PurchaseReceiptDetailPage() {
           {receipt.status !== "DRAFT" && (
             <Button
               onClick={printDeliveryNote}
+              variant="outline"
               className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               <Printer size={15} />
@@ -577,6 +578,7 @@ export default function PurchaseReceiptDetailPage() {
               <Button
                 onClick={() => updateReceipt("save")}
                 disabled={saving}
+                variant="outline"
                 className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
               >
                 <Save size={15} />
@@ -596,6 +598,7 @@ export default function PurchaseReceiptDetailPage() {
               <Button
                 onClick={() => updateReceipt("save")}
                 disabled={saving}
+                variant="outline"
                 className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
               >
                 <Save size={15} />
