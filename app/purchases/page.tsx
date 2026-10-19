@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trash, Edit, Printer, Plus, PackageCheck } from "lucide-react";
+import { Trash, Edit, Printer, Plus } from "lucide-react";
 import Swal from "sweetalert2";
 import Link from "next/link";
 import Button from "@/components/Button";
@@ -120,25 +120,16 @@ export default function PurchasePage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/purchases/receiving"
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            <PackageCheck size={16} />
-            <span>Penerimaan Barang</span>
-          </Link>
-          <Button
-            onClick={() => {
-              setEditingPurchase(null);
-              setShowModal(true);
-            }}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-          >
-            <Plus size={16} />
-            <span>Tambah Pembelian Baru</span>
-          </Button>
-        </div>
+        <Button
+          onClick={() => {
+            setEditingPurchase(null);
+            setShowModal(true);
+          }}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+        >
+          <Plus size={16} />
+          <span>Tambah Pembelian Baru</span>
+        </Button>
       </div>
 
       {/* Metric Summary Cards */}
