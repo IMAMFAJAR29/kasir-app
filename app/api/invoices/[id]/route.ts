@@ -46,14 +46,49 @@ export async function PUT(
     const invoiceId = Number(id);
     const body = await req.json();
 
-    const { customerId, locationId, items, taxId, discount, shipping, notes } =
-      body;
+    const existingInvoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      select: { id: true, status: true, paidAmount: true },
+    });
+    if (!existingInvoice)
+      return NextResponse.json(
+        { error: "Faktur tidak ditemukan" },
+        { status: 404 }
+      );
+    if (existingInvoice.status === "paid")
+      return NextResponse.json(
+        { error: "Faktur yang sudah lunas tidak bisa diedit" },
+        { status: 400 }
+      );
 
-    if (!items || items.length === 0)
+    const {
+      invoiceNumber,
+      customerId,
+      locationId,
+      items,
+      taxId,
+      date,
+      termin,
+      dueDate,
+      refNo,
+      salesman,
+      discount,
+      shipping,
+      notes,
+      status = existingInvoice.status,
+    } = body;
+
+    if (!Array.isArray(items) || items.length === 0)
       return NextResponse.json(
         { error: "Item tidak boleh kosong" },
         { status: 400 }
       );
+    if (!["paid", "unpaid"].includes(status)) {
+      return NextResponse.json(
+        { error: "Status pembayaran tidak valid" },
+        { status: 400 }
+      );
+    }
 
     let subtotal = 0;
     const itemData = items
@@ -85,13 +120,22 @@ export async function PUT(
     const updated = await prisma.invoice.update({
       where: { id: invoiceId },
       data: {
+        invoiceNumber,
         customerId: Number(customerId),
         locationId: Number(locationId),
         taxId: taxId ? Number(taxId) : null,
+        date: date ? new Date(date) : null,
+        termin: termin === "" || termin == null ? null : Number(termin),
+        dueDate: dueDate ? new Date(dueDate) : null,
+        refNo: refNo || null,
+        salesman: salesman || null,
         discount: Number(discount || 0),
         shipping: Number(shipping || 0),
         notes: notes || "",
         totalAmount,
+        paidAmount:
+          status === "paid" ? totalAmount : existingInvoice.paidAmount,
+        status,
         items: {
           deleteMany: {},
           create: itemData,

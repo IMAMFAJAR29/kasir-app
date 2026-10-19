@@ -5,13 +5,14 @@ import { Printer, Plus, Trash, Edit } from "lucide-react";
 import Swal from "sweetalert2";
 import InvoiceModal from "@/components/invoices/InvoiceModal";
 import Button from "@/components/Button";
+import BrandLoader from "@/components/BrandLoader";
 
 interface Invoice {
   id: number;
   invoiceNumber: string;
   createdAt: string;
   totalAmount: number;
-  status: string;
+  status: "paid" | "unpaid";
   customerName?: string;
   locationName?: string;
 }
@@ -21,6 +22,7 @@ export default function InvoicePage() {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [loadingInvoiceDetail, setLoadingInvoiceDetail] = useState(false);
 
   // Ambil semua faktur
   const fetchInvoices = async () => {
@@ -43,23 +45,18 @@ export default function InvoicePage() {
 
   // Edit faktur → fetch detail dari backend
   const handleEdit = async (inv: Invoice) => {
-    Swal.fire({
-      title: "Memuat Faktur...",
-      text: "Mohon tunggu sebentar",
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading(),
-    });
-
+    setLoadingInvoiceDetail(true);
     try {
       const res = await fetch(`/api/invoices/${inv.id}`);
       if (!res.ok) throw new Error("Gagal memuat data faktur");
       const data = await res.json();
-      Swal.close();
       setEditingInvoice(data);
       setShowModal(true);
     } catch (err) {
       console.error(err);
       Swal.fire("Error", "Gagal memuat detail faktur", "error");
+    } finally {
+      setLoadingInvoiceDetail(false);
     }
   };
 
@@ -70,17 +67,29 @@ export default function InvoicePage() {
 
   // Toggle status paid/unpaid
   const handleToggleStatus = async (inv: Invoice) => {
-    const newStatus = inv.status === "paid" ? "unpaid" : "paid";
+    if (inv.status === "paid") return;
+
+    const newStatus = "paid";
     try {
       const res = await fetch(`/api/invoices/${inv.id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error("Gagal ubah status");
+      if (!res.ok) {
+        const error = await res.json();
+        if (res.status === 400 && error.error?.includes("sudah lunas")) {
+          await fetchInvoices();
+          return;
+        }
+        throw new Error("Gagal ubah status");
+      }
 
+      const updated = await res.json();
       setInvoices((prev) =>
-        prev.map((i) => (i.id === inv.id ? { ...i, status: newStatus } : i))
+        prev.map((i) =>
+          i.id === inv.id ? { ...i, status: updated.status } : i
+        )
       );
     } catch (err) {
       Swal.fire("Error", "Gagal ubah status faktur", "error");
@@ -248,9 +257,11 @@ export default function InvoicePage() {
 
       {/* Tabel Faktur */}
       {loading ? (
-        <div className="text-center py-16 text-slate-500 bg-white rounded-2xl border border-slate-200/80">
-          <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-          <p className="text-sm">Memuat data faktur...</p>
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
+          <BrandLoader
+            label="Memuat data faktur..."
+            className="min-h-44 bg-transparent"
+          />
         </div>
       ) : (
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
@@ -303,12 +314,17 @@ export default function InvoicePage() {
                           <button
                             type="button"
                             onClick={() => handleToggleStatus(inv)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition cursor-pointer select-none active:scale-95 border ${
+                            disabled={isPaid}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition select-none border ${
                               isPaid
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                                : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 opacity-40 cursor-not-allowed"
+                                : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 cursor-pointer active:scale-95"
                             }`}
-                            title="Klik untuk ubah status"
+                            title={
+                              isPaid
+                                ? "Faktur yang sudah lunas tidak dapat diubah kembali"
+                                : "Klik untuk tandai lunas"
+                            }
                           >
                             <span
                               className={`w-1.5 h-1.5 rounded-full ${
@@ -322,16 +338,15 @@ export default function InvoicePage() {
                         {/* Aksi */}
                         <td className="p-4 text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleEdit(inv)}
-                              disabled={isPaid}
-                              title={isPaid ? "Faktur lunas tidak dapat diedit" : "Edit Faktur"}
-                              className={`p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer ${
-                                isPaid ? "opacity-40 cursor-not-allowed" : ""
-                              }`}
-                            >
-                              <Edit size={14} />
-                            </button>
+                            {!isPaid && (
+                              <button
+                                onClick={() => handleEdit(inv)}
+                                title="Edit Faktur"
+                                className="p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                              >
+                                <Edit size={14} />
+                              </button>
+                            )}
 
                             <button
                               onClick={() => handlePrint(inv)}
@@ -380,6 +395,17 @@ export default function InvoicePage() {
           onSuccess={fetchInvoices}
           invoice={editingInvoice}
         />
+      )}
+
+      {loadingInvoiceDetail && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl shadow-xl">
+            <BrandLoader
+              label="Memuat faktur..."
+              className="min-h-44 bg-white"
+            />
+          </div>
+        </div>
       )}
     </div>
   );

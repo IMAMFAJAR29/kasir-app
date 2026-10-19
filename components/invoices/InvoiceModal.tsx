@@ -50,6 +50,7 @@ export default function InvoiceModal({
   const [tax, setTax] = useState<number | null>(null);
   const [discount, setDiscount] = useState<number>(0);
   const [shipping, setShipping] = useState<number>(0);
+  const [status, setStatus] = useState<"paid" | "unpaid">("unpaid");
   const [items, setItems] = useState<InvoiceItem[]>([]);
 
   // =============================
@@ -94,20 +95,46 @@ export default function InvoiceModal({
   // Mode Edit Faktur (isi ulang form)
   // =============================
   useEffect(() => {
-    if (!invoice || !open) return;
+    if (!open) return;
+    if (!invoice) {
+      setInvoiceNumber("");
+      setCustomerId(null);
+      setLocationId(null);
+      setRefNo("");
+      setSalesman("");
+      setDate(new Date().toISOString().slice(0, 10));
+      setTermin(null);
+      setDueDate("");
+      setNotes("");
+      setTax(null);
+      setDiscount(0);
+      setShipping(0);
+      setStatus("unpaid");
+      setItems([]);
+      return;
+    }
 
     setInvoiceNumber(invoice.invoiceNumber || "");
     setCustomerId(invoice.customerId || null);
     setLocationId(invoice.locationId || null);
     setRefNo(invoice.refNo || "");
     setSalesman(invoice.salesman || "");
-    setDate(invoice.date || new Date().toISOString().slice(0, 10));
+    setDate(
+      invoice.date
+        ? new Date(invoice.date).toISOString().slice(0, 10)
+        : new Date().toISOString().slice(0, 10)
+    );
     setTermin(invoice.termin || null);
-    setDueDate(invoice.dueDate || "");
+    setDueDate(
+      invoice.dueDate
+        ? new Date(invoice.dueDate).toISOString().slice(0, 10)
+        : ""
+    );
     setNotes(invoice.notes || "");
     setTax(invoice.tax?.rate ?? null);
     setDiscount(invoice.discount ?? 0);
     setShipping(invoice.shipping ?? 0);
+    setStatus(invoice.status ?? "unpaid");
 
     const mappedItems =
       invoice.items?.map((i: any) => ({
@@ -193,13 +220,18 @@ export default function InvoiceModal({
     const selectedTaxId = taxes.find((t) => t.rate === tax)?.id ?? null;
 
     const body = {
+      invoiceNumber,
       customerId,
       locationId,
+      date,
+      termin,
       dueDate,
       refNo,
+      salesman,
       notes,
       discount,
       shipping,
+      status,
       taxId: selectedTaxId,
       items: items.map((i) => ({
         productId: i.id,
@@ -314,6 +346,38 @@ export default function InvoiceModal({
           onChangeDiscount={setDiscount}
           onChangeShipping={setShipping}
         />
+
+        <div className="mb-4">
+          <span className="form-label">Status Pembayaran</span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={status === "paid"}
+              aria-label="Status pembayaran"
+              disabled={status === "paid"}
+              onClick={() => setStatus("paid")}
+              className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 ${
+                status === "paid"
+                  ? "cursor-not-allowed bg-brand-blue"
+                  : "cursor-pointer bg-brand-teal"
+              }`}
+            >
+              <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-200 ${
+                  status === "paid" ? "translate-x-7" : "translate-x-1"
+                }`}
+              />
+            </button>
+            <span
+              className={`text-sm font-semibold ${
+                status === "paid" ? "text-brand-blue" : "text-brand-teal"
+              }`}
+            >
+              {status === "paid" ? "Lunas" : "Belum Lunas"}
+            </span>
+          </div>
+        </div>
 
         {/* Catatan */}
         <InvoiceNotes notes={notes} onChange={setNotes} />

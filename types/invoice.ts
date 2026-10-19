@@ -32,6 +32,7 @@ export interface InvoiceItem {
 export interface Invoice {
   id?: number;
   invoiceNumber: string;
+  status?: "paid" | "unpaid";
   customerId?: number;
   locationId?: number;
   refNo?: string;

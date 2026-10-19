@@ -39,13 +39,18 @@ export async function POST(req: Request) {
     const {
       customerId,
       locationId,
+      invoiceNumber: requestedInvoiceNumber,
       items,
+      date,
+      termin,
       dueDate,
       refNo,
+      salesman,
       notes,
       discount = 0,
       shipping = 0,
       taxId,
+      status = "unpaid",
     } = body;
 
     if (!customerId || !locationId || !items || items.length === 0)
@@ -53,6 +58,12 @@ export async function POST(req: Request) {
         { error: "Data faktur tidak lengkap" },
         { status: 400 }
       );
+    if (!["paid", "unpaid"].includes(status)) {
+      return NextResponse.json(
+        { error: "Status pembayaran tidak valid" },
+        { status: 400 }
+      );
+    }
 
     // Validasi customer & lokasi
     const [customer, location] = await Promise.all([
@@ -107,7 +118,7 @@ export async function POST(req: Request) {
 
     // Generate nomor faktur unik
     const now = new Date();
-    const invoiceNumber = `INV-${now.getFullYear()}${String(
+    const invoiceNumber = requestedInvoiceNumber || `INV-${now.getFullYear()}${String(
       now.getMonth() + 1
     ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${Date.now()}`;
 
@@ -118,13 +129,16 @@ export async function POST(req: Request) {
         customerId: Number(customerId),
         locationId: Number(locationId),
         taxId: taxId ? Number(taxId) : null,
+        date: date ? new Date(date) : null,
+        termin: termin === "" || termin == null ? null : Number(termin),
         refNo: refNo || null,
+        salesman: salesman || null,
         notes: notes || null,
         discount,
         shipping,
         totalAmount,
-        paidAmount: 0,
-        status: "unpaid",
+        paidAmount: status === "paid" ? totalAmount : 0,
+        status,
         dueDate: dueDate ? new Date(dueDate) : null,
         items: { create: invoiceItemsData },
       },
