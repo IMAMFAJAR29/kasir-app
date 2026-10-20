@@ -17,20 +17,20 @@ export default function CartList({
 }: CartListProps) {
   if (cart.length === 0) {
     return (
-      <div className="py-12 px-4 text-center flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl">
-        <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mb-2.5">
-          <ShoppingBag className="w-6 h-6" />
+      <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 px-4 py-10 text-center sm:py-12">
+        <div className="mb-2.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+          <ShoppingBag className="h-6 w-6" />
         </div>
         <p className="text-sm font-semibold text-slate-700">Keranjang Masih Kosong</p>
-        <p className="text-xs text-slate-400 mt-1 max-w-[200px]">
-          Klik produk dari katalog di sebelah kiri untuk menambah ke transaksi
+        <p className="mt-1 max-w-[200px] text-xs text-slate-400">
+          Klik produk dari katalog untuk menambah ke transaksi
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
+    <div className="max-h-[38vh] space-y-2.5 overflow-y-auto pr-1 sm:max-h-[44vh]">
       {cart.map((item) => {
         const itemSubtotal = item.price * item.qty;
 

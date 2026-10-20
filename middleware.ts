@@ -13,6 +13,11 @@ export default withAuth(
       if (isApiRoute) {
         return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
       }
+      if (pathname === "/pos") {
+        const authUrl = new URL("/auth", request.url);
+        authUrl.searchParams.set("redirect", "/pos");
+        return NextResponse.redirect(authUrl);
+      }
       return NextResponse.redirect(new URL("/auth", request.url));
     }
 

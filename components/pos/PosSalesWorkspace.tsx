@@ -53,12 +53,12 @@ export default function PosSalesWorkspace({
 }: PosSalesWorkspaceProps) {
   return (
     <>
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 items-start gap-3 sm:gap-4 lg:grid-cols-12 lg:gap-6">
         <div className="lg:col-span-7 xl:col-span-8">
           <ProductList products={products} onAddToCart={onAddToCart} />
         </div>
         <div className="lg:sticky lg:top-20 lg:col-span-5 xl:col-span-4">
-          <div className="space-y-4 rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <div className="space-y-4 rounded-3xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-4 lg:p-5">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white">
                 <ShoppingCart size={16} />
@@ -72,13 +72,15 @@ export default function PosSalesWorkspace({
               onUpdateQty={onUpdateQty}
               onRemove={onRemove}
             />
-            <PaymentSection
-              total={total}
-              selected={method}
-              offline={!online}
-              onSelect={onSelectPayment}
-              onPay={onPay}
-            />
+            <div className="lg:pb-1">
+              <PaymentSection
+                total={total}
+                selected={method}
+                offline={!online}
+                onSelect={onSelectPayment}
+                onPay={onPay}
+              />
+            </div>
           </div>
         </div>
       </div>

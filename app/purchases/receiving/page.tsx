@@ -67,7 +67,7 @@ export default function PurchaseReceivingPage() {
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "Gagal memuat data penerimaan."
+          : "Gagal memuat data penerimaan.",
       );
     } finally {
       setLoading(false);
@@ -107,7 +107,7 @@ export default function PurchaseReceivingPage() {
       setError(
         createError instanceof Error
           ? createError.message
-          : "Gagal memulai penerimaan."
+          : "Gagal memulai penerimaan.",
       );
     } finally {
       setCreating(false);
@@ -119,14 +119,14 @@ export default function PurchaseReceivingPage() {
       await Swal.fire(
         "Penerimaan masih Draft",
         "Lengkapi data dan kirim untuk QC sebelum mencetak Surat Jalan.",
-        "info"
+        "info",
       );
       return;
     }
     window.open(
       `/purchases/receiving/${receipt.id}/print`,
       "_blank",
-      "noopener,noreferrer"
+      "noopener,noreferrer",
     );
   };
 
@@ -200,7 +200,7 @@ export default function PurchaseReceivingPage() {
         </div>
         {loading ? (
           <p className="p-8 text-center text-sm text-slate-500">
-            Memuat riwayat...
+            Akun kasir...
           </p>
         ) : receipts.length === 0 ? (
           <p className="p-8 text-center text-sm text-slate-500">

@@ -668,7 +668,7 @@ export default function PosPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+    <div className="mx-auto max-w-7xl px-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:px-6 sm:py-6">
       <PosAccountBar
         name={cashierName}
         role={identity.role || "CASHIER"}

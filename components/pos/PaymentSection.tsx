@@ -129,17 +129,17 @@ export default function PaymentSection({
   return (
     <div className="mt-4 pt-4 border-t border-slate-200 space-y-4">
       {/* Total Section */}
-      <div className="bg-slate-900 text-white p-4 rounded-2xl flex items-center justify-between shadow-xs">
+      <div className="flex items-center justify-between rounded-2xl bg-slate-900 p-3 text-white shadow-xs sm:p-4">
         <div>
-          <span className="text-xs text-slate-400 block font-medium">
+          <span className="block text-[10px] font-medium text-slate-400 sm:text-xs">
             Total Tagihan
           </span>
-          <span className="text-xs text-indigo-400 font-medium flex items-center gap-1">
+          <span className="mt-1 flex items-center gap-1 text-[10px] font-medium text-indigo-400 sm:text-xs">
             <Sparkles size={12} />
             <span>Pajak sudah termasuk</span>
           </span>
         </div>
-        <div className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+        <div className="text-lg font-bold tracking-tight text-white sm:text-2xl">
           Rp {total.toLocaleString("id-ID")}
         </div>
       </div>
@@ -163,10 +163,10 @@ export default function PaymentSection({
                 type="button"
                 disabled={offline && m.id !== "cash"}
                 onClick={() => onSelect(m.id)}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl text-xs font-semibold border transition cursor-pointer select-none active:scale-[0.98] ${
+                className={`flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border p-2 text-[11px] font-semibold transition cursor-pointer select-none active:scale-[0.98] sm:text-xs ${
                   isSelected
-                    ? "bg-slate-900 text-white border-slate-900 shadow-xs"
-                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                    ? "border-slate-900 bg-slate-900 text-white shadow-xs"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
               >
                 {m.icon}
@@ -257,10 +257,10 @@ export default function PaymentSection({
       <Button
         onClick={handlePay}
         disabled={isPayDisabled}
-        className={`w-full py-3 text-sm font-bold rounded-xl transition-all shadow-xs ${
+        className={`sticky bottom-0 z-10 w-full rounded-xl py-3.5 text-sm font-bold shadow-xs ${
           isPayDisabled
-            ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-            : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 active:scale-[0.98]"
+            ? "cursor-not-allowed bg-slate-200 text-slate-400"
+            : "bg-emerald-600 text-white shadow-emerald-600/20 transition-all hover:bg-emerald-700 active:scale-[0.98]"
         }`}
       >
         {loading

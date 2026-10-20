@@ -27,12 +27,18 @@ type LoginRole = "CASHIER" | "ADMIN";
 export default function AuthPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const redirectTarget =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("redirect") || "/admin/dashboard"
+      : "/admin/dashboard";
 
   // State utama
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [loginRole, setLoginRole] = useState<LoginRole>("ADMIN");
+  const [loginRole, setLoginRole] = useState<LoginRole>(
+    redirectTarget === "/pos" ? "CASHIER" : "ADMIN"
+  );
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const loginAttemptRef = useRef(false);
 
@@ -100,6 +106,11 @@ export default function AuthPage() {
         });
 
         if (result?.ok) {
+          const destination =
+            redirectTarget === "/pos" || loginRole === "CASHIER"
+              ? "/pos"
+              : "/admin/dashboard";
+
           // ✅ Tunggu session benar-benar aktif sebelum redirect
           const checkSession = async () => {
             let retries = 0;
@@ -107,15 +118,13 @@ export default function AuthPage() {
               const res = await fetch("/api/auth/session");
               const data = await res.json();
               if (data?.user) {
-                router.replace(loginRole === "CASHIER" ? "/pos" : "/admin/dashboard");
+                router.replace(destination);
                 return;
               }
               await new Promise((r) => setTimeout(r, 300));
               retries++;
             }
-            router.replace(
-              loginRole === "CASHIER" ? "/pos" : "/admin/dashboard"
-            );
+            router.replace(destination);
           };
           await checkSession();
         } else {

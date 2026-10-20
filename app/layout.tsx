@@ -11,10 +11,24 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata = {
   title: "Anima POS - Sistem Kasir & Inventaris Toko",
   description: "Aplikasi POS kasir, manajemen faktur, stok gudang, dan laporan terpadu",
+  manifest: "/manifest.webmanifest",
+  applicationName: "Anima POS",
   icons: {
     icon: "/Logo.png.png",
     apple: "/Logo.png.png",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Anima POS",
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({
