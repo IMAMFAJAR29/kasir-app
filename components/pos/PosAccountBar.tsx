@@ -46,9 +46,9 @@ export default function PosAccountBar({
               onClick={onChangePin}
               disabled={!online}
               title={!online ? "Ubah PIN memerlukan koneksi internet." : undefined}
-              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <KeyRound className="h-4 w-4" />
+              <KeyRound className="h-3.5 w-3.5" />
               Ubah PIN
             </button>
           )}

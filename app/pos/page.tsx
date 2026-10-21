@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Swal from "sweetalert2";
-import { CloudOff, LogOut } from "lucide-react";
+import {
+  CloudOff,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  Lock,
+  LogOut,
+  X,
+} from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import PosAccountBar from "@/components/pos/PosAccountBar";
 import OpenCashSessionForm from "@/components/pos/OpenCashSessionForm";
@@ -73,6 +82,13 @@ export default function PosPage() {
   const [isSynchronizing, setIsSynchronizing] = useState(false);
   const [storageError, setStorageError] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [showPinFields, setShowPinFields] = useState(false);
+  const [isChangingPin, setIsChangingPin] = useState(false);
+  const [pinError, setPinError] = useState("");
   const syncingRef = useRef(false);
   const initializedKeyRef = useRef<string | null>(null);
   const previousOnlineRef = useRef(true);
@@ -103,77 +119,54 @@ export default function PosPage() {
     }
   };
 
-  const handleChangePin = async () => {
-    const { value: pinValues } = await Swal.fire({
-      title: "Ubah PIN kasir",
-      html: `
-        <label for="cashier-current-pin" class="mb-1 block text-left text-sm font-semibold">PIN saat ini</label>
-        <input id="cashier-current-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" class="swal2-input" placeholder="PIN saat ini">
-        <label for="cashier-new-pin" class="mb-1 block text-left text-sm font-semibold">PIN baru (6–12 digit)</label>
-        <input id="cashier-new-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" class="swal2-input" placeholder="PIN baru">
-        <label for="cashier-confirm-pin" class="mb-1 block text-left text-sm font-semibold">Konfirmasi PIN baru</label>
-        <input id="cashier-confirm-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" class="swal2-input" placeholder="Ulangi PIN baru">
-      `,
-      focusConfirm: false,
-      showCancelButton: true,
-      confirmButtonText: "Simpan PIN",
-      cancelButtonText: "Batal",
-      confirmButtonColor: "#1769e0",
-      preConfirm: () => {
-        const currentPin = document.getElementById(
-          "cashier-current-pin"
-        ) as HTMLInputElement | null;
-        const newPin = document.getElementById(
-          "cashier-new-pin"
-        ) as HTMLInputElement | null;
-        const confirmPin = document.getElementById(
-          "cashier-confirm-pin"
-        ) as HTMLInputElement | null;
-        if (!currentPin?.value || !newPin?.value || !confirmPin?.value) {
-          Swal.showValidationMessage("Semua kolom PIN wajib diisi.");
-          return;
-        }
-        if (!/^\d{4,12}$/.test(currentPin.value)) {
-          Swal.showValidationMessage("PIN saat ini harus terdiri dari 4–12 digit.");
-          return;
-        }
-        if (!/^\d{6,12}$/.test(newPin.value)) {
-          Swal.showValidationMessage("PIN baru harus terdiri dari 6–12 digit.");
-          return;
-        }
-        if (newPin.value !== confirmPin.value) {
-          Swal.showValidationMessage("Konfirmasi PIN baru tidak cocok.");
-          return;
-        }
-        return {
-          currentPin: currentPin.value,
-          newPin: newPin.value,
-          confirmPin: confirmPin.value,
-        };
-      },
-    });
-    if (!pinValues) return;
-
+  const handleChangePin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isChangingPin) return;
+    setPinError("");
+    if (!/^\d{4,12}$/.test(currentPin)) {
+      setPinError("PIN saat ini harus terdiri dari 4–12 digit angka.");
+      return;
+    }
+    if (!/^\d{6,12}$/.test(newPin)) {
+      setPinError("PIN baru harus terdiri dari 6–12 digit angka.");
+      return;
+    }
+    if (newPin !== confirmPin) {
+      setPinError("Konfirmasi PIN baru tidak cocok.");
+      return;
+    }
+    setIsChangingPin(true);
     try {
       const response = await fetch("/api/cashier/pin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pinValues),
+        body: JSON.stringify({ currentPin, newPin, confirmPin }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Gagal mengubah PIN.");
+      setIsPinModalOpen(false);
+      setCurrentPin("");
+      setNewPin("");
+      setConfirmPin("");
       await Swal.fire(
         "PIN berhasil diubah",
         "Gunakan PIN baru pada login kasir berikutnya.",
         "success"
       );
     } catch (error) {
-      await Swal.fire(
-        "Gagal mengubah PIN",
-        error instanceof Error ? error.message : "Terjadi kesalahan.",
-        "error"
-      );
+      setPinError(error instanceof Error ? error.message : "Terjadi kesalahan.");
+    } finally {
+      setIsChangingPin(false);
     }
+  };
+
+  const openPinModal = () => {
+    setCurrentPin("");
+    setNewPin("");
+    setConfirmPin("");
+    setPinError("");
+    setShowPinFields(false);
+    setIsPinModalOpen(true);
   };
 
   const persistState = useCallback(
@@ -747,8 +740,154 @@ export default function PosPage() {
         role={identity.role || "CASHIER"}
         online={isOnline}
         onLogout={() => void handleSignOut()}
-        onChangePin={() => void handleChangePin()}
+        onChangePin={openPinModal}
       />
+
+      {isPinModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4 backdrop-blur-[2px]"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isChangingPin) {
+              setIsPinModalOpen(false);
+            }
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="change-pin-title"
+            className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-2xl"
+          >
+            <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-br from-teal-50 via-blue-50 to-white px-6 py-6 sm:px-8">
+              <div className="absolute -right-8 -top-12 h-36 w-36 rounded-full bg-blue-200/30 blur-3xl" />
+              <button
+                type="button"
+                onClick={() => setIsPinModalOpen(false)}
+                disabled={isChangingPin}
+                aria-label="Tutup form ubah PIN"
+                className="absolute right-4 top-4 rounded-lg p-2 text-slate-500 transition hover:bg-white/80 hover:text-slate-800 disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="relative flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-100 bg-white text-blue-700 shadow-sm">
+                  <KeyRound className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2
+                    id="change-pin-title"
+                    className="text-xl font-bold tracking-tight text-brand-navy sm:text-2xl"
+                  >
+                    Ubah PIN kasir
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    PIN baru hanya diketahui oleh Anda.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleChangePin} className="space-y-4 p-6 sm:p-8">
+              {[
+                {
+                  id: "current-pin",
+                  label: "PIN saat ini",
+                  placeholder: "Masukkan PIN saat ini",
+                  value: currentPin,
+                  setValue: setCurrentPin,
+                  minLength: 4,
+                },
+                {
+                  id: "new-pin",
+                  label: "PIN baru",
+                  placeholder: "6–12 digit angka",
+                  value: newPin,
+                  setValue: setNewPin,
+                  minLength: 6,
+                },
+                {
+                  id: "confirm-pin",
+                  label: "Konfirmasi PIN baru",
+                  placeholder: "Ulangi PIN baru",
+                  value: confirmPin,
+                  setValue: setConfirmPin,
+                  minLength: 6,
+                },
+              ].map((field) => (
+                <div key={field.id}>
+                  <label
+                    htmlFor={field.id}
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600"
+                  >
+                    {field.label}
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id={field.id}
+                      type={showPinFields ? "text" : "password"}
+                      value={field.value}
+                      onChange={(event) =>
+                        field.setValue(event.target.value.slice(0, 12))
+                      }
+                      placeholder={field.placeholder}
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={12}
+                      minLength={field.minLength}
+                      required
+                      autoFocus={field.id === "current-pin"}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-12 text-base tracking-[0.2em] text-slate-900 transition-all placeholder:tracking-normal placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPinFields((visible) => !visible)}
+                      aria-label={
+                        showPinFields ? "Sembunyikan PIN" : "Tampilkan PIN"
+                      }
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                    >
+                      {showPinFields ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {pinError && (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700"
+                >
+                  {pinError}
+                </p>
+              )}
+
+              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsPinModalOpen(false)}
+                  disabled={isChangingPin}
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:min-w-28"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isChangingPin}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70 sm:min-w-36"
+                >
+                  {isChangingPin && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {isChangingPin ? "Menyimpan..." : "Simpan PIN"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
 
       {statusMessage && (
         <p
