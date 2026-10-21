@@ -5,6 +5,15 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "@/lib/prisma";
 import type { UserPermissions } from "@/lib/permissions";
+import { hasPermission, normalizePermissions } from "@/lib/permissions";
+import {
+  clearCashierLoginFailures,
+  isCashierLoginLocked,
+  recordCashierLoginFailure,
+} from "@/lib/cashierLoginRateLimit";
+
+const DUMMY_PIN_HASH =
+  "$2b$12$m2zY1muuMEIsflosdWFRhOGtNKt/u5t.iuk7fIii20Bv1U6kcmkgu";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -17,9 +26,66 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
+        nik: { label: "NIK", type: "text" },
+        pin: { label: "PIN", type: "password" },
         area: { label: "Area aplikasi", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
+        if (credentials?.area === "cashier") {
+          const nik =
+            typeof credentials.nik === "string"
+              ? credentials.nik.trim()
+              : "";
+          const pin = typeof credentials.pin === "string" ? credentials.pin : "";
+          if (!/^\d{6,20}$/.test(nik) || !/^\d{4,12}$/.test(pin)) {
+            return null;
+          }
+          const forwardedIp =
+            request.headers?.["x-forwarded-for"]?.split(",")[0]?.trim();
+          const clientIp =
+            request.headers?.["x-real-ip"]?.trim() || forwardedIp || "unknown";
+          if (await isCashierLoginLocked(nik, clientIp)) return null;
+
+          const user = await prisma.user.findUnique({
+            where: { nik },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              permissions: true,
+              isActive: true,
+              pinHash: true,
+            },
+          });
+          const pinMatches = await bcrypt.compare(
+            pin,
+            user?.pinHash || DUMMY_PIN_HASH
+          );
+          const permissions = normalizePermissions(user?.permissions);
+          if (
+            !user ||
+            !pinMatches ||
+            !user.isActive ||
+            user.role !== "CASHIER" ||
+            !user.pinHash ||
+            !hasPermission(user.role, permissions, "pos", "view")
+          ) {
+            await recordCashierLoginFailure(nik, clientIp, Boolean(user));
+            return null;
+          }
+          await clearCashierLoginFailures(nik);
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            permissions: permissions as UserPermissions,
+            isActive: user.isActive,
+            authMethod: "nik-pin",
+          };
+        }
+
         if (
           !credentials?.email ||
           !credentials?.password ||
@@ -50,6 +116,7 @@ export const authOptions: NextAuthOptions = {
             role: user.role,
             permissions: user.permissions as UserPermissions,
             isActive: user.isActive,
+            authMethod: "password",
           };
         } catch (error) {
           console.error("Authorize error:", error);
@@ -67,9 +134,11 @@ export const authOptions: NextAuthOptions = {
       const email = user.email.trim().toLowerCase();
       const existingUser = await prisma.user.findUnique({
         where: { email },
-        select: { isActive: true },
+        select: { isActive: true, role: true },
       });
-      if (existingUser && !existingUser.isActive) return false;
+      if (existingUser) {
+        return existingUser.isActive && existingUser.role === "ADMIN";
+      }
       const deletedEmailHash = createHash("sha256")
         .update(email)
         .digest("hex");
@@ -79,22 +148,21 @@ export const authOptions: NextAuthOptions = {
       });
       if (deletedUser) return false;
 
-      const randomPassword = randomBytes(32).toString("hex");
-      const password = await bcrypt.hash(randomPassword, 10);
       const firstUser = (await prisma.user.count()) === 0;
-      await prisma.user.upsert({
-        where: { email },
-        update: { name: user.name || user.email },
-        create: {
+      if (!firstUser) return false;
+      const password = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
+      await prisma.user.create({
+        data: {
           name: user.name || user.email,
           email,
           password,
-          role: firstUser ? "ADMIN" : "CASHIER",
+          role: "ADMIN",
         },
       });
       return true;
     },
     async jwt({ token, user }) {
+      if (user?.authMethod) token.authMethod = user.authMethod;
       const email = user?.email?.trim().toLowerCase();
       const dbUser = email
         ? await prisma.user.findUnique({
@@ -124,6 +192,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.sub || "";
+        session.user.authMethod = token.authMethod;
         session.user.role = token.isActive === false
           ? "DISABLED"
           : token.role || "CASHIER";

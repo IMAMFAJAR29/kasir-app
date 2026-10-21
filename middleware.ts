@@ -28,6 +28,16 @@ export default withAuth(
       return NextResponse.redirect(new URL("/auth", request.url));
     }
 
+    if (token.role === "CASHIER" && token.authMethod !== "nik-pin") {
+      if (isApiRoute) {
+        return NextResponse.json(
+          { error: "Kasir harus login menggunakan NIK dan PIN." },
+          { status: 401 }
+        );
+      }
+      return NextResponse.redirect(new URL("/auth?redirect=%2Fpos", request.url));
+    }
+
     if (pathname === "/") {
       if (token.role === "CASHIER") {
         return NextResponse.redirect(new URL("/pos", request.url));

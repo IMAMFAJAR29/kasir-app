@@ -45,11 +45,15 @@ export async function POST(req) {
       );
     }
 
+    if ((await prisma.user.count()) !== 0) {
+      return NextResponse.json(
+        { error: "Akun berikutnya hanya dapat didaftarkan oleh administrator." },
+        { status: 403 }
+      );
+    }
+
     // 3. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Preserve the existing single-user setup when provisioning an empty database.
-    const role = (await prisma.user.count()) === 0 ? "ADMIN" : "CASHIER";
 
     // 4. Simpan user baru
     const newUser = await prisma.user.create({
@@ -57,7 +61,7 @@ export async function POST(req) {
         name,
         email: normalizedEmail,
         password: hashedPassword,
-        role,
+        role: "ADMIN",
       },
     });
 

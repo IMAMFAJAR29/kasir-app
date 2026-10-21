@@ -362,9 +362,11 @@ model StockAdjustmentItem {
 model User {
   id        String   @id @default(uuid())
   name      String
-  email     String   @unique
+  email     String?  @unique
   deletedEmailHash String?
   password  String
+  nik       String?  @unique
+  pinHash   String?
   role      String   @default("ADMIN")
   permissions Json   @default("{}")
   isActive  Boolean  @default(true)
@@ -374,6 +376,14 @@ model User {
   cashSessions CashSession[]
 
   @@index([deletedEmailHash])
+}
+
+model CashierLoginAttempt {
+  key             String   @id
+  failures        Int      @default(0)
+  windowStartedAt DateTime @default(now())
+  lockedUntil     DateTime?
+  updatedAt       DateTime @updatedAt
 }
 
 model CashSession {

@@ -10,17 +10,20 @@ import {
   defaultAdministratorPermissions,
   defaultCashierPermissions,
   hasPermission,
+  permissionModules,
   type UserPermissions,
 } from "@/lib/permissions";
 
 interface ManagedUser {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
+  nik: string | null;
   role: string;
   permissions: UserPermissions;
   createdAt: string;
   isOwner: boolean;
+  isActive: boolean;
 }
 
 export default function CashierAccountsPage() {
@@ -29,13 +32,22 @@ export default function CashierAccountsPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [nik, setNik] = useState("");
+  const [pin, setPin] = useState("");
+  const [isActive, setIsActive] = useState(true);
   const [role, setRole] = useState<"CASHIER" | "ADMIN">("CASHIER");
   const [permissions, setPermissions] = useState<UserPermissions>(
     defaultCashierPermissions
   );
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingRole, setEditingRole] = useState<"ADMIN" | "CASHIER">("ADMIN");
+  const [editName, setEditName] = useState("");
+  const [editNik, setEditNik] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
   const [editPermissions, setEditPermissions] = useState<UserPermissions>({});
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [savingPermissions, setSavingPermissions] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -84,13 +96,22 @@ export default function CashierAccountsPage() {
       const response = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role, permissions }),
+        body: JSON.stringify({
+          name,
+          ...(role === "CASHIER" ? { nik, pin } : { email, password }),
+          role,
+          permissions,
+          isActive,
+        }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Gagal membuat pengguna.");
       setName("");
       setEmail("");
       setPassword("");
+      setNik("");
+      setPin("");
+      setIsActive(true);
       setRole("CASHIER");
       setPermissions(defaultCashierPermissions);
       await loadUsers();
@@ -112,6 +133,82 @@ export default function CashierAccountsPage() {
     }
   };
 
+  const resetPin = async (user: ManagedUser) => {
+    const { value: newPin } = await Swal.fire({
+      title: `Atur ulang PIN ${user.name}`,
+      input: "password",
+      inputLabel: "PIN baru, 4–12 digit angka",
+      inputAttributes: { inputmode: "numeric", maxlength: "12", autocomplete: "new-password" },
+      showCancelButton: true,
+      confirmButtonText: "Simpan PIN",
+      cancelButtonText: "Batal",
+      inputValidator: (value) =>
+        /^\d{4,12}$/.test(value || "")
+          ? undefined
+          : "PIN harus terdiri dari 4 sampai 12 digit angka.",
+    });
+    if (!newPin) return;
+    try {
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: newPin }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Gagal mengatur ulang PIN.");
+      await Swal.fire("PIN diperbarui", "PIN baru tersimpan dengan aman.", "success");
+    } catch (resetError) {
+      await Swal.fire(
+        "Gagal mengatur ulang PIN",
+        resetError instanceof Error ? resetError.message : "Terjadi kesalahan.",
+        "error"
+      );
+    }
+  };
+
+  const toggleAccountStatus = async (user: ManagedUser) => {
+    const nextStatus = !user.isActive;
+    const confirmed = await Swal.fire({
+      title: nextStatus ? "Aktifkan akun?" : "Nonaktifkan akun?",
+      text: `${user.name} ${nextStatus ? "dapat" : "tidak dapat"} login ${nextStatus ? "kembali" : "lagi"} setelah perubahan ini.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: nextStatus ? "Aktifkan" : "Nonaktifkan",
+      cancelButtonText: "Batal",
+    });
+    if (!confirmed.isConfirmed) return;
+    try {
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: nextStatus }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Gagal mengubah status akun.");
+      await loadUsers();
+    } catch (statusError) {
+      await Swal.fire(
+        "Gagal mengubah status",
+        statusError instanceof Error ? statusError.message : "Terjadi kesalahan.",
+        "error"
+      );
+    }
+  };
+
+  const filteredUsers = users.filter((user) => {
+    const query = search.trim().toLocaleLowerCase();
+    const matchesSearch =
+      !query ||
+      user.name.toLocaleLowerCase().includes(query) ||
+      (user.nik || "").includes(query) ||
+      (user.email || "").toLocaleLowerCase().includes(query);
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && user.isActive) ||
+      (statusFilter === "inactive" && !user.isActive);
+    return matchesSearch && matchesStatus;
+  });
+
   const savePermissions = async (user: ManagedUser) => {
     setSavingPermissions(true);
     try {
@@ -120,14 +217,23 @@ export default function CashierAccountsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           role: editingRole,
+          name: editName,
+          ...(editingRole === "CASHIER" ? { nik: editNik } : {}),
+          ...(editingRole === "ADMIN"
+            ? {
+                email: editEmail,
+                ...(editPassword ? { password: editPassword } : {}),
+              }
+            : {}),
           permissions: editPermissions,
         }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Gagal menyimpan akses.");
       setEditingUserId(null);
+      setEditPassword("");
       await loadUsers();
-      await Swal.fire("Hak akses diperbarui", "Izin modul berhasil disimpan.", "success");
+      await Swal.fire("Akun diperbarui", "Profil dan hak akses berhasil disimpan.", "success");
     } catch (saveError) {
       await Swal.fire(
         "Gagal menyimpan hak akses",
@@ -178,10 +284,10 @@ export default function CashierAccountsPage() {
     <div className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-brand-navy">
-          Pengguna
+          Akun & Hak Akses
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Buat pengguna Administrator atau Kasir POS dan atur akses modulnya.
+          Kelola akun kasir NIK/PIN, administrator, status akun, dan hak akses setiap modul.
         </p>
       </div>
 
@@ -205,29 +311,61 @@ export default function CashierAccountsPage() {
             required
           />
         </label>
-        <label className="text-sm font-semibold text-slate-700">
-          Email login
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="form-control mt-1.5"
-            autoComplete="email"
-            required
-          />
-        </label>
-        <label className="text-sm font-semibold text-slate-700">
-          Password (minimal 6 karakter)
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="form-control mt-1.5"
-            autoComplete="new-password"
-            minLength={6}
-            required
-          />
-        </label>
+        {role === "CASHIER" ? (
+          <>
+            <label className="text-sm font-semibold text-slate-700">
+              NIK (6–20 digit)
+              <input
+                value={nik}
+                onChange={(event) => setNik(event.target.value.replace(/\D/g, ""))}
+                className="form-control mt-1.5"
+                inputMode="numeric"
+                maxLength={20}
+                required
+              />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              PIN (4–12 digit)
+              <input
+                type="password"
+                value={pin}
+                onChange={(event) => setPin(event.target.value)}
+                className="form-control mt-1.5"
+                inputMode="numeric"
+                autoComplete="new-password"
+                maxLength={12}
+                minLength={4}
+                required
+              />
+            </label>
+          </>
+        ) : (
+          <>
+            <label className="text-sm font-semibold text-slate-700">
+              Email login
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="form-control mt-1.5"
+                autoComplete="email"
+                required
+              />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Password (minimal 6 karakter)
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="form-control mt-1.5"
+                autoComplete="new-password"
+                minLength={6}
+                required
+              />
+            </label>
+          </>
+        )}
         <label className="text-sm font-semibold text-slate-700">
           Peran pengguna
           <select
@@ -250,14 +388,23 @@ export default function CashierAccountsPage() {
             <option value="CASHIER">Kasir POS</option>
           </select>
         </label>
-        {role === "ADMIN" && (
-          <div className="space-y-2 sm:col-span-2">
+        <label className="text-sm font-semibold text-slate-700">
+          Status akun
+          <select
+            value={isActive ? "active" : "inactive"}
+            onChange={(event) => setIsActive(event.target.value === "active")}
+            className="form-control mt-1.5"
+          >
+            <option value="active">Aktif</option>
+            <option value="inactive">Nonaktif</option>
+          </select>
+        </label>
+        <div className="space-y-2 sm:col-span-2">
             <p className="text-sm font-semibold text-slate-700">
-              Hak akses Administrator
+              Hak akses {role === "ADMIN" ? "Administrator" : "Kasir"}
             </p>
             <PermissionsGrid value={permissions} onChange={setPermissions} />
-          </div>
-        )}
+        </div>
         <div className="flex items-end">
           <button
             type="submit"
@@ -270,69 +417,136 @@ export default function CashierAccountsPage() {
       </form>}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-5 py-4">
-          <h2 className="font-semibold text-slate-900">Daftar Pengguna</h2>
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="font-semibold text-slate-900">Daftar Akun Pengguna</h2>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              aria-label="Cari nama atau NIK"
+              placeholder="Cari nama atau NIK"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="form-control"
+            />
+            <select
+              aria-label="Filter status akun"
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as "all" | "active" | "inactive")
+              }
+              className="form-control"
+            >
+              <option value="all">Semua status</option>
+              <option value="active">Aktif</option>
+              <option value="inactive">Nonaktif</option>
+            </select>
+          </div>
         </div>
         <div className="divide-y divide-slate-100">
-          {users.map((user) => (
-            <div key={user.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{user.name}</p>
-                <p className="mt-0.5 text-xs text-slate-500">{user.email}</p>
+          {filteredUsers.map((user) => {
+            const grantedModules = permissionModules
+              .filter(({ key }) =>
+                Object.values(user.permissions?.[key] || {}).some(Boolean)
+              )
+              .map(({ label }) => label);
+            return (
+            <div key={user.id} className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-slate-900">{user.name}</p>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${user.isActive ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-600"}`}>
+                    {user.isActive ? "Aktif" : "Nonaktif"}
+                  </span>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${user.role === "ADMIN" ? "bg-blue-50 text-blue-700" : "bg-teal-50 text-teal-700"}`}>
+                    {user.role === "ADMIN" ? "Administrator" : "Kasir POS"}
+                  </span>
+                  {user.isOwner && (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                      Pemilik utama · Terkunci
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  {user.role === "CASHIER" ? `NIK: ${user.nik || "Belum diatur"}` : user.email}
+                  {" · Dibuat "}
+                  {new Date(user.createdAt).toLocaleDateString("id-ID")}
+                </p>
+                <p className="mt-1 truncate text-xs text-slate-500">
+                  Hak akses: {grantedModules.length ? grantedModules.join(", ") : "Tidak ada"}
+                </p>
               </div>
-              <span
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  user.role === "ADMIN"
-                    ? "bg-blue-50 text-blue-700"
-                    : "bg-teal-50 text-teal-700"
-                }`}
-              >
-                {user.role === "ADMIN"
-                  ? "Administrator"
-                  : user.role === "CASHIER"
-                    ? "Kasir POS"
-                    : "Administrator"}
-              </span>
-              {user.isOwner && (
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                  Pemilik utama · Terkunci
-                </span>
-              )}
-              {canUpdateUsers && !user.isOwner && <button
-                type="button"
-                onClick={() => {
-                  const nextRole = user.role === "CASHIER" ? "CASHIER" : "ADMIN";
-                  setEditingUserId(user.id);
-                  setEditingRole(nextRole);
-                  setEditPermissions(
-                    Object.keys(user.permissions || {}).length
-                      ? {
-                          ...createEmptyPermissions(),
-                          ...user.permissions,
-                        }
-                      : nextRole === "CASHIER"
-                        ? defaultCashierPermissions
-                        : defaultAdministratorPermissions
-                  );
-                }}
-                className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50"
-              >
-                Atur Peran & Akses
-              </button>}
-              {canDeleteUsers && !user.isOwner && user.id !== session?.user?.id && (
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => void deleteUser(user)}
-                  className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                  onClick={() =>
+                    void Swal.fire({
+                      title: user.name,
+                      text: `${user.role === "CASHIER" ? `NIK: ${user.nik || "Belum diatur"}` : `Email: ${user.email || "-"}`} · ${user.isActive ? "Aktif" : "Nonaktif"} · Hak akses: ${grantedModules.join(", ") || "Tidak ada"}`,
+                      confirmButtonText: "Tutup",
+                    })
+                  }
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
-                  Hapus Pengguna
+                  Detail
                 </button>
-              )}
+                {canUpdateUsers && !user.isOwner && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextRole = user.role === "CASHIER" ? "CASHIER" : "ADMIN";
+                        setEditingUserId(user.id);
+                        setEditingRole(nextRole);
+                        setEditName(user.name);
+                        setEditNik(user.nik || "");
+                        setEditEmail(user.email || "");
+                        setEditPassword("");
+                        setEditPermissions(
+                          Object.keys(user.permissions || {}).length
+                            ? { ...createEmptyPermissions(), ...user.permissions }
+                            : nextRole === "CASHIER"
+                              ? defaultCashierPermissions
+                              : defaultAdministratorPermissions
+                        );
+                      }}
+                      className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+                    >
+                      Edit akun
+                    </button>
+                    {user.role === "CASHIER" && (
+                      <button
+                        type="button"
+                        onClick={() => void resetPin(user)}
+                        className="rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50"
+                      >
+                        Atur ulang PIN
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void toggleAccountStatus(user)}
+                      disabled={user.id === session?.user?.id}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      {user.isActive ? "Nonaktifkan" : "Aktifkan"}
+                    </button>
+                  </>
+                )}
+                {canDeleteUsers && !user.isOwner && user.id !== session?.user?.id && (
+                  <button
+                    type="button"
+                    onClick={() => void deleteUser(user)}
+                    className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                  >
+                    Hapus
+                  </button>
+                )}
+              </div>
             </div>
-          ))}
-          {users.length === 0 && (
+            );
+          })}
+          {filteredUsers.length === 0 && (
             <p className="px-5 py-8 text-center text-sm text-slate-500">
-              Belum ada pengguna.
+              Tidak ada akun yang cocok dengan pencarian atau filter.
             </p>
           )}
         </div>
@@ -341,11 +555,20 @@ export default function CashierAccountsPage() {
       {editingUserId && (
         <section className="space-y-4 rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
           <div>
-            <h2 className="font-semibold text-brand-navy">Atur hak akses</h2>
+            <h2 className="font-semibold text-brand-navy">Edit akun dan hak akses</h2>
             <p className="mt-1 text-sm text-slate-500">
               Pilih peran, lalu tentukan modul dan tindakan yang diizinkan.
             </p>
           </div>
+          <label className="block max-w-sm text-sm font-semibold text-slate-700">
+            Nama lengkap
+            <input
+              value={editName}
+              onChange={(event) => setEditName(event.target.value)}
+              className="form-control mt-1.5"
+              required
+            />
+          </label>
           <label className="block max-w-sm text-sm font-semibold text-slate-700">
             Peran pengguna
             <select
@@ -368,12 +591,53 @@ export default function CashierAccountsPage() {
               <option value="CASHIER">Kasir POS</option>
             </select>
           </label>
-          {editingRole === "ADMIN" && (
-            <PermissionsGrid
-              value={editPermissions}
-              onChange={setEditPermissions}
-            />
+          {editingRole === "CASHIER" && (
+            <label className="block max-w-sm text-sm font-semibold text-slate-700">
+              NIK
+              <input
+                value={editNik}
+                onChange={(event) => setEditNik(event.target.value.replace(/\D/g, ""))}
+                className="form-control mt-1.5"
+                inputMode="numeric"
+                maxLength={20}
+                required
+              />
+            </label>
           )}
+          {editingRole === "ADMIN" && (
+            <>
+              <label className="block max-w-sm text-sm font-semibold text-slate-700">
+                Email login
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(event) => setEditEmail(event.target.value)}
+                  className="form-control mt-1.5"
+                  required
+                />
+              </label>
+              <label className="block max-w-sm text-sm font-semibold text-slate-700">
+                {users.find((user) => user.id === editingUserId)?.email
+                  ? "Password baru (opsional)"
+                  : "Password baru (minimal 6 karakter)"}
+                <input
+                  type="password"
+                  value={editPassword}
+                  onChange={(event) => setEditPassword(event.target.value)}
+                  className="form-control mt-1.5"
+                  autoComplete="new-password"
+                  minLength={6}
+                  required={!users.find((user) => user.id === editingUserId)?.email}
+                />
+              </label>
+            </>
+          )}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-slate-700">
+              Hak akses {editingRole === "ADMIN" ? "Administrator" : "Kasir"}
+            </p>
+            <PermissionsGrid value={editPermissions} onChange={setEditPermissions} />
+          </div>
           <div className="flex justify-end gap-2">
             <button
               type="button"

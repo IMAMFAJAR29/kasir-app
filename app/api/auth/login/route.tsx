@@ -21,10 +21,10 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.findUnique({
       where: { email: email.trim().toLowerCase() },
     });
-    if (!user || !user.isActive)
+    if (!user || !user.isActive || user.role !== "ADMIN")
       return NextResponse.json(
-        { error: "Pengguna tidak ditemukan atau sudah dinonaktifkan." },
-        { status: 404 }
+        { error: "Email atau password tidak valid." },
+        { status: 401 }
       );
 
     const isPasswordValid = await bcrypt.compare(password, user.password);

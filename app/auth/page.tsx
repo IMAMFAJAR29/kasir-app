@@ -39,26 +39,40 @@ export default function AuthPage() {
   const [loginRole, setLoginRole] = useState<LoginRole>(
     redirectTarget === "/pos" ? "CASHIER" : "ADMIN"
   );
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    nik: "",
+    pin: "",
+  });
   const loginAttemptRef = useRef(false);
 
   // 🚀 Redirect langsung jika user sudah login
   useEffect(() => {
     const areaModule = loginRole === "ADMIN" ? "dashboard" : "pos";
-    const canOpenSelectedArea = hasPermission(
-      session?.user?.role,
-      session?.user?.permissions,
-      areaModule,
-      "view"
-    ) || (
-      loginRole === "ADMIN" &&
-      hasPermission(
+    const canOpenSelectedArea =
+      (loginRole === "CASHIER"
+        ? session?.user?.authMethod === "nik-pin" &&
+          hasPermission(
+            session?.user?.role,
+            session?.user?.permissions,
+            "pos",
+            "view"
+          )
+        : hasPermission(
+            session?.user?.role,
+            session?.user?.permissions,
+            areaModule,
+            "view"
+          )) ||
+      (loginRole === "ADMIN" &&
+        hasPermission(
         session?.user?.role,
         session?.user?.permissions,
         "systemSettings",
         "view"
-      )
-    );
+        ));
 
     if (
       status === "authenticated" &&
@@ -78,7 +92,14 @@ export default function AuthPage() {
             : "/admin/settings";
       router.replace(destination);
     }
-  }, [loginRole, session?.user?.role, session?.user?.permissions, status, router]);
+  }, [
+    loginRole,
+    session?.user?.role,
+    session?.user?.permissions,
+    session?.user?.authMethod,
+    status,
+    router,
+  ]);
 
   // ⏳ Tampilkan animasi loading saat session masih dicek
   if (status === "loading") {
@@ -92,18 +113,39 @@ export default function AuthPage() {
   // 🔐 Proses login/register
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading || loginAttemptRef.current) return;
 
     if (isLogin) {
+      if (
+        loginRole === "CASHIER" &&
+        (!/^\d{6,20}$/.test(form.nik.trim()) || !/^\d{4,12}$/.test(form.pin))
+      ) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Periksa NIK dan PIN",
+          text: "Masukkan NIK 6–20 digit dan PIN 4–12 digit.",
+          confirmButtonColor: "#1769e0",
+        });
+        return;
+      }
       setIsLoading(true);
       loginAttemptRef.current = true;
 
       try {
-        const result = await signIn("credentials", {
-          redirect: false,
-          email: form.email,
-          password: form.password,
-          area: loginRole === "ADMIN" ? "dashboard" : "pos",
-        });
+        const result =
+          loginRole === "CASHIER"
+            ? await signIn("credentials", {
+                redirect: false,
+                nik: form.nik.trim(),
+                pin: form.pin,
+                area: "cashier",
+              })
+            : await signIn("credentials", {
+                redirect: false,
+                email: form.email,
+                password: form.password,
+                area: "dashboard",
+              });
 
         if (result?.ok) {
           const destination =
@@ -134,8 +176,8 @@ export default function AuthPage() {
             title: "Gagal Masuk",
             text:
               loginRole === "ADMIN"
-                ? "Pastikan email dan password benar serta akun memiliki role Admin."
-                : "Pastikan email dan password benar serta akun memiliki role Kasir.",
+                ? "Pastikan email dan password benar serta akun memiliki akses administrator."
+                : "NIK/PIN tidak cocok atau akun kasir tidak aktif. Jika terlalu banyak percobaan, tunggu 15 menit.",
             confirmButtonColor: "#1769e0",
           });
         }
@@ -179,7 +221,7 @@ export default function AuthPage() {
   // 🔄 Ubah form antara login ↔ register
   const toggleForm = () => {
     setIsLogin(!isLogin);
-    setForm({ name: "", email: "", password: "" });
+    setForm({ name: "", email: "", password: "", nik: "", pin: "" });
   };
 
   return (
@@ -272,6 +314,7 @@ export default function AuthPage() {
             </div>
           </div>
 
+          {loginRole === "ADMIN" && (
           <div className="relative z-10 pt-8 border-t border-slate-200">
             <p className="text-xs text-slate-600 mb-3">
               {isLogin ? "Belum punya akun sistem?" : "Sudah memiliki akun?"}
@@ -284,6 +327,7 @@ export default function AuthPage() {
               <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
             </button>
           </div>
+          )}
         </div>
 
         {/* ☀️ Right form panel */}
@@ -338,15 +382,14 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* 🔘 Google OAuth Button */}
-            {isLogin && (
+            {/* Admin login methods */}
+            {isLogin && loginRole === "ADMIN" && (
               <div className="mb-6">
                 <button
                   type="button"
                   onClick={() =>
                     signIn("google", {
-                      callbackUrl:
-                        loginRole === "CASHIER" ? "/pos" : "/admin/dashboard",
+                      callbackUrl: "/admin/dashboard",
                     })
                   }
                   className="w-full py-2.5 px-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-700 font-medium text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-sm"
@@ -368,7 +411,7 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* 🧩 Form login/register */}
+            {/* Login kasir memakai NIK/PIN; metode akun administrator tetap tersedia. */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Nama (Register only) */}
               {!isLogin && (
@@ -391,6 +434,63 @@ export default function AuthPage() {
                 </div>
               )}
 
+              {isLogin && loginRole === "CASHIER" ? (
+                <>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
+                      NIK
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        name="nik"
+                        value={form.nik}
+                        onChange={handleChange}
+                        placeholder="Masukkan NIK"
+                        inputMode="numeric"
+                        autoComplete="username"
+                        maxLength={20}
+                        required
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-base text-slate-900 transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
+                      PIN
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="pin"
+                        value={form.pin}
+                        onChange={handleChange}
+                        placeholder="Masukkan PIN"
+                        inputMode="numeric"
+                        autoComplete="current-password"
+                        maxLength={12}
+                        required
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-12 text-base tracking-[0.25em] text-slate-900 transition-all placeholder:tracking-normal placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((visible) => !visible)}
+                        aria-label={showPassword ? "Sembunyikan PIN" : "Tampilkan PIN"}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+              <>
               {/* Email */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
@@ -439,6 +539,8 @@ export default function AuthPage() {
                   </button>
                 </div>
               </div>
+              </>
+              )}
 
               {/* Submit button */}
               <button
@@ -450,12 +552,13 @@ export default function AuthPage() {
                 {isLogin
                   ? loginRole === "ADMIN"
                     ? "Masuk ke Dashboard"
-                    : "Masuk ke POS Kasir"
+                    : "Login Kasir"
                   : "Buat Akun Sekarang"}
               </button>
             </form>
 
             {/* Mobile toggle */}
+            {loginRole === "ADMIN" && (
             <div className="md:hidden mt-6 pt-6 border-t border-slate-100 text-center">
               <p className="text-xs text-slate-500 mb-2">
                 {isLogin ? "Belum memiliki akun toko?" : "Sudah memiliki akun?"}
@@ -468,6 +571,7 @@ export default function AuthPage() {
                 {isLogin ? "Daftar Akun Baru" : "Masuk dengan akun yang ada"}
               </button>
             </div>
+            )}
           </div>
         </div>
       </motion.div>

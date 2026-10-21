@@ -5,7 +5,7 @@ const settingItems = [
   {
     href: "/admin/settings/accounts",
     title: "Pengguna & Hak Akses",
-    description: "Buat pengguna Administrator atau Kasir POS dan tentukan izin setiap modul.",
+    description: "Daftarkan kasir dengan NIK/PIN atau kelola akun administrator dan hak akses.",
     icon: UserRoundCog,
     color: "bg-blue-50 text-blue-700",
   },
