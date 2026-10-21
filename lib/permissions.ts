@@ -129,6 +129,9 @@ export function getRequiredPermission(
     return { module: "systemSettings", action };
   }
   if (pathname === "/api/payments/qris") return { module: "pos", action: "create" };
+  if (pathname === "/api/cashier/pin" && method.toUpperCase() === "POST") {
+    return { module: "pos", action: "view" };
+  }
   if (pathname === "/api/cash-sessions" && method.toUpperCase() === "POST") {
     return { module: "pos", action: "create" };
   }

@@ -83,9 +83,9 @@ export async function PATCH(
   if (nik === "") {
     return NextResponse.json({ error: "NIK wajib diisi." }, { status: 400 });
   }
-  if (pin !== undefined && pin !== "" && !/^\d{4,12}$/.test(pin)) {
+  if (pin !== undefined && pin !== "" && !/^\d{6,12}$/.test(pin)) {
     return NextResponse.json(
-      { error: "PIN wajib berupa 4 sampai 12 digit angka." },
+      { error: "PIN wajib berupa 6 sampai 12 digit angka." },
       { status: 400 }
     );
   }

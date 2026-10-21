@@ -137,15 +137,15 @@ export default function CashierAccountsPage() {
     const { value: newPin } = await Swal.fire({
       title: `Atur ulang PIN ${user.name}`,
       input: "password",
-      inputLabel: "PIN baru, 4–12 digit angka",
+      inputLabel: "PIN baru, 6–12 digit angka",
       inputAttributes: { inputmode: "numeric", maxlength: "12", autocomplete: "new-password" },
       showCancelButton: true,
       confirmButtonText: "Simpan PIN",
       cancelButtonText: "Batal",
       inputValidator: (value) =>
-        /^\d{4,12}$/.test(value || "")
+        /^\d{6,12}$/.test(value || "")
           ? undefined
-          : "PIN harus terdiri dari 4 sampai 12 digit angka.",
+          : "PIN harus terdiri dari 6 sampai 12 digit angka.",
     });
     if (!newPin) return;
     try {
@@ -325,7 +325,7 @@ export default function CashierAccountsPage() {
               />
             </label>
             <label className="text-sm font-semibold text-slate-700">
-              PIN (4–12 digit)
+              PIN (6–12 digit)
               <input
                 type="password"
                 value={pin}
@@ -334,7 +334,7 @@ export default function CashierAccountsPage() {
                 inputMode="numeric"
                 autoComplete="new-password"
                 maxLength={12}
-                minLength={4}
+                minLength={6}
                 required
               />
             </label>

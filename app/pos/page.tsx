@@ -103,6 +103,79 @@ export default function PosPage() {
     }
   };
 
+  const handleChangePin = async () => {
+    const { value: pinValues } = await Swal.fire({
+      title: "Ubah PIN kasir",
+      html: `
+        <label for="cashier-current-pin" class="mb-1 block text-left text-sm font-semibold">PIN saat ini</label>
+        <input id="cashier-current-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" class="swal2-input" placeholder="PIN saat ini">
+        <label for="cashier-new-pin" class="mb-1 block text-left text-sm font-semibold">PIN baru (6–12 digit)</label>
+        <input id="cashier-new-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" class="swal2-input" placeholder="PIN baru">
+        <label for="cashier-confirm-pin" class="mb-1 block text-left text-sm font-semibold">Konfirmasi PIN baru</label>
+        <input id="cashier-confirm-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" class="swal2-input" placeholder="Ulangi PIN baru">
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Simpan PIN",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#1769e0",
+      preConfirm: () => {
+        const currentPin = document.getElementById(
+          "cashier-current-pin"
+        ) as HTMLInputElement | null;
+        const newPin = document.getElementById(
+          "cashier-new-pin"
+        ) as HTMLInputElement | null;
+        const confirmPin = document.getElementById(
+          "cashier-confirm-pin"
+        ) as HTMLInputElement | null;
+        if (!currentPin?.value || !newPin?.value || !confirmPin?.value) {
+          Swal.showValidationMessage("Semua kolom PIN wajib diisi.");
+          return;
+        }
+        if (!/^\d{4,12}$/.test(currentPin.value)) {
+          Swal.showValidationMessage("PIN saat ini harus terdiri dari 4–12 digit.");
+          return;
+        }
+        if (!/^\d{6,12}$/.test(newPin.value)) {
+          Swal.showValidationMessage("PIN baru harus terdiri dari 6–12 digit.");
+          return;
+        }
+        if (newPin.value !== confirmPin.value) {
+          Swal.showValidationMessage("Konfirmasi PIN baru tidak cocok.");
+          return;
+        }
+        return {
+          currentPin: currentPin.value,
+          newPin: newPin.value,
+          confirmPin: confirmPin.value,
+        };
+      },
+    });
+    if (!pinValues) return;
+
+    try {
+      const response = await fetch("/api/cashier/pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pinValues),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Gagal mengubah PIN.");
+      await Swal.fire(
+        "PIN berhasil diubah",
+        "Gunakan PIN baru pada login kasir berikutnya.",
+        "success"
+      );
+    } catch (error) {
+      await Swal.fire(
+        "Gagal mengubah PIN",
+        error instanceof Error ? error.message : "Terjadi kesalahan.",
+        "error"
+      );
+    }
+  };
+
   const persistState = useCallback(
     (updates: Partial<StoredPosState>) => {
       if (!storageKey) return;
@@ -674,6 +747,7 @@ export default function PosPage() {
         role={identity.role || "CASHIER"}
         online={isOnline}
         onLogout={() => void handleSignOut()}
+        onChangePin={() => void handleChangePin()}
       />
 
       {statusMessage && (

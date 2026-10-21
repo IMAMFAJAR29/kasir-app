@@ -469,7 +469,7 @@ export default function AuthPage() {
                         onChange={handleChange}
                         placeholder="Masukkan PIN"
                         inputMode="numeric"
-                        autoComplete="current-password"
+                        autoComplete="off"
                         maxLength={12}
                         required
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-12 text-base tracking-[0.25em] text-slate-900 transition-all placeholder:tracking-normal placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"

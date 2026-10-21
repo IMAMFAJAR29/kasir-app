@@ -94,9 +94,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    if (!/^\d{4,12}$/.test(pin)) {
+    if (!/^\d{6,12}$/.test(pin)) {
       return NextResponse.json(
-        { error: "PIN wajib berupa 4 sampai 12 digit angka." },
+        { error: "PIN wajib berupa 6 sampai 12 digit angka." },
         { status: 400 }
       );
     }

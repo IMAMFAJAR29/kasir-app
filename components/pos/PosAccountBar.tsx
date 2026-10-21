@@ -1,10 +1,11 @@
-import { CircleUserRound, CloudOff, LogOut } from "lucide-react";
+import { CircleUserRound, CloudOff, KeyRound, LogOut } from "lucide-react";
 
 interface PosAccountBarProps {
   name: string;
   role: string;
   online: boolean;
   onLogout: () => void;
+  onChangePin: () => void;
 }
 
 export default function PosAccountBar({
@@ -12,6 +13,7 @@ export default function PosAccountBar({
   role,
   online,
   onLogout,
+  onChangePin,
 }: PosAccountBarProps) {
   return (
     <div className="mb-4 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-sm sm:mb-5 sm:px-4">
@@ -38,6 +40,18 @@ export default function PosAccountBar({
           <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
             {role === "ADMIN" ? "Administrator" : role === "CASHIER" ? "Kasir POS" : "Administrator"}
           </span>
+          {role === "CASHIER" && (
+            <button
+              type="button"
+              onClick={onChangePin}
+              disabled={!online}
+              title={!online ? "Ubah PIN memerlukan koneksi internet." : undefined}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <KeyRound className="h-4 w-4" />
+              Ubah PIN
+            </button>
+          )}
           <a
             href="/auth"
             onClick={(event) => {
