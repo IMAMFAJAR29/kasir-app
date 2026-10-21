@@ -711,7 +711,6 @@ export default function PosPage() {
             online={isOnline}
             closing={isClosingSession}
             onClose={() => void handleCloseSession()}
-            onLogout={() => void handleSignOut()}
           />
 
           <PosSalesWorkspace

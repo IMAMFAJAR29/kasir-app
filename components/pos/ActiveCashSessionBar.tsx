@@ -1,5 +1,3 @@
-import { LogOut } from "lucide-react";
-
 interface ActiveCashSessionBarProps {
   openingCash: number;
   expectedCash: number;
@@ -7,7 +5,6 @@ interface ActiveCashSessionBarProps {
   online: boolean;
   closing: boolean;
   onClose: () => void;
-  onLogout: () => void;
 }
 
 const currency = (amount: number) => amount.toLocaleString("id-ID");
@@ -19,7 +16,6 @@ export default function ActiveCashSessionBar({
   online,
   closing,
   onClose,
-  onLogout,
 }: ActiveCashSessionBarProps) {
   return (
     <div className="mb-4 rounded-2xl border border-teal-200 bg-teal-50/70 px-3 py-3 sm:mb-5 sm:px-4">
@@ -47,17 +43,6 @@ export default function ActiveCashSessionBar({
           >
             {closing ? "Menutup..." : "Tutup Shift / Setor"}
           </button>
-          <a
-            href="/auth"
-            onClick={(event) => {
-              event.preventDefault();
-              onLogout();
-            }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            Logout
-          </a>
         </div>
       </div>
     </div>
