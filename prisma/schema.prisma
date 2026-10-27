@@ -35,6 +35,7 @@ model Product {
   description String?
   imageUrl    String?
   price       Decimal  @default(0.00)
+  costPrice   Decimal  @default(0.00)
   sku         String   @unique
   stock       Int      @default(0)
   createdAt   DateTime @default(now())
@@ -68,6 +69,7 @@ model Location {
   adjustments StockAdjustment[]
   invoices    Invoice[]
   purchases   Purchase[]
+  journalLines JournalEntryLine[]
 }
 
 //
@@ -191,6 +193,7 @@ model Invoice {
   customer  Customer?     @relation(fields: [customerId], references: [id])
   location  Location?     @relation(fields: [locationId], references: [id])
   items     InvoiceItem[]
+  payments  Payment[]
 
   @@map("invoices")
 }
@@ -240,6 +243,7 @@ model Purchase {
   location Location? @relation(fields: [locationId], references: [id])
   items    PurchaseItem[]
   receipts PurchaseReceipt[]
+  payments Payment[]
 
   @@map("purchases")
 }
@@ -401,4 +405,107 @@ model CashSession {
   @@index([userId, openedAt])
   @@index([closedAt])
   @@map("cash_sessions")
+}
+
+//
+// ===========================================================
+// ACCOUNTING: CHART OF ACCOUNTS (COA)
+// ===========================================================
+model Account {
+  id            String   @id @default(uuid())
+  code          String   @unique // Contoh: "1-1001", "4-1000"
+  name          String   // Contoh: "Kas di Tangan", "Pendapatan Penjualan"
+  type          String   // "ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"
+  normalBalance String   // "DEBIT", "CREDIT"
+  category      String?  // "CASH", "BANK", "RECEIVABLE", "INVENTORY", "PAYABLE", "SALES", "COGS", "OPERATING_EXPENSE", etc.
+  description   String?
+  isSystem      Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  journalLines JournalEntryLine[]
+  payments     Payment[]
+
+  @@index([type])
+  @@index([category])
+  @@map("accounts")
+}
+
+//
+// ===========================================================
+// ACCOUNTING: JOURNAL ENTRY (HEADER JURNAL)
+// ===========================================================
+model JournalEntry {
+  id              String   @id @default(uuid())
+  entryNumber     String   @unique // Contoh: "JV-20261027-0001"
+  transactionDate DateTime
+  postingDate     DateTime @default(now())
+  sourceType      String   // "SALE", "INVOICE", "RECEIPT", "ADJUSTMENT", "PAYMENT", "MANUAL"
+  sourceId        String?  // ID dokumen referensi
+  description     String
+  status          String   @default("POSTED") // "POSTED", "VOIDED"
+  isReversal      Boolean  @default(false)
+  reversalOfId    String?  // Relasi jika ini jurnal pembalik
+  createdAt       DateTime @default(now())
+
+  lines JournalEntryLine[]
+
+  @@index([sourceType, sourceId])
+  @@index([transactionDate])
+  @@index([status])
+  @@map("journal_entries")
+}
+
+//
+// ===========================================================
+// ACCOUNTING: JOURNAL ENTRY LINE (DETAIL JURNAL DEBIT/KREDIT)
+// ===========================================================
+model JournalEntryLine {
+  id             String   @id @default(uuid())
+  journalEntryId String
+  accountId      String
+  debit          Decimal  @default(0.00)
+  credit         Decimal  @default(0.00)
+  description    String?
+  locationId     Int?
+
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account      Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  location     Location?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+  @@index([journalEntryId])
+  @@map("journal_entry_lines")
+}
+
+//
+// ===========================================================
+// ACCOUNTING: PAYMENT (PEMBAYARAN HUTANG / PIUTANG)
+// ===========================================================
+model Payment {
+  id            String   @id @default(uuid())
+  paymentNumber String   @unique // Contoh: "PAY-20261027-0001"
+  date          DateTime @default(now())
+  type          String   // "RECEIPT" (penerimaan piutang) atau "DISBURSEMENT" (pembayaran hutang)
+  method        String   // "CASH", "BANK_TRANSFER", "QRIS", "OTHER"
+  amount        Decimal  @default(0.00)
+  invoiceId     Int?
+  purchaseId    Int?
+  accountId     String?  // Akun kas/bank yang didebit/kredit
+  referenceNo   String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  invoice  Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  account  Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([purchaseId])
+  @@index([type])
+  @@map("payments")
 }

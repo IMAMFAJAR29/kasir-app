@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorizePurchaseReceipt } from "@/lib/purchaseReceiptAuth";
 import { evaluateReceiptLine } from "@/lib/purchaseReceiving";
+import { processPurchaseReceiptAccounting } from "@/lib/accounting/purchaseAccounting";
 
 const receiptInclude = {
   purchase: {
@@ -230,6 +231,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         }
 
         return {
+          accounting: await processPurchaseReceiptAccounting(receipt.id, locationId, tx),
           receipt: await tx.purchaseReceipt.findUnique({
             where: { id: receipt.id },
             include: receiptInclude,

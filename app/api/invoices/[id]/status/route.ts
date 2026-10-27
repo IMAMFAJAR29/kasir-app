@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { postJournalEntry } from "@/lib/accounting/postingService";
 
 export async function PATCH(
   req: Request,
@@ -7,7 +8,8 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
-    const { status } = await req.json();
+    const body = await req.json();
+    const { status, paymentMethod = "BANK_TRANSFER" } = body;
 
     if (!["paid", "unpaid"].includes(status)) {
       return NextResponse.json({ error: "Status invalid" }, { status: 400 });
@@ -16,7 +18,14 @@ export async function PATCH(
     const invoiceId = Number(id);
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
-      select: { id: true, totalAmount: true, status: true },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        totalAmount: true,
+        paidAmount: true,
+        status: true,
+        locationId: true,
+      },
     });
     if (!invoice) {
       return NextResponse.json({ error: "Faktur tidak ditemukan" }, { status: 404 });
@@ -48,12 +57,63 @@ export async function PATCH(
       return NextResponse.json(updatedInvoice);
     }
 
-    const updatedInvoice = await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: {
-        status: "paid",
-        paidAmount: invoice.totalAmount,
-      },
+    // Pelunasan Piutang Faktur (status === "paid")
+    const updatedInvoice = await prisma.$transaction(async (tx) => {
+      const remainingAmount = Number(invoice.totalAmount) - Number(invoice.paidAmount);
+      const paymentAmount = remainingAmount > 0 ? remainingAmount : Number(invoice.totalAmount);
+
+      const inv = await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          status: "paid",
+          paidAmount: invoice.totalAmount,
+        },
+      });
+
+      const now = new Date();
+      const paymentNumber = `PAY-AR-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${invoice.id}`;
+
+      const payment = await tx.payment.create({
+        data: {
+          paymentNumber,
+          type: "RECEIPT",
+          method: paymentMethod,
+          amount: paymentAmount,
+          invoiceId: invoice.id,
+          notes: `Pelunasan Faktur Penjualan #${invoice.invoiceNumber}`,
+        },
+      });
+
+      const receiptAccount = paymentMethod === "CASH" ? "1-1001" : "1-1002";
+
+      // Posting Jurnal Pelunasan Piutang
+      await postJournalEntry(
+        {
+          sourceType: "PAYMENT",
+          sourceId: payment.id,
+          description: `Pelunasan Piutang Faktur #${invoice.invoiceNumber}`,
+          transactionDate: now,
+          lines: [
+            {
+              accountCode: receiptAccount,
+              debit: paymentAmount,
+              credit: 0,
+              description: `Penerimaan Kas/Bank Pelunasan Faktur #${invoice.invoiceNumber}`,
+              locationId: invoice.locationId || undefined,
+            },
+            {
+              accountCode: "1-1200", // Piutang Usaha berkurang di Kredit
+              debit: 0,
+              credit: paymentAmount,
+              description: `Pelunasan Piutang Usaha Faktur #${invoice.invoiceNumber}`,
+              locationId: invoice.locationId || undefined,
+            },
+          ],
+        },
+        tx
+      );
+
+      return inv;
     });
 
     return NextResponse.json(updatedInvoice);

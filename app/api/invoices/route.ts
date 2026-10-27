@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { processInvoiceAccounting } from "@/lib/accounting/invoiceAccounting";
 
 // ✅ GET: Ambil semua invoice
 export async function GET() {
@@ -92,7 +93,7 @@ export async function POST(req: Request) {
     // Hitung subtotal
     let subtotal = 0;
     const invoiceItemsData = items
-      .filter((item: any) => item.productId) // ✅ pastikan productId ada
+      .filter((item: any) => item.productId)
       .map((item: any) => {
         const itemSubtotal = (item.qty || 0) * (item.price || 0);
         subtotal += itemSubtotal;
@@ -122,31 +123,57 @@ export async function POST(req: Request) {
       now.getMonth() + 1
     ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${Date.now()}`;
 
-    // Buat invoice
-    const invoice = await prisma.invoice.create({
-      data: {
-        invoiceNumber,
-        customerId: Number(customerId),
-        locationId: Number(locationId),
-        taxId: taxId ? Number(taxId) : null,
-        date: date ? new Date(date) : null,
-        termin: termin === "" || termin == null ? null : Number(termin),
-        refNo: refNo || null,
-        salesman: salesman || null,
-        notes: notes || null,
-        discount,
-        shipping,
-        totalAmount,
-        paidAmount: status === "paid" ? totalAmount : 0,
-        status,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        items: { create: invoiceItemsData },
-      },
-      include: {
-        customer: { select: { name: true } },
-        location: { select: { name: true } },
-        items: true,
-      },
+    // Buat invoice & jalankan pembukuan akuntansi secara atomik
+    const invoice = await prisma.$transaction(async (tx) => {
+      const createdInvoice = await tx.invoice.create({
+        data: {
+          invoiceNumber,
+          customerId: Number(customerId),
+          locationId: Number(locationId),
+          taxId: taxId ? Number(taxId) : null,
+          date: date ? new Date(date) : null,
+          termin: termin === "" || termin == null ? null : Number(termin),
+          refNo: refNo || null,
+          salesman: salesman || null,
+          notes: notes || null,
+          discount,
+          shipping,
+          totalAmount,
+          paidAmount: status === "paid" ? totalAmount : 0,
+          status,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          items: { create: invoiceItemsData },
+        },
+        include: {
+          customer: { select: { name: true } },
+          location: { select: { name: true } },
+          items: true,
+        },
+      });
+
+      const taxAmount = ((subtotal - Number(discount) + Number(shipping)) * taxRate) / 100;
+
+      await processInvoiceAccounting(
+        {
+          invoiceId: createdInvoice.id,
+          invoiceNumber: createdInvoice.invoiceNumber,
+          date: date ? new Date(date) : new Date(),
+          locationId: Number(locationId),
+          status,
+          subtotal,
+          discount: Number(discount || 0),
+          shipping: Number(shipping || 0),
+          taxAmount,
+          totalAmount,
+          items: invoiceItemsData.map((i: any) => ({
+            productId: i.productId,
+            qty: i.qty,
+          })),
+        },
+        tx
+      );
+
+      return createdInvoice;
     });
 
     return NextResponse.json(invoice, { status: 201 });

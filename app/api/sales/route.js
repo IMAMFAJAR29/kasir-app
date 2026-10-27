@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/authOptions";
 import prisma from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
+import { postJournalEntry } from "@/lib/accounting/postingService";
 
 async function createSale(body, userId) {
   const { items, method, payment, cashSessionId, clientTransactionId } = body;
@@ -127,6 +128,94 @@ async function createSale(body, userId) {
           },
         },
       });
+      // 1. Kurangi stok produk secara atomik
+      const defaultLocation = await tx.location.findFirst({
+        where: { isActive: true },
+        orderBy: { id: "asc" },
+      });
+
+      for (const item of createdSale.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.qty } },
+        });
+
+        if (defaultLocation) {
+          await tx.productStock.upsert({
+            where: {
+              productId_locationId: {
+                productId: item.productId,
+                locationId: defaultLocation.id,
+              },
+            },
+            update: { quantity: { decrement: item.qty } },
+            create: {
+              productId: item.productId,
+              locationId: defaultLocation.id,
+              quantity: -item.qty,
+            },
+          });
+        }
+      }
+
+      // 2. Hitung total HPP dan buat Jurnal Akuntansi otomatis
+      let totalCost = 0;
+      for (const item of createdSale.items) {
+        const unitCost = Number(item.product?.costPrice || 0);
+        totalCost += unitCost * item.qty;
+      }
+
+      const receiptAccountCode =
+        method === "cash"
+          ? "1-1001" // Kas di Tangan
+          : method === "qris"
+          ? "1-1003" // Kliring QRIS
+          : "1-1002"; // Bank Operasional
+
+      const journalLines = [
+        {
+          accountCode: receiptAccountCode,
+          debit: createdSale.total,
+          credit: 0,
+          description: `Penerimaan POS #${createdSale.id} (${method})`,
+        },
+        {
+          accountCode: "4-1000", // Pendapatan Penjualan Barang
+          debit: 0,
+          credit: createdSale.total,
+          description: `Penjualan POS #${createdSale.id}`,
+        },
+      ];
+
+      // Jika ada modal HPP yang dicatat
+      if (totalCost > 0) {
+        journalLines.push(
+          {
+            accountCode: "5-1000", // Beban Pokok Penjualan (HPP)
+            debit: totalCost,
+            credit: 0,
+            description: `HPP Penjualan POS #${createdSale.id}`,
+          },
+          {
+            accountCode: "1-1300", // Persediaan Barang Dagang
+            debit: 0,
+            credit: totalCost,
+            description: `Pengurangan Persediaan POS #${createdSale.id}`,
+          }
+        );
+      }
+
+      await postJournalEntry(
+        {
+          sourceType: "SALE",
+          sourceId: String(createdSale.id),
+          description: `Penjualan Kasir POS #${createdSale.id} (${method.toUpperCase()})`,
+          transactionDate: createdSale.createdAt,
+          lines: journalLines,
+        },
+        tx
+      );
+
       return createdSale;
     });
     return { sale, status: 201 };

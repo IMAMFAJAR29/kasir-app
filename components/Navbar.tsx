@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
@@ -21,6 +21,9 @@ import {
   FileCheck2,
   Settings2,
   PackageCheck,
+  BookOpen,
+  Scale,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   hasPermission,
@@ -255,6 +258,64 @@ export default function Navbar() {
                 </div>
               </div>
             </div>}
+
+            {canView("accounting") && <div className="group relative">
+              <button
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  isActive("/admin/accounting")
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                <BookOpen className="h-4 w-4" />
+                <span>Akuntansi</span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+              </button>
+              <div className="absolute left-0 top-full hidden pt-2 group-hover:block z-50">
+                <div className="min-w-[220px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                  <Link
+                    href="/admin/accounting/journals"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <FileText className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Jurnal Umum</div>
+                      <div className="text-[11px] text-slate-500">Ayat debit & kredit</div>
+                    </div>
+                  </Link>
+                  <Link
+                    href="/admin/accounting/ledger"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <BookOpen className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Buku Besar</div>
+                      <div className="text-[11px] text-slate-500">Mutasi saldo per akun</div>
+                    </div>
+                  </Link>
+                  <Link
+                    href="/admin/accounting/reports"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Laporan Keuangan</div>
+                      <div className="text-[11px] text-slate-500">Laba Rugi & Neraca</div>
+                    </div>
+                  </Link>
+                  <Link
+                    href="/admin/accounting/accounts"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <Scale className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Bagan Akun (COA)</div>
+                      <div className="text-[11px] text-slate-500">Master Chart of Accounts</div>
+                    </div>
+                  </Link>
+                </div>
+              </div>
+            </div>}
           </nav>
         </div>
 
@@ -452,6 +513,44 @@ export default function Navbar() {
                 <Warehouse className="h-4 w-4 text-slate-400" />
                 <span>Lokasi Gudang</span>
               </Link>}
+            </div>}
+
+            {canView("accounting") && <div className="pt-2">
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                Akuntansi & Keuangan
+              </p>
+              <Link
+                href="/admin/accounting/journals"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <FileText className="h-4 w-4 text-slate-400" />
+                <span>Jurnal Umum</span>
+              </Link>
+              <Link
+                href="/admin/accounting/ledger"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <BookOpen className="h-4 w-4 text-slate-400" />
+                <span>Buku Besar</span>
+              </Link>
+              <Link
+                href="/admin/accounting/reports"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <FileSpreadsheet className="h-4 w-4 text-slate-400" />
+                <span>Laporan Keuangan</span>
+              </Link>
+              <Link
+                href="/admin/accounting/accounts"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <Scale className="h-4 w-4 text-slate-400" />
+                <span>Bagan Akun (COA)</span>
+              </Link>
             </div>}
 
             <button

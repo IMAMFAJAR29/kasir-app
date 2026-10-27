@@ -11,6 +11,7 @@ export const permissionModules = [
   { key: "warehouses", label: "Lokasi Gudang" },
   { key: "cashReconciliation", label: "Rekonsiliasi Kas" },
   { key: "taxes", label: "Pajak" },
+  { key: "accounting", label: "Akuntansi & Keuangan" },
   { key: "systemSettings", label: "Pengaturan Sistem & Pengguna" },
 ] as const;
 
@@ -156,6 +157,7 @@ export function getRequiredPermission(
     [/^\/api\/warehouse\/(?:stock|adjustments)(?:\/|$)|^\/warehouse\/stock(?:\/|$)/, "inventory"],
     [/^\/api\/locations(?:\/|$)|^\/warehouse\/locations(?:\/|$)/, "warehouses"],
     [/^\/api\/taxes(?:\/|$)/, "taxes"],
+    [/^\/(?:api\/)?accounting(?:\/|$)|^\/admin\/accounting(?:\/|$)/, "accounting"],
   ];
 
   const rule = rules.find(([pattern]) => pattern.test(pathname));
