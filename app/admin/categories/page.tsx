@@ -447,12 +447,7 @@ export default function AdminCategoriesPage() {
                             />
                           </td>
                           <td className="px-3 py-3">
-                            <div
-                              className="min-w-0"
-                              style={{
-                                paddingLeft: `${Math.min(category.depth, 4) * 14}px`,
-                              }}
-                            >
+                            <div className="min-w-0">
                               <p className="truncate font-medium text-slate-800">
                                 {category.path}
                               </p>

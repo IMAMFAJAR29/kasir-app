@@ -1,4 +1,4 @@
-import { CircleUserRound, CloudOff, KeyRound, LogOut } from "lucide-react";
+import { CircleUserRound, KeyRound, LogOut } from "lucide-react";
 
 interface PosAccountBarProps {
   name: string;
@@ -31,13 +31,18 @@ export default function PosAccountBar({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span
-            className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-semibold ${
+            className={`inline-flex h-9 min-w-[84px] items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-semibold ${
               online ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-800"
             }`}
           >
-            {online ? "Online" : <><CloudOff className="h-3.5 w-3.5" /> Offline</>}
+            <span
+              className={`h-2 w-2 shrink-0 rounded-full ${
+                online ? "bg-teal-500" : "bg-amber-500"
+              }`}
+            />
+            {online ? "Online" : "Offline"}
           </span>
-          <span className="inline-flex h-8 items-center whitespace-nowrap rounded-full bg-blue-50 px-3 text-xs font-semibold text-blue-700">
+          <span className="inline-flex h-9 min-w-[84px] items-center justify-center whitespace-nowrap rounded-full bg-blue-50 px-3 text-xs font-semibold text-blue-700">
             {role === "ADMIN" ? "Administrator" : role === "CASHIER" ? "Kasir POS" : "Administrator"}
           </span>
           {role === "CASHIER" && (
@@ -46,7 +51,7 @@ export default function PosAccountBar({
               onClick={onChangePin}
               disabled={!online}
               title={!online ? "Ubah PIN memerlukan koneksi internet." : undefined}
-              className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-blue-100 bg-blue-50 px-3 text-xs font-semibold text-blue-700 transition hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-9 min-w-[84px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-blue-100 bg-blue-50 px-3 text-xs font-semibold text-blue-700 transition hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <KeyRound className="h-3.5 w-3.5" />
               Ubah PIN
@@ -58,7 +63,7 @@ export default function PosAccountBar({
               event.preventDefault();
               onLogout();
             }}
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+            className="inline-flex h-9 min-w-[84px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
           >
             <LogOut className="h-3.5 w-3.5" />
             Logout
