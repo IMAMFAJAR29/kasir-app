@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
+import { hasPermission } from "@/lib/permissions";
 import prisma from "@/lib/prisma";
 import { ensureDefaultAccountsExist } from "@/lib/accounting/defaultAccounts";
 
 // GET /api/accounting/accounts: Ambil semua akun COA beserta saldo terhitung
 export async function GET() {
+  const auth = await getServerSession(authOptions);
+  if (!auth?.user?.id) {
+    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+  }
+  if (!hasPermission(auth.user.role, auth.user.permissions, "accounting", "view")) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
   try {
     // Pastikan akun default sudah ada
     await ensureDefaultAccountsExist();
@@ -63,6 +73,13 @@ export async function GET() {
 
 // POST /api/accounting/accounts: Buat akun baru kustom
 export async function POST(req: Request) {
+  const auth = await getServerSession(authOptions);
+  if (!auth?.user?.id) {
+    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+  }
+  if (!hasPermission(auth.user.role, auth.user.permissions, "accounting", "create")) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
   try {
     const body = await req.json();
     const { code, name, type, normalBalance, category, description } = body;

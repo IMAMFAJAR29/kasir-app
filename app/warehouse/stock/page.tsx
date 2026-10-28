@@ -266,7 +266,7 @@ export default function StockPage() {
                 onClick={() => setFilterStatus(st)}
                 className={`px-3 py-2 text-xs font-medium rounded-xl transition-all capitalize ${
                   filterStatus === st
-                    ? "bg-slate-900 text-white shadow-sm"
+                    ? "bg-blue-600 text-white shadow-sm"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >

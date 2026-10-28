@@ -11,6 +11,12 @@ import {
   isCashierLoginLocked,
   recordCashierLoginFailure,
 } from "@/lib/cashierLoginRateLimit";
+import {
+  clearAdminLoginFailures,
+  isAdminLoginLocked,
+  recordAdminLoginFailure,
+} from "@/lib/adminLoginRateLimit";
+import { authenticatePasswordUser } from "@/lib/authenticateUser";
 
 const DUMMY_PIN_HASH =
   "$2b$12$m2zY1muuMEIsflosdWFRhOGtNKt/u5t.iuk7fIii20Bv1U6kcmkgu";
@@ -94,34 +100,39 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        try {
-          const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/auth/login`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                email: credentials.email,
-                password: credentials.password,
-                expectedArea: credentials.area,
-              }),
-            }
-          );
-          const user = await response.json();
-          if (!response.ok || !user?.id) return null;
-          return {
-            id: user.id.toString(),
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            permissions: user.permissions as UserPermissions,
-            isActive: user.isActive,
-            authMethod: "password",
-          };
-        } catch (error) {
-          console.error("Authorize error:", error);
+        const email = String(credentials.email).trim().toLowerCase();
+        const password = String(credentials.password);
+        const area = credentials.area as "dashboard" | "pos";
+
+        const headers = (request?.headers || {}) as Record<string, string | string[] | undefined>;
+        const forwardedRaw = headers["x-forwarded-for"];
+        const forwardedIp =
+          (Array.isArray(forwardedRaw) ? forwardedRaw[0] : forwardedRaw)
+            ?.split(",")[0]
+            ?.trim();
+        const realIpRaw = headers["x-real-ip"];
+        const realIp = Array.isArray(realIpRaw) ? realIpRaw[0] : realIpRaw;
+        const clientIp = realIp?.trim() || forwardedIp || "unknown";
+
+        if (await isAdminLoginLocked(email, clientIp)) return null;
+
+        const result = await authenticatePasswordUser(email, password, area);
+        if (!result.ok) {
+          if (result.reason === "invalid") {
+            await recordAdminLoginFailure(email, clientIp, result.accountExists);
+          }
           return null;
         }
+        await clearAdminLoginFailures(email);
+        return {
+          id: result.user.id.toString(),
+          name: result.user.name,
+          email: result.user.email,
+          role: result.user.role,
+          permissions: result.user.permissions as UserPermissions,
+          isActive: result.user.isActive,
+          authMethod: "password",
+        };
       },
     }),
   ],
@@ -149,7 +160,9 @@ export const authOptions: NextAuthOptions = {
       if (deletedUser) return false;
 
       const firstUser = (await prisma.user.count()) === 0;
-      if (!firstUser) return false;
+      const bootstrapAllowed =
+        process.env.ALLOW_GOOGLE_ADMIN_BOOTSTRAP !== "false";
+      if (!firstUser || !bootstrapAllowed) return false;
       const password = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
       await prisma.user.create({
         data: {

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcrypt";
-import prisma from "@/lib/prisma";
-import { hasPermission, type UserPermissions } from "@/lib/permissions";
+import { authenticatePasswordUser } from "@/lib/authenticateUser";
+import {
+  clearAdminLoginFailures,
+  isAdminLoginLocked,
+  recordAdminLoginFailure,
+} from "@/lib/adminLoginRateLimit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,52 +21,56 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },
-    });
-    if (!user || !user.isActive || user.role !== "ADMIN")
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const forwardedIp =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    const clientIp = req.headers.get("x-real-ip")?.trim() || forwardedIp || "unknown";
+
+    if (await isAdminLoginLocked(normalizedEmail, clientIp)) {
+      return NextResponse.json(
+        { error: "Terlalu banyak percobaan login. Coba lagi nanti." },
+        { status: 429 }
+      );
+    }
+
+    const result = await authenticatePasswordUser(
+      normalizedEmail,
+      password,
+      expectedArea as "dashboard" | "pos"
+    );
+
+    if (!result.ok) {
+      if (result.reason === "forbidden") {
+        return NextResponse.json(
+          {
+            error:
+              expectedArea === "dashboard"
+                ? "Akun ini tidak memiliki akses Dashboard."
+                : "Akun ini tidak memiliki akses POS.",
+          },
+          { status: 403 }
+        );
+      }
+      await recordAdminLoginFailure(
+        normalizedEmail,
+        clientIp,
+        result.accountExists
+      );
       return NextResponse.json(
         { error: "Email atau password tidak valid." },
         { status: 401 }
       );
+    }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid)
-      return NextResponse.json({ error: "Password salah" }, { status: 401 });
-    const userPermissions = user.permissions as UserPermissions;
-    const canUseSelectedLogin =
-      hasPermission(
-        user.role,
-        userPermissions,
-        expectedArea === "dashboard" ? "dashboard" : "pos",
-        "view"
-      ) ||
-      (expectedArea === "dashboard" &&
-        hasPermission(
-          user.role,
-          userPermissions,
-          "systemSettings",
-          "view"
-        ));
-    if (!canUseSelectedLogin)
-      return NextResponse.json(
-        {
-          error:
-            expectedArea === "dashboard"
-              ? "Akun ini tidak memiliki akses Dashboard."
-              : "Akun ini tidak memiliki akses POS.",
-        },
-        { status: 403 }
-      );
-
+    await clearAdminLoginFailures(normalizedEmail);
     return NextResponse.json(
       {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        permissions: user.permissions,
-        isActive: user.isActive,
+        id: result.user.id,
+        name: result.user.name,
+        email: result.user.email,
+        role: result.user.role,
+        permissions: result.user.permissions,
+        isActive: result.user.isActive,
       },
       { status: 200 }
     );

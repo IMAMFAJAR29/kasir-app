@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
+import { hasPermission } from "@/lib/permissions";
 import prisma from "@/lib/prisma";
 import { postJournalEntry } from "@/lib/accounting/postingService";
 
 // GET /api/accounting/journals: Ambil riwayat jurnal umum
 export async function GET(req: Request) {
+  const auth = await getServerSession(authOptions);
+  if (!auth?.user?.id) {
+    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+  }
+  if (!hasPermission(auth.user.role, auth.user.permissions, "accounting", "view")) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
   try {
     const { searchParams } = new URL(req.url);
     const startDate = searchParams.get("startDate");
@@ -62,6 +72,13 @@ export async function GET(req: Request) {
 
 // POST /api/accounting/journals: Buat jurnal manual / penyesuaian
 export async function POST(req: Request) {
+  const auth = await getServerSession(authOptions);
+  if (!auth?.user?.id) {
+    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+  }
+  if (!hasPermission(auth.user.role, auth.user.permissions, "accounting", "create")) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
   try {
     const body = await req.json();
     const { description, transactionDate, lines } = body;

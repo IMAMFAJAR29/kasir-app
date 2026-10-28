@@ -1,8 +1,18 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
+import { hasPermission } from "@/lib/permissions";
 
 // DELETE kategori by ID
 export async function DELETE(req, { params }) {
+  const auth = await getServerSession(authOptions);
+  if (!auth?.user?.id) {
+    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+  }
+  if (!hasPermission(auth.user.role, auth.user.permissions, "categories", "delete")) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
   try {
     await prisma.category.delete({
       where: { id: Number(params.id) },
@@ -23,6 +33,13 @@ export async function DELETE(req, { params }) {
 
 // UPDATE kategori by ID
 export async function PUT(req, { params }) {
+  const auth = await getServerSession(authOptions);
+  if (!auth?.user?.id) {
+    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+  }
+  if (!hasPermission(auth.user.role, auth.user.permissions, "categories", "update")) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
   try {
     const body = await req.json();
     const { name, parentId } = body;

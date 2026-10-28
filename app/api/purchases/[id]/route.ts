@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
+import { hasPermission } from "@/lib/permissions";
 import prisma from "@/lib/prisma";
 
 export async function PUT(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const auth = await getServerSession(authOptions);
+  if (!auth?.user?.id) {
+    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+  }
+  if (!hasPermission(auth.user.role, auth.user.permissions, "purchases", "update")) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
   try {
     const { id } = await context.params;
     const purchaseId = Number(id);
@@ -156,6 +166,13 @@ export async function GET(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const auth = await getServerSession(authOptions);
+  if (!auth?.user?.id) {
+    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+  }
+  if (!hasPermission(auth.user.role, auth.user.permissions, "purchases", "view")) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
   try {
     const { id } = await context.params;
 
@@ -192,6 +209,13 @@ export async function DELETE(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const auth = await getServerSession(authOptions);
+  if (!auth?.user?.id) {
+    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+  }
+  if (!hasPermission(auth.user.role, auth.user.permissions, "purchases", "delete")) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
   try {
     const { id } = await context.params;
     const purchaseId = Number(id);

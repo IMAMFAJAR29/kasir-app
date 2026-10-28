@@ -1,11 +1,21 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
+import { hasPermission } from "@/lib/permissions";
 
 //  GET produk berdasarkan ID
 export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
+  const auth = await getServerSession(authOptions);
+  if (!auth?.user?.id) {
+    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+  }
+  if (!hasPermission(auth.user.role, auth.user.permissions, "products", "view")) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
   try {
     const id = parseInt(params.id);
 
@@ -37,6 +47,13 @@ export async function PUT(
   req: Request,
   { params }: { params: { id: string } }
 ) {
+  const auth = await getServerSession(authOptions);
+  if (!auth?.user?.id) {
+    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+  }
+  if (!hasPermission(auth.user.role, auth.user.permissions, "products", "update")) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
   try {
     const id = parseInt(params.id);
     if (isNaN(id)) {
@@ -87,6 +104,13 @@ export async function DELETE(
   req: Request,
   { params }: { params: { id: string } }
 ) {
+  const auth = await getServerSession(authOptions);
+  if (!auth?.user?.id) {
+    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+  }
+  if (!hasPermission(auth.user.role, auth.user.permissions, "products", "delete")) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
   try {
     const id = parseInt(params.id);
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Swal from "sweetalert2";
-import { Trash2, Plus, Save, Folder, Search, ChevronRight } from "lucide-react";
+import { Trash2, Plus, Save, Folder, Search } from "lucide-react";
 import Button from "@/components/Button";
 
 // ======= Interface =======
@@ -428,10 +428,6 @@ export default function AdminCategoriesPage() {
                       const hasChildren =
                         Array.isArray(category.children) &&
                         category.children.length > 0;
-                      const parentPath = category.path
-                        .split(" > ")
-                        .slice(0, -1)
-                        .join(" > ");
 
                       return (
                         <tr
@@ -452,29 +448,14 @@ export default function AdminCategoriesPage() {
                           </td>
                           <td className="px-3 py-3">
                             <div
-                              className="flex min-w-0 items-center gap-2"
+                              className="min-w-0"
                               style={{
                                 paddingLeft: `${Math.min(category.depth, 4) * 14}px`,
                               }}
                             >
-                              <Folder
-                                size={16}
-                                className="shrink-0 text-blue-600"
-                              />
-                              <div className="min-w-0">
-                                <p className="truncate font-medium text-slate-800">
-                                  {category.name}
-                                </p>
-                                {parentPath && (
-                                  <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-slate-400">
-                                    <ChevronRight
-                                      size={12}
-                                      className="shrink-0"
-                                    />
-                                    {parentPath}
-                                  </p>
-                                )}
-                              </div>
+                              <p className="truncate font-medium text-slate-800">
+                                {category.path}
+                              </p>
                             </div>
                           </td>
                           <td className="px-3 py-3">
