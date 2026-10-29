@@ -166,7 +166,7 @@ export default function StockAdjustmentModal({
         </div>
 
         <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
-          <div className="max-h-64 overflow-y-auto">
+          <div className="max-h-64 overflow-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 border-b border-slate-200/80 text-xs font-semibold text-slate-500 uppercase tracking-wider sticky top-0">
                 <tr>

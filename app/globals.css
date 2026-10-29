@@ -158,6 +158,21 @@ input[type="number"].no-spinner {
   -moz-appearance: textfield;
 }
 
+/* ====== Focus ring global (accessibility) ====== */
+:focus-visible {
+  outline: 2px solid var(--brand-blue);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  box-shadow: 0 0 0 3px rgba(23, 105, 224, 0.18);
+}
+
 /* ====== Utilities ====== */
 .glass-panel {
   background: rgba(255, 255, 255, 0.85);
