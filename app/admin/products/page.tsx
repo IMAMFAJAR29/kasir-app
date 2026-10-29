@@ -32,6 +32,7 @@ export default function ProductsPage() {
     id: undefined,
     name: "",
     sku: "",
+    barcode: "",
     stock: 0,
     price: 0,
     imageUrl: "",
@@ -83,6 +84,7 @@ export default function ProductsPage() {
       id: undefined,
       name: "",
       sku: "",
+      barcode: "",
       stock: 0,
       price: 0,
       imageUrl: "",
@@ -243,6 +245,7 @@ export default function ProductsPage() {
       id: p.id,
       name: p.name,
       sku: p.sku ?? "",
+      barcode: p.barcode ?? "",
       stock: p.stock,
       price: p.price,
       imageUrl: p.imageUrl ?? "",
@@ -439,6 +442,7 @@ export default function ProductsPage() {
                 <tr>
                   <th className="p-4">Produk</th>
                   <th className="p-4">SKU</th>
+                  <th className="p-4">Barcode</th>
                   <th className="p-4">Kategori</th>
                   <th className="p-4 text-center">Stok</th>
                   <th className="p-4 text-right">Harga</th>
@@ -457,6 +461,9 @@ export default function ProductsPage() {
                       </td>
                       <td className="p-4 text-xs font-mono text-slate-500">
                         {product.sku || "-"}
+                      </td>
+                      <td className="p-4 text-xs font-mono text-slate-500">
+                        {product.barcode || "-"}
                       </td>
                       <td className="p-4 text-slate-600">
                         {product.category?.name || "-"}

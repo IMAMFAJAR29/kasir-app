@@ -61,7 +61,7 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { name, description, imageUrl, price, categoryId, sku, stock } = body;
+    const { name, description, imageUrl, price, categoryId, sku, stock, barcode } = body;
 
     const parsedPrice = parseFloat(price);
     if (isNaN(parsedPrice)) {
@@ -78,6 +78,25 @@ export async function PUT(
       );
     }
 
+    // Barcode normalisasi + keunikan
+    let finalBarcode = existing.barcode;
+    if (barcode !== undefined) {
+      const normalized =
+        barcode && String(barcode).trim() !== "" ? String(barcode).trim() : null;
+      if (normalized !== existing.barcode && normalized) {
+        const conflict = await prisma.product.findUnique({
+          where: { barcode: normalized },
+        });
+        if (conflict && conflict.id !== id) {
+          return NextResponse.json(
+            { error: "Barcode sudah digunakan produk lain" },
+            { status: 400 }
+          );
+        }
+      }
+      finalBarcode = normalized;
+    }
+
     const updated = await prisma.product.update({
       where: { id },
       data: {
@@ -89,11 +108,23 @@ export async function PUT(
         stock: parsedStock,
         // kalau sku kosong → pakai yang lama
         sku: sku && sku.trim() !== "" ? sku : existing.sku,
+        barcode: finalBarcode,
       },
     });
 
     return NextResponse.json(updated, { status: 200 });
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.code === "P2002") {
+      const target = Array.isArray(err?.meta?.target)
+        ? err.meta.target.join(",")
+        : String(err?.meta?.target || "");
+      if (target.includes("barcode")) {
+        return NextResponse.json(
+          { error: "Barcode sudah digunakan produk lain" },
+          { status: 400 }
+        );
+      }
+    }
     console.error("Error update product:", err);
     return NextResponse.json({ error: "Gagal update produk" }, { status: 500 });
   }

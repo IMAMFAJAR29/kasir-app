@@ -42,7 +42,7 @@ export async function POST(req: Request) {
   }
   try {
     const body: ProductBody = await req.json();
-    const { name, description, imageUrl, price, categoryId, sku, stock } = body;
+    const { name, description, imageUrl, price, categoryId, sku, stock, barcode } = body;
 
     if (!name || !price) {
       return NextResponse.json(
@@ -75,6 +75,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // Barcode: kosong -> null; validasi keunikan jika diisi
+    const finalBarcode =
+      barcode && String(barcode).trim() !== "" ? String(barcode).trim() : null;
+    if (finalBarcode) {
+      const existingBarcode = await prisma.product.findUnique({
+        where: { barcode: finalBarcode },
+      });
+      if (existingBarcode) {
+        return NextResponse.json(
+          { error: "Barcode sudah digunakan produk lain" },
+          { status: 400 }
+        );
+      }
+    }
+
     const newProduct = await prisma.product.create({
       data: {
         name,
@@ -84,12 +99,30 @@ export async function POST(req: Request) {
         categoryId: parsedCategoryId,
         stock: parsedStock,
         sku: finalSku,
+        barcode: finalBarcode,
       },
       include: { category: true }, // <- ini tambahan penting
     });
 
     return NextResponse.json(newProduct, { status: 201 });
   } catch (err: any) {
+    if (err?.code === "P2002") {
+      const target = Array.isArray(err?.meta?.target)
+        ? err.meta.target.join(",")
+        : String(err?.meta?.target || "");
+      if (target.includes("barcode")) {
+        return NextResponse.json(
+          { error: "Barcode sudah digunakan produk lain" },
+          { status: 400 }
+        );
+      }
+      if (target.includes("sku")) {
+        return NextResponse.json(
+          { error: "SKU sudah digunakan produk lain" },
+          { status: 400 }
+        );
+      }
+    }
     console.error("Error create product:", err);
     return NextResponse.json({ error: "Gagal buat produk" }, { status: 500 });
   }
@@ -108,7 +141,7 @@ export async function PUT(req: Request) {
   }
   try {
     const body: ProductBody = await req.json();
-    const { id, name, description, imageUrl, price, categoryId, sku, stock } =
+    const { id, name, description, imageUrl, price, categoryId, sku, stock, barcode } =
       body;
 
     if (!id) {
@@ -159,6 +192,27 @@ export async function PUT(req: Request) {
       finalSku = sku.trim();
     }
 
+    // Barcode: normalisasi; cek keunikan jika berubah/diisi
+    let finalBarcode = existing.barcode;
+    if (barcode !== undefined) {
+      const normalized =
+        barcode && String(barcode).trim() !== "" ? String(barcode).trim() : null;
+      if (normalized !== existing.barcode) {
+        if (normalized) {
+          const conflict = await prisma.product.findUnique({
+            where: { barcode: normalized },
+          });
+          if (conflict && conflict.id !== parsedId) {
+            return NextResponse.json(
+              { error: "Barcode sudah digunakan produk lain" },
+              { status: 400 }
+            );
+          }
+        }
+        finalBarcode = normalized;
+      }
+    }
+
     const updated = await prisma.product.update({
       where: { id: parsedId },
       data: {
@@ -169,12 +223,30 @@ export async function PUT(req: Request) {
         categoryId: parsedCategoryId,
         stock: parsedStock,
         sku: finalSku,
+        barcode: finalBarcode,
       },
       include: { category: true }, // <- ini tambahan penting
     });
 
     return NextResponse.json(updated, { status: 200 });
   } catch (err: any) {
+    if (err?.code === "P2002") {
+      const target = Array.isArray(err?.meta?.target)
+        ? err.meta.target.join(",")
+        : String(err?.meta?.target || "");
+      if (target.includes("barcode")) {
+        return NextResponse.json(
+          { error: "Barcode sudah digunakan produk lain" },
+          { status: 400 }
+        );
+      }
+      if (target.includes("sku")) {
+        return NextResponse.json(
+          { error: "SKU sudah digunakan produk lain" },
+          { status: 400 }
+        );
+      }
+    }
     console.error("Error update product:", err);
     return NextResponse.json({ error: "Gagal update produk" }, { status: 500 });
   }

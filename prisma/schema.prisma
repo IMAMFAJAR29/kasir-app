@@ -37,6 +37,7 @@ model Product {
   price       Decimal  @default(0.00)
   costPrice   Decimal  @default(0.00)
   sku         String   @unique
+  barcode     String?  @unique
   stock       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

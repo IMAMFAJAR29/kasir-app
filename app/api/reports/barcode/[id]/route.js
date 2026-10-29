@@ -19,7 +19,8 @@ export async function GET(req, context) {
     );
   }
 
-  const qrDataUrl = await QRCode.toDataURL(product.sku);
+  const barcodeValue = product.barcode || product.sku;
+  const qrDataUrl = await QRCode.toDataURL(barcodeValue);
 
   const fontPath = path.join(
     process.cwd(),
@@ -51,6 +52,9 @@ export async function GET(req, context) {
   doc.moveDown();
   doc.fontSize(14).text(`Nama: ${product.name}`);
   doc.text(`SKU: ${product.sku}`);
+  if (product.barcode && product.barcode !== product.sku) {
+    doc.text(`Barcode: ${product.barcode}`);
+  }
   doc.text(`Harga: Rp ${product.price}`);
   doc.moveDown();
 
@@ -68,7 +72,7 @@ export async function GET(req, context) {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="barcode-${product.sku}.pdf"`,
+      "Content-Disposition": `inline; filename="barcode-${barcodeValue}.pdf"`,
     },
   });
 }

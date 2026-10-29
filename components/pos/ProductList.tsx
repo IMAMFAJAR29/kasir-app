@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Search, ShoppingCart, X, Package, Check } from "lucide-react";
 import { Product } from "@/types/products";
@@ -24,6 +24,37 @@ export default function ProductList({
   const [selectedCategory, setSelectedCategory] = useState<number | "all">("all");
   const [search, setSearch] = useState("");
   const [addedId, setAddedId] = useState<number | null>(null);
+  const [scanMessage, setScanMessage] = useState<string>("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const tryScan = (value: string) => {
+    const code = value.trim();
+    if (!code) return false;
+    const lower = code.toLowerCase();
+    const match = localProducts.find(
+      (p) =>
+        (p.barcode && p.barcode.toLowerCase() === lower) ||
+        (p.sku && p.sku.toLowerCase() === lower)
+    );
+    if (match && match.stock > 0) {
+      onAddToCart(match);
+      setAddedId(match.id);
+      setTimeout(() => setAddedId(null), 600);
+      setSearch("");
+      setScanMessage("");
+      // kembalikan fokus ke input scan
+      setTimeout(() => inputRef.current?.focus(), 0);
+      return true;
+    }
+    if (match && match.stock <= 0) {
+      setScanMessage(`Stok produk "${match.name}" habis.`);
+    } else {
+      setScanMessage(`Produk dengan kode "${code}" tidak ditemukan.`);
+    }
+    setTimeout(() => setScanMessage(""), 3000);
+    setTimeout(() => inputRef.current?.focus(), 0);
+    return false;
+  };
 
   // Fetch produk jika tidak dikirim dari parent
   useEffect(() => {
@@ -64,7 +95,8 @@ export default function ProductList({
   const filtered = localProducts.filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.sku && p.sku.toLowerCase().includes(search.toLowerCase()));
+      (p.sku && p.sku.toLowerCase().includes(search.toLowerCase())) ||
+      (p.barcode && p.barcode.toLowerCase().includes(search.toLowerCase()));
 
     const matchesCategory =
       selectedCategory === "all" || p.categoryId === selectedCategory;
@@ -91,10 +123,21 @@ export default function ProductList({
         <div className="relative w-full">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <input
+            ref={inputRef}
             type="text"
-            placeholder="Cari produk / SKU..."
+            placeholder="Cari produk / SKU / scan barcode..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const value = (e.currentTarget as HTMLInputElement).value;
+                const found = tryScan(value);
+                if (!found) {
+                  // biarkan teks sebagai filter pencarian; jangan kosongkan
+                }
+              }
+            }}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 pl-9 pr-8 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:bg-white transition"
           />
           {search && (
@@ -106,6 +149,11 @@ export default function ProductList({
             </button>
           )}
         </div>
+        {scanMessage && (
+          <p className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+            {scanMessage}
+          </p>
+        )}
       </div>
 
       {/* Category Pills Slider */}

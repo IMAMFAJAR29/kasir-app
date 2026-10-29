@@ -5,6 +5,7 @@ export interface Product {
   id: number;
   name: string;
   sku: string;
+  barcode?: string | null;
   stock: number;
   price: number;
   imageUrl?: string;
@@ -33,6 +34,7 @@ export interface FormProduct {
   id?: number;
   name: string;
   sku: string;
+  barcode: string;
   stock: number;
   price: number;
   imageUrl: string;
@@ -45,6 +47,7 @@ export interface ProductBody {
   id?: number | string;
   name: string;
   sku?: string;
+  barcode?: string | null;
   stock?: number | string;
   price: number | string;
   imageUrl?: string;

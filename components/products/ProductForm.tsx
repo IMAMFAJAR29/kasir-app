@@ -53,6 +53,15 @@ export default function ProductForm({
         className="form-control"
       />
 
+      {/* Barcode */}
+      <input
+        type="text"
+        placeholder="Barcode (opsional, boleh sama dengan SKU)"
+        value={form.barcode}
+        onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+        className="form-control"
+      />
+
       {/* Stok */}
       <input
         type="number"
