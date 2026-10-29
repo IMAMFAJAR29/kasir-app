@@ -348,7 +348,7 @@ export default function CustomersPage() {
                 onClick={() => setViewMode("grid")}
                 className={`p-2 rounded-xl transition-all ${
                   viewMode === "grid"
-                    ? "bg-slate-900 text-white shadow-sm"
+                    ? "bg-blue-600 text-white shadow-sm"
                     : "text-slate-400 hover:text-slate-700"
                 }`}
                 title="Tampilan Grid"
@@ -359,7 +359,7 @@ export default function CustomersPage() {
                 onClick={() => setViewMode("table")}
                 className={`p-2 rounded-xl transition-all ${
                   viewMode === "table"
-                    ? "bg-slate-900 text-white shadow-sm"
+                    ? "bg-blue-600 text-white shadow-sm"
                     : "text-slate-400 hover:text-slate-700"
                 }`}
                 title="Tampilan Tabel"
@@ -401,7 +401,7 @@ export default function CustomersPage() {
                             <h3 className="font-semibold text-slate-900 text-base leading-snug">
                               {customer.name}
                             </h3>
-                            <span className="text-[11px] font-mono text-slate-400">ID #{customer.id}</span>
+                            <span className="text-xs font-mono text-slate-400">ID #{customer.id}</span>
                           </div>
                         </div>
 
@@ -481,7 +481,7 @@ export default function CustomersPage() {
                               </div>
                               <div>
                                 <p className="font-semibold text-slate-900">{c.name}</p>
-                                <p className="text-[11px] font-mono text-slate-400">ID #{c.id}</p>
+                                <p className="text-xs font-mono text-slate-400">ID #{c.id}</p>
                               </div>
                             </div>
                           </td>

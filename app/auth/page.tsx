@@ -255,7 +255,7 @@ export default function AuthPage() {
                 <span className="font-bold text-lg tracking-tight">
                   Anima POS
                 </span>
-                <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200">
+                <span className="ml-2 text-xs font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200">
                   PRO
                 </span>
               </div>
@@ -278,7 +278,7 @@ export default function AuthPage() {
                   <p className="text-xs font-semibold text-brand-navy">
                     Transaksi Kasir Kilat
                   </p>
-                  <p className="text-[11px] text-slate-600">
+                  <p className="text-xs text-slate-600">
                     Pencarian produk instan & hotkey cepat
                   </p>
                 </div>
@@ -292,7 +292,7 @@ export default function AuthPage() {
                   <p className="text-xs font-semibold text-brand-navy">
                     Laporan & Multi Gudang
                   </p>
-                  <p className="text-[11px] text-slate-600">
+                  <p className="text-xs text-slate-600">
                     Tracking stok real-time per lokasi cabang
                   </p>
                 </div>
@@ -306,7 +306,7 @@ export default function AuthPage() {
                   <p className="text-xs font-semibold text-brand-navy">
                     Aman & Terpercaya
                   </p>
-                  <p className="text-[11px] text-slate-600">
+                  <p className="text-xs text-slate-600">
                     Data terlindungi enkripsi session modern
                   </p>
                 </div>

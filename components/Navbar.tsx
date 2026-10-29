@@ -79,7 +79,7 @@ export default function Navbar() {
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-2.5">
             <Image
-              src="/Logo.png.png"
+              src="/Logo.png"
               alt="Logo Anima POS"
               width={40}
               height={40}
@@ -126,7 +126,7 @@ export default function Navbar() {
                     <Package className="h-4 w-4 text-slate-600" />
                     <div>
                       <div className="font-medium">Daftar Produk</div>
-                      <div className="text-[11px] text-slate-500">Kelola stok & harga</div>
+                      <div className="text-xs text-slate-500">Kelola stok & harga</div>
                     </div>
                   </Link>}
                   {canView("categories") && <Link
@@ -136,7 +136,7 @@ export default function Navbar() {
                     <Tags className="h-4 w-4 text-slate-600" />
                     <div>
                       <div className="font-medium">Kategori Produk</div>
-                      <div className="text-[11px] text-slate-500">Hierarki & subkategori</div>
+                      <div className="text-xs text-slate-500">Hierarki & subkategori</div>
                     </div>
                   </Link>}
                 </div>
@@ -165,7 +165,7 @@ export default function Navbar() {
                     <FileText className="h-4 w-4 text-slate-600" />
                     <div>
                       <div className="font-medium">Faktur Penjualan</div>
-                      <div className="text-[11px] text-slate-500">Tagihan & status bayar</div>
+                      <div className="text-xs text-slate-500">Tagihan & status bayar</div>
                     </div>
                   </Link>}
                   {canView("customers") && <Link
@@ -175,7 +175,7 @@ export default function Navbar() {
                     <Users className="h-4 w-4 text-slate-600" />
                     <div>
                       <div className="font-medium">Kontak Pelanggan</div>
-                      <div className="text-[11px] text-slate-500">Data customer & pemasok</div>
+                      <div className="text-xs text-slate-500">Data customer & pemasok</div>
                     </div>
                   </Link>}
                 </div>
@@ -203,7 +203,7 @@ export default function Navbar() {
                     <FileText className="h-4 w-4 text-slate-600" />
                     <div>
                       <div className="font-medium">Daftar Pembelian</div>
-                      <div className="text-[11px] text-slate-500">Purchase order & pembayaran</div>
+                      <div className="text-xs text-slate-500">Purchase order & pembayaran</div>
                     </div>
                   </Link>
                   <Link
@@ -213,7 +213,7 @@ export default function Navbar() {
                     <PackageCheck className="h-4 w-4 text-slate-600" />
                     <div>
                       <div className="font-medium">Penerimaan Barang</div>
-                      <div className="text-[11px] text-slate-500">Pencatatan & pemeriksaan QC</div>
+                      <div className="text-xs text-slate-500">Pencatatan & pemeriksaan QC</div>
                     </div>
                   </Link>
                 </div>
@@ -242,7 +242,7 @@ export default function Navbar() {
                     <Layers className="h-4 w-4 text-slate-600" />
                     <div>
                       <div className="font-medium">Stok Gudang</div>
-                      <div className="text-[11px] text-slate-500">Inventaris & mutasi</div>
+                      <div className="text-xs text-slate-500">Inventaris & mutasi</div>
                     </div>
                   </Link>}
                   {canView("warehouses") && <Link
@@ -252,7 +252,7 @@ export default function Navbar() {
                     <Warehouse className="h-4 w-4 text-slate-600" />
                     <div>
                       <div className="font-medium">Lokasi Gudang</div>
-                      <div className="text-[11px] text-slate-500">Cabang & penyimpanan</div>
+                      <div className="text-xs text-slate-500">Cabang & penyimpanan</div>
                     </div>
                   </Link>}
                 </div>
@@ -280,7 +280,7 @@ export default function Navbar() {
                     <FileText className="h-4 w-4 text-slate-600" />
                     <div>
                       <div className="font-medium">Jurnal Umum</div>
-                      <div className="text-[11px] text-slate-500">Ayat debit & kredit</div>
+                      <div className="text-xs text-slate-500">Ayat debit & kredit</div>
                     </div>
                   </Link>
                   <Link
@@ -290,7 +290,7 @@ export default function Navbar() {
                     <BookOpen className="h-4 w-4 text-slate-600" />
                     <div>
                       <div className="font-medium">Buku Besar</div>
-                      <div className="text-[11px] text-slate-500">Mutasi saldo per akun</div>
+                      <div className="text-xs text-slate-500">Mutasi saldo per akun</div>
                     </div>
                   </Link>
                   <Link
@@ -300,7 +300,7 @@ export default function Navbar() {
                     <FileSpreadsheet className="h-4 w-4 text-slate-600" />
                     <div>
                       <div className="font-medium">Laporan Keuangan</div>
-                      <div className="text-[11px] text-slate-500">Laba Rugi & Neraca</div>
+                      <div className="text-xs text-slate-500">Laba Rugi & Neraca</div>
                     </div>
                   </Link>
                   <Link
@@ -310,7 +310,7 @@ export default function Navbar() {
                     <Scale className="h-4 w-4 text-slate-600" />
                     <div>
                       <div className="font-medium">Bagan Akun (COA)</div>
-                      <div className="text-[11px] text-slate-500">Master Chart of Accounts</div>
+                      <div className="text-xs text-slate-500">Master Chart of Accounts</div>
                     </div>
                   </Link>
                 </div>
@@ -351,7 +351,7 @@ export default function Navbar() {
             {userDropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-sm z-50">
                 <div className="mb-1 border-b border-slate-100 px-3 py-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
                     Masuk sebagai
                   </p>
                   <p className="truncate text-sm font-semibold text-slate-900">
@@ -434,7 +434,7 @@ export default function Navbar() {
             </Link>}
 
             {(canView("products") || canView("categories")) && <div className="pt-2">
-              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+              <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
                 Katalog
               </p>
               {canView("products") && <Link
@@ -456,7 +456,7 @@ export default function Navbar() {
             </div>}
 
             {(canView("invoices") || canView("purchases") || canView("customers")) && <div className="pt-2">
-              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+              <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
                 Transaksi
               </p>
               {canView("invoices") && <Link
@@ -494,7 +494,7 @@ export default function Navbar() {
             </div>}
 
             {(canView("inventory") || canView("warehouses")) && <div className="pt-2">
-              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+              <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
                 Gudang
               </p>
               {canView("inventory") && <Link
@@ -516,7 +516,7 @@ export default function Navbar() {
             </div>}
 
             {canView("accounting") && <div className="pt-2">
-              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+              <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
                 Akuntansi & Keuangan
               </p>
               <Link

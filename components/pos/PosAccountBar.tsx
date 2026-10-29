@@ -23,7 +23,7 @@ export default function PosAccountBar({
             <CircleUserRound className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Pengguna POS
             </p>
             <p className="truncate text-sm font-semibold text-brand-navy">{name}</p>

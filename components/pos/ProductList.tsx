@@ -163,11 +163,11 @@ export default function ProductList({
         <div>
           <h1 className="flex items-center gap-2 text-base font-bold text-slate-900 sm:text-lg">
             <span>Katalog Produk</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 sm:text-xs">
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 sm:text-xs">
               {filtered.length} item
             </span>
           </h1>
-          <p className="text-[11px] text-slate-400 sm:text-xs">
+          <p className="text-xs text-slate-400 sm:text-xs">
             Pilih produk untuk ditambahkan ke keranjang
           </p>
         </div>
@@ -223,9 +223,9 @@ export default function ProductList({
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
             onClick={() => setSelectedCategory("all")}
-            className={`rounded-xl px-3.5 py-1.5 text-[11px] font-semibold whitespace-nowrap transition cursor-pointer select-none active:scale-[0.98] sm:text-xs ${
+            className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition cursor-pointer select-none active:scale-[0.98] sm:text-xs ${
               selectedCategory === "all"
-                ? "bg-slate-900 text-white shadow-xs"
+                ? "bg-blue-600 text-white shadow-xs"
                 : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
             }`}
           >
@@ -237,9 +237,9 @@ export default function ProductList({
               <button
                 key={c.id}
                 onClick={() => setSelectedCategory(c.id)}
-                className={`rounded-xl px-3.5 py-1.5 text-[11px] font-semibold whitespace-nowrap transition cursor-pointer select-none active:scale-[0.98] sm:text-xs ${
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition cursor-pointer select-none active:scale-[0.98] sm:text-xs ${
                   selectedCategory === c.id
-                    ? "bg-slate-900 text-white shadow-xs"
+                    ? "bg-blue-600 text-white shadow-xs"
                     : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >
@@ -280,15 +280,15 @@ export default function ProductList({
                 {/* Stock Badge Overlay */}
                 <div className="absolute top-2 left-2">
                   {isOutOfStock ? (
-                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-rose-600 text-white shadow-xs">
+                    <span className="px-2 py-0.5 text-xs font-bold rounded-md bg-rose-600 text-white shadow-xs">
                       Habis
                     </span>
                   ) : isLowStock ? (
-                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-amber-500 text-white shadow-xs">
+                    <span className="px-2 py-0.5 text-xs font-bold rounded-md bg-amber-500 text-white shadow-xs">
                       Sisa {product.stock}
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-slate-900/70 text-white backdrop-blur-xs">
+                    <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-slate-900/70 text-white backdrop-blur-xs">
                       Stok: {product.stock}
                     </span>
                   )}
@@ -306,7 +306,7 @@ export default function ProductList({
               {/* Info Produk */}
               <div className="space-y-1">
                 {product.sku && (
-                  <p className="text-[10px] uppercase font-mono text-slate-400 truncate">
+                  <p className="text-xs uppercase font-mono text-slate-400 truncate">
                     {product.sku}
                   </p>
                 )}
@@ -394,7 +394,7 @@ export default function ProductList({
                   {cameraError}
                 </p>
               )}
-              <p className="mt-3 text-center text-[11px] text-slate-400">
+              <p className="mt-3 text-center text-xs text-slate-400">
                 Arahkan kamera ke barcode produk. Scan akan otomatis menambahkan ke keranjang.
               </p>
             </div>

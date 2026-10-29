@@ -193,7 +193,7 @@ export default function PrintDeliveryNotePage() {
         ))}
       </section>
 
-      <footer className="mt-10 border-t border-slate-200 pt-3 text-center text-[10px] text-slate-500">
+      <footer className="mt-10 border-t border-slate-200 pt-3 text-center text-xs text-slate-500">
         Dokumen ini digunakan untuk verifikasi barang terhadap Purchase Order.
       </footer>
     </main>

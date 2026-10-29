@@ -131,10 +131,10 @@ export default function PaymentSection({
       {/* Total Section */}
       <div className="flex items-center justify-between rounded-2xl bg-slate-900 p-3 text-white shadow-xs sm:p-4">
         <div>
-          <span className="block text-[10px] font-medium text-slate-400 sm:text-xs">
+          <span className="block text-xs font-medium text-slate-400 sm:text-xs">
             Total Tagihan
           </span>
-          <span className="mt-1 flex items-center gap-1 text-[10px] font-medium text-indigo-400 sm:text-xs">
+          <span className="mt-1 flex items-center gap-1 text-xs font-medium text-indigo-400 sm:text-xs">
             <Sparkles size={12} />
             <span>Pajak sudah termasuk</span>
           </span>
@@ -163,7 +163,7 @@ export default function PaymentSection({
                 type="button"
                 disabled={offline && m.id !== "cash"}
                 onClick={() => onSelect(m.id)}
-                className={`flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border p-2 text-[11px] font-semibold transition cursor-pointer select-none active:scale-[0.98] sm:text-xs ${
+                className={`flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border p-2 text-xs font-semibold transition cursor-pointer select-none active:scale-[0.98] sm:text-xs ${
                   isSelected
                     ? "border-slate-900 bg-slate-900 text-white shadow-xs"
                     : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
@@ -189,7 +189,7 @@ export default function PaymentSection({
                 <button
                   type="button"
                   onClick={() => setPayment(0)}
-                  className="text-[11px] text-slate-400 hover:text-rose-600 font-medium"
+                  className="text-xs text-slate-400 hover:text-rose-600 font-medium"
                 >
                   Reset
                 </button>

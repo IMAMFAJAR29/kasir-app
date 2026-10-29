@@ -152,28 +152,28 @@ export default function AccountingLedgerPage() {
             <div className="mt-1 text-lg font-bold font-mono text-slate-900">
               Rp {ledger.openingBalance.toLocaleString("id-ID")}
             </div>
-            <span className="text-[10px] text-slate-400">Sebelum {startDate}</span>
+            <span className="text-xs text-slate-400">Sebelum {startDate}</span>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
             <span className="text-xs font-medium text-emerald-600">Total Mutasi Debit</span>
             <div className="mt-1 text-lg font-bold font-mono text-emerald-700">
               Rp {ledger.periodDebit.toLocaleString("id-ID")}
             </div>
-            <span className="text-[10px] text-slate-400">Penambahan / Arus Debit</span>
+            <span className="text-xs text-slate-400">Penambahan / Arus Debit</span>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
             <span className="text-xs font-medium text-rose-600">Total Mutasi Kredit</span>
             <div className="mt-1 text-lg font-bold font-mono text-rose-700">
               Rp {ledger.periodCredit.toLocaleString("id-ID")}
             </div>
-            <span className="text-[10px] text-slate-400">Pengurangan / Arus Kredit</span>
+            <span className="text-xs text-slate-400">Pengurangan / Arus Kredit</span>
           </div>
           <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4 shadow-xs">
             <span className="text-xs font-bold text-blue-700">Saldo Akhir</span>
             <div className="mt-1 text-lg font-bold font-mono text-blue-900">
               Rp {ledger.closingBalance.toLocaleString("id-ID")}
             </div>
-            <span className="text-[10px] font-semibold text-blue-600">
+            <span className="text-xs font-semibold text-blue-600">
               Saldo Normal: {ledger.account.normalBalance}
             </span>
           </div>

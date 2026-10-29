@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Button from "@/components/Button";
 import PurchaseForm from "@/components/purchases/purchaseForm";
 import PurchasePreview from "@/components/purchases/purchasePreview";
 import ProductModal from "@/components/shared/ProductModal";

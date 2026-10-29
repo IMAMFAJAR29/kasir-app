@@ -341,7 +341,7 @@ export default function LocationsPage() {
                           <h3 className="font-semibold text-slate-900 text-base leading-tight">
                             {loc.name}
                           </h3>
-                          <span className="text-[11px] font-mono text-slate-400">ID #{loc.id}</span>
+                          <span className="text-xs font-mono text-slate-400">ID #{loc.id}</span>
                         </div>
                       </div>
 

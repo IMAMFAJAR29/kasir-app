@@ -34,22 +34,22 @@ export default function ProductCard({
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-1">
               <Package size={28} />
-              <span className="text-[10px]">No image</span>
+              <span className="text-xs">No image</span>
             </div>
           )}
 
           {/* Stock Badge Overlay */}
           <div className="absolute top-2.5 left-2.5">
             {isOutOfStock ? (
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-rose-600 text-white shadow-xs">
+              <span className="px-2 py-0.5 text-xs font-bold rounded-md bg-rose-600 text-white shadow-xs">
                 Habis
               </span>
             ) : isLowStock ? (
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-amber-500 text-white shadow-xs">
+              <span className="px-2 py-0.5 text-xs font-bold rounded-md bg-amber-500 text-white shadow-xs">
                 Sisa {product.stock}
               </span>
             ) : (
-              <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-slate-900/75 text-white backdrop-blur-xs">
+              <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-slate-900/75 text-white backdrop-blur-xs">
                 Stok: {product.stock}
               </span>
             )}
@@ -58,7 +58,7 @@ export default function ProductCard({
           {/* Category Chip Overlay */}
           {product.category && (
             <div className="absolute top-2.5 right-2.5">
-              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-white/90 text-slate-700 backdrop-blur-xs shadow-xs">
+              <span className="px-2 py-0.5 text-xs font-semibold rounded-md bg-white/90 text-slate-700 backdrop-blur-xs shadow-xs">
                 {product.category.name}
               </span>
             </div>
@@ -68,7 +68,7 @@ export default function ProductCard({
         {/* Info Produk */}
         <div className="p-4 space-y-1.5">
           {product.sku && (
-            <p className="text-[10px] uppercase font-mono tracking-wider text-slate-400">
+            <p className="text-xs uppercase font-mono tracking-wider text-slate-400">
               SKU: {product.sku}
             </p>
           )}

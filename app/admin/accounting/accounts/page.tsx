@@ -233,7 +233,7 @@ export default function AccountingAccountsPage() {
                         {acc.isSystem && (
                           <span
                             title="Akun bawaan sistem untuk posting otomatis"
-                            className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500"
+                            className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-bold text-slate-500"
                           >
                             SYSTEM
                           </span>

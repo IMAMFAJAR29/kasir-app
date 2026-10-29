@@ -14,8 +14,8 @@ export const metadata = {
   manifest: "/manifest.webmanifest",
   applicationName: "Anima POS",
   icons: {
-    icon: "/Logo.png.png",
-    apple: "/Logo.png.png",
+    icon: "/Logo.png",
+    apple: "/Logo.png",
   },
   appleWebApp: {
     capable: true,

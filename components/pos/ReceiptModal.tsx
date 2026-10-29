@@ -132,7 +132,7 @@ export default function ReceiptModal({
         <div className="p-5 space-y-4 text-xs font-sans text-slate-700 max-h-[60vh] overflow-y-auto">
           {/* List Item */}
           <div className="space-y-2 border-b border-dashed border-slate-200 pb-3">
-            <div className="flex justify-between text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            <div className="flex justify-between text-xs font-semibold text-slate-400 uppercase tracking-wider">
               <span>Item</span>
               <span>Subtotal</span>
             </div>
@@ -142,7 +142,7 @@ export default function ReceiptModal({
                   <p className="font-semibold text-slate-900 truncate">
                     {item.name}
                   </p>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-xs text-slate-400">
                     {item.qty} x Rp {item.price.toLocaleString("id-ID")}
                   </p>
                 </div>
@@ -182,7 +182,7 @@ export default function ReceiptModal({
           {/* Grand Total */}
           <div className="flex justify-between items-center pt-1">
             <span className="text-sm font-bold text-slate-900">Total Akhir</span>
-            <span className="text-lg font-extrabold text-slate-900">
+            <span className="text-lg font-bold text-slate-900">
               Rp {total.toLocaleString("id-ID")}
             </span>
           </div>

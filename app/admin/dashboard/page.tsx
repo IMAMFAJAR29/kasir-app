@@ -294,7 +294,7 @@ export default function DashboardPage() {
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <div className="flex items-center gap-2 min-w-0">
                           <span
-                            className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold shrink-0 ${rankBadge}`}
+                            className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs font-bold shrink-0 ${rankBadge}`}
                           >
                             {i + 1}
                           </span>
