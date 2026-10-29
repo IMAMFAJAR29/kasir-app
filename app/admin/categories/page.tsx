@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Swal from "sweetalert2";
-import { Trash2, Plus, Save, Folder, Search } from "lucide-react";
+import { Trash2, Plus, Save, Folder, Search, X } from "lucide-react";
 import Button from "@/components/Button";
 
 // ======= Interface =======
@@ -624,8 +624,9 @@ export default function AdminCategoriesPage() {
             <button
               onClick={() => setShowAddModal(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100 transition"
+              aria-label="Tutup"
             >
-              ✕
+              <X size={18} />
             </button>
           </div>
         </div>

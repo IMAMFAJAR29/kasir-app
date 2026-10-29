@@ -244,7 +244,7 @@ export default function AuthPage() {
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-8">
               <Image
-                src="/Logo.png.png"
+                src="/Logo.png"
                 alt="Logo Anima POS"
                 width={52}
                 height={52}
@@ -335,7 +335,7 @@ export default function AuthPage() {
           <div className="max-w-md mx-auto w-full">
             <div className="md:hidden flex items-center gap-3 mb-7">
               <Image
-                src="/Logo.png.png"
+                src="/Logo.png"
                 alt="Logo Anima POS"
                 width={48}
                 height={48}

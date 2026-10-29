@@ -14,19 +14,19 @@ export default function manifest() {
     prefer_related_applications: false,
     icons: [
       {
-        src: "/Logo.png.png",
+        src: "/Logo.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/Logo.png.png",
+        src: "/Logo.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/Logo.png.png",
+        src: "/Logo.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

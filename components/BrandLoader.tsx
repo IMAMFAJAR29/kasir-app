@@ -15,7 +15,7 @@ export default function BrandLoader({
       className={`flex flex-col items-center justify-center gap-3 bg-[var(--background)] ${className}`}
     >
       <Image
-        src="/Logo.png.png"
+        src="/Logo.png"
         alt="Anima POS"
         width={56}
         height={56}
