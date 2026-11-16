@@ -66,6 +66,8 @@ export default function ProductForm({
       <input
         type="number"
         placeholder="Stok"
+        min={0}
+        step={1}
         value={form.stock === 0 ? "" : form.stock}
         onChange={(e) =>
           setForm({
@@ -76,10 +78,12 @@ export default function ProductForm({
         className="form-control"
       />
 
-      {/* Harga */}
+      {/* Harga Jual */}
       <input
         type="number"
-        placeholder="Harga"
+        placeholder="Harga Jual"
+        min={0}
+        step="0.01"
         value={form.price === 0 ? "" : form.price}
         onChange={(e) =>
           setForm({
@@ -89,6 +93,22 @@ export default function ProductForm({
         }
         className="form-control"
         required
+      />
+
+      {/* Harga Beli */}
+      <input
+        type="number"
+        placeholder="Harga Beli"
+        min={0}
+        step="0.01"
+        value={form.costPrice === 0 ? "" : form.costPrice}
+        onChange={(e) =>
+          setForm({
+            ...form,
+            costPrice: e.target.value === "" ? 0 : Number(e.target.value),
+          })
+        }
+        className="form-control"
       />
 
       {/* Upload Gambar */}

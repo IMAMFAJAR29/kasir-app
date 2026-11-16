@@ -42,9 +42,13 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const { name, parentId } = body;
+    const normalizedName = typeof name === "string" ? name.trim() : "";
 
-    if (!name) {
-      return NextResponse.json({ error: "Name wajib diisi" }, { status: 400 });
+    if (!normalizedName) {
+      return NextResponse.json(
+        { error: "Nama kategori wajib diisi" },
+        { status: 400 }
+      );
     }
 
     const normalizedParentId =
@@ -52,16 +56,34 @@ export async function POST(req) {
         ? null
         : Number(parentId);
 
-    if (parentId !== null && parentId !== undefined && parentId !== "" && Number.isNaN(normalizedParentId)) {
+    if (
+      parentId !== null &&
+      parentId !== undefined &&
+      parentId !== "" &&
+      !Number.isSafeInteger(normalizedParentId)
+    ) {
       return NextResponse.json(
         { error: "Parent ID tidak valid" },
         { status: 400 }
       );
     }
 
+    if (normalizedParentId !== null) {
+      const parent = await prisma.category.findUnique({
+        where: { id: normalizedParentId },
+        select: { id: true },
+      });
+      if (!parent) {
+        return NextResponse.json(
+          { error: "Kategori induk tidak ditemukan" },
+          { status: 400 }
+        );
+      }
+    }
+
     const newCategory = await prisma.category.create({
       data: {
-        name,
+        name: normalizedName,
         parentId: normalizedParentId,
       },
     });

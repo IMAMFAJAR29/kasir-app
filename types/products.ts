@@ -8,6 +8,7 @@ export interface Product {
   barcode?: string | null;
   stock: number;
   price: number;
+  costPrice?: number;
   imageUrl?: string;
   description?: string;
   categoryId?: number | null;
@@ -37,6 +38,7 @@ export interface FormProduct {
   barcode: string;
   stock: number;
   price: number;
+  costPrice: number;
   imageUrl: string;
   description: string;
   categoryId?: number | null;
@@ -50,6 +52,7 @@ export interface ProductBody {
   barcode?: string | null;
   stock?: number | string;
   price: number | string;
+  costPrice?: number | string;
   imageUrl?: string;
   description?: string;
   categoryId?: number | string | null;

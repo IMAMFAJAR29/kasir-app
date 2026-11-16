@@ -1,14 +1,47 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { processStockAdjustmentAccounting } from "@/lib/accounting/adjustmentAccounting";
+import { setStockAtLocation } from "@/lib/productStock";
+import { getErrorMessage } from "@/lib/prismaErrors";
 
 export async function POST(req: NextRequest) {
   try {
     const { no, date, locationId, note, items } = await req.json();
 
-    if (!locationId || !items || items.length === 0) {
+    if (!locationId || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         { message: "Lokasi dan item wajib diisi" },
+        { status: 400 }
+      );
+    }
+
+    const numericLocationId = Number(locationId);
+    if (!Number.isSafeInteger(numericLocationId) || numericLocationId <= 0) {
+      return NextResponse.json(
+        { message: "Lokasi tidak valid" },
+        { status: 400 }
+      );
+    }
+
+    const normalizedItems = items.map((item: unknown) => {
+      const source = (item ?? {}) as Record<string, unknown>;
+      return {
+        productId: Number(source.productId),
+        newQuantity: Number(source.newQuantity),
+      };
+    });
+
+    if (
+      normalizedItems.some(
+        (item) =>
+          !Number.isSafeInteger(item.productId) ||
+          item.productId <= 0 ||
+          !Number.isSafeInteger(item.newQuantity) ||
+          item.newQuantity < 0
+      )
+    ) {
+      return NextResponse.json(
+        { message: "Produk atau stok baru tidak valid" },
         { status: 400 }
       );
     }
@@ -21,60 +54,44 @@ export async function POST(req: NextRequest) {
         data: {
           no: adjustmentNo,
           date: adjustmentDate,
-          locationId: Number(locationId),
+          locationId: numericLocationId,
           note: note || "",
         },
       });
 
       const adjustmentLinesForAccounting = [];
 
-      for (const item of items) {
+      for (const item of normalizedItems) {
         const stock = await tx.productStock.findUnique({
           where: {
             productId_locationId: {
-              productId: Number(item.productId),
-              locationId: Number(locationId),
+              productId: item.productId,
+              locationId: numericLocationId,
             },
           },
         });
 
-        const oldQty = stock?.quantity || 0;
-        const newQty = Number(item.newQuantity || 0);
-        const difference = newQty - oldQty;
+        const oldQty = stock?.quantity ?? 0;
+        const difference = item.newQuantity - oldQty;
 
-        await tx.productStock.upsert({
-          where: {
-            productId_locationId: {
-              productId: Number(item.productId),
-              locationId: Number(locationId),
-            },
-          },
-          update: { quantity: newQty },
-          create: {
-            productId: Number(item.productId),
-            locationId: Number(locationId),
-            quantity: newQty,
-          },
-        });
-
-        // Sinkronisasi stok global Product
-        await tx.product.update({
-          where: { id: Number(item.productId) },
-          data: { stock: { increment: difference } },
+        await setStockAtLocation(tx, {
+          productId: item.productId,
+          locationId: numericLocationId,
+          quantity: item.newQuantity,
         });
 
         await tx.stockAdjustmentItem.create({
           data: {
             adjustmentId: createdAdjustment.id,
-            productId: Number(item.productId),
+            productId: item.productId,
             oldQuantity: oldQty,
-            newQuantity: newQty,
+            newQuantity: item.newQuantity,
             difference,
           },
         });
 
         adjustmentLinesForAccounting.push({
-          productId: Number(item.productId),
+          productId: item.productId,
           difference,
         });
       }
@@ -84,7 +101,7 @@ export async function POST(req: NextRequest) {
         createdAdjustment.id,
         createdAdjustment.no,
         adjustmentDate,
-        Number(locationId),
+        numericLocationId,
         adjustmentLinesForAccounting,
         tx
       );
@@ -97,6 +114,21 @@ export async function POST(req: NextRequest) {
       adjustment,
     });
   } catch (error) {
+    if (error && typeof error === "object" && "code" in error) {
+      if (error.code === "INVALID_STOCK") {
+        return NextResponse.json(
+          { message: getErrorMessage(error, "Stok tidak valid") },
+          { status: 400 }
+        );
+      }
+      if (error.code === "INSUFFICIENT_STOCK") {
+        return NextResponse.json(
+          { message: getErrorMessage(error, "Stok tidak mencukupi") },
+          { status: 409 }
+        );
+      }
+    }
+
     console.error("Error creating adjustment:", error);
     return NextResponse.json(
       { message: "Terjadi kesalahan server" },

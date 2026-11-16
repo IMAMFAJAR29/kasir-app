@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/authOptions";
 import prisma from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
 import { postJournalEntry } from "@/lib/accounting/postingService";
+import { decrementStockAtLocation } from "@/lib/productStock";
 
 async function createSale(body, userId) {
   const { items, method, payment, cashSessionId, clientTransactionId } = body;
@@ -128,34 +129,20 @@ async function createSale(body, userId) {
           },
         },
       });
-      // 1. Kurangi stok produk secara atomik
+      // 1. Kurangi stok produk secara atomik (validasi stok di helper)
       const defaultLocation = await tx.location.findFirst({
         where: { isActive: true },
         orderBy: { id: "asc" },
+        select: { id: true },
       });
 
       for (const item of createdSale.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.qty } },
+        await decrementStockAtLocation(tx, {
+          productId: item.productId,
+          locationId: defaultLocation?.id ?? null,
+          qty: item.qty,
+          productName: item.product?.name,
         });
-
-        if (defaultLocation) {
-          await tx.productStock.upsert({
-            where: {
-              productId_locationId: {
-                productId: item.productId,
-                locationId: defaultLocation.id,
-              },
-            },
-            update: { quantity: { decrement: item.qty } },
-            create: {
-              productId: item.productId,
-              locationId: defaultLocation.id,
-              quantity: -item.qty,
-            },
-          });
-        }
       }
 
       // 2. Hitung total HPP dan buat Jurnal Akuntansi otomatis
@@ -242,6 +229,14 @@ async function createSale(body, userId) {
     }
     if (error instanceof Error && error.message === "SHIFT_CLOSED") {
       return { error: "Shift kasir sudah ditutup", status: 409 };
+    }
+    if (error && typeof error === "object" && "code" in error) {
+      if (error.code === "INSUFFICIENT_STOCK") {
+        return { error: error.message, status: 409 };
+      }
+      if (error.code === "INVALID_STOCK") {
+        return { error: error.message, status: 400 };
+      }
     }
     throw error;
   }

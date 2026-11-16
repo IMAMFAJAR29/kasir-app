@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/authOptions";
 import { hasPermission } from "@/lib/permissions";
 import prisma from "@/lib/prisma";
 import { processInvoiceAccounting } from "@/lib/accounting/invoiceAccounting";
+import { getErrorMessage } from "@/lib/prismaErrors";
 
 // ✅ GET: Ambil semua invoice
 export async function GET() {
@@ -195,6 +196,21 @@ export async function POST(req: Request) {
 
     return NextResponse.json(invoice, { status: 201 });
   } catch (err) {
+    if (err && typeof err === "object" && "code" in err) {
+      if (err.code === "INSUFFICIENT_STOCK") {
+        return NextResponse.json(
+          { error: getErrorMessage(err, "Stok tidak mencukupi") },
+          { status: 409 }
+        );
+      }
+      if (err.code === "INVALID_STOCK") {
+        return NextResponse.json(
+          { error: getErrorMessage(err, "Stok tidak valid") },
+          { status: 400 }
+        );
+      }
+    }
+
     console.error("❌ Error create invoice:", err);
     return NextResponse.json(
       { error: "Gagal membuat faktur" },

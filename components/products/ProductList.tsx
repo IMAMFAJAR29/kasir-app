@@ -1,10 +1,10 @@
 "use client";
 
-import { Product } from "@/types/products";
+import { ProductWithCategory } from "@/types/products";
 import ProductCard from "./ProductCard";
 
 interface ProductListProps {
-  products: Product[];
+  products: ProductWithCategory[];
 }
 
 export default function ProductList({ products }: ProductListProps) {

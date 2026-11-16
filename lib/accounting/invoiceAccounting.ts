@@ -1,5 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { postJournalEntry } from "./postingService";
+import {
+  decrementStockAtLocation,
+  InvalidStockError,
+} from "@/lib/productStock";
 
 export interface InvoiceAccountingParams {
   invoiceId: number;
@@ -33,32 +37,27 @@ export async function processInvoiceAccounting(
     items,
   } = params;
 
-  // 1. Kurangi stok barang
+  // 1. Kurangi stok barang (validasi stok di helper)
   let totalCost = 0;
   for (const item of items) {
     const product = await tx.product.findUnique({
       where: { id: item.productId },
-      select: { costPrice: true },
+      select: { costPrice: true, name: true },
     });
 
-    const costPrice = Number(product?.costPrice || 0);
-    totalCost += costPrice * item.qty;
+    if (!product) {
+      throw new InvalidStockError(
+        `Produk dengan ID ${item.productId} tidak ditemukan`
+      );
+    }
 
-    await tx.product.update({
-      where: { id: item.productId },
-      data: { stock: { decrement: item.qty } },
-    });
+    totalCost += Number(product.costPrice || 0) * item.qty;
 
-    await tx.productStock.upsert({
-      where: {
-        productId_locationId: { productId: item.productId, locationId },
-      },
-      update: { quantity: { decrement: item.qty } },
-      create: {
-        productId: item.productId,
-        locationId,
-        quantity: -item.qty,
-      },
+    await decrementStockAtLocation(tx, {
+      productId: item.productId,
+      locationId,
+      qty: item.qty,
+      productName: product.name,
     });
   }
 

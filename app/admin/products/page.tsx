@@ -6,7 +6,9 @@ import Swal from "sweetalert2";
 // Komponen
 import ProductForm from "@/components/products/ProductForm";
 import ProductCard from "@/components/products/ProductCard";
-import ImportModal from "@/components/products/ImportModal";
+import ImportModal, {
+  type ImportResult,
+} from "@/components/products/ImportModal";
 import CategoryModal from "@/components/products/CategoryModal";
 import BarcodeModal from "@/components/products/BarcodeModal";
 import Button from "@/components/Button";
@@ -35,6 +37,7 @@ export default function ProductsPage() {
     barcode: "",
     stock: 0,
     price: 0,
+    costPrice: 0,
     imageUrl: "",
     description: "",
     categoryId: undefined,
@@ -87,6 +90,7 @@ export default function ProductsPage() {
       barcode: "",
       stock: 0,
       price: 0,
+      costPrice: 0,
       imageUrl: "",
       description: "",
       categoryId: undefined,
@@ -99,7 +103,7 @@ export default function ProductsPage() {
   // =======================
   // IMPORT PRODUK DARI FILE
   // =======================
-  const handleImport = async (file: File) => {
+  const handleImport = async (file: File): Promise<ImportResult> => {
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -108,15 +112,41 @@ export default function ProductsPage() {
         method: "POST",
         body: formData,
       });
+      const data = await res.json().catch(() => null);
 
-      if (!res.ok) throw new Error("Gagal import produk");
-      const imported = await res.json();
+      if (!res.ok) {
+        return {
+          success: false,
+          message: data?.error || "Gagal import produk",
+          details: Array.isArray(data?.details)
+            ? data.details.map(
+                (detail: { row?: number; message?: string }) =>
+                  detail?.row
+                    ? `Baris ${detail.row}: ${detail.message ?? "tidak valid"}`
+                    : detail?.message ?? "Baris tidak valid"
+              )
+            : [],
+        };
+      }
 
-      setProducts((prev) => [...imported, ...prev]);
-      Swal.fire("Berhasil", "Produk berhasil diimport", "success");
-      setShowImportModal(false);
+      const importedProducts: ProductWithCategory[] = Array.isArray(
+        data?.imported
+      )
+        ? data.imported
+        : [];
+
+      setProducts((prev) => [...importedProducts, ...prev]);
+      void Swal.fire(
+        "Berhasil",
+        `${data?.count ?? importedProducts.length} produk berhasil diimport`,
+        "success"
+      );
+      return { success: true };
     } catch {
-      Swal.fire("Error", "Gagal import produk", "error");
+      return {
+        success: false,
+        message: "Gagal import produk",
+      };
     }
   };
 
@@ -158,12 +188,15 @@ export default function ProductsPage() {
 
       // Update
       if (isEditing && form.id) {
-        res = await fetch("/api/products", {
+        res = await fetch(`/api/products/${form.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
         });
-        if (!res.ok) throw new Error("Gagal update produk");
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || "Gagal update produk");
+        }
         result = await res.json();
 
         setProducts((prev) =>
@@ -177,7 +210,10 @@ export default function ProductsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
         });
-        if (!res.ok) throw new Error("Gagal tambah produk");
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || "Gagal tambah produk");
+        }
         result = await res.json();
 
         setProducts((prev) => [result, ...prev]);
@@ -185,8 +221,12 @@ export default function ProductsPage() {
       }
 
       setShowProductFormModal(false);
-    } catch {
-      Swal.fire("Error", "Gagal menyimpan produk", "error");
+    } catch (error) {
+      Swal.fire(
+        "Error",
+        error instanceof Error ? error.message : "Gagal menyimpan produk",
+        "error"
+      );
     }
   };
 
@@ -248,11 +288,46 @@ export default function ProductsPage() {
       barcode: p.barcode ?? "",
       stock: p.stock,
       price: p.price,
+      costPrice: Number(p.costPrice ?? 0),
       imageUrl: p.imageUrl ?? "",
       description: p.description ?? "",
       categoryId: p.category?.id ?? undefined,
     };
   }
+
+  const handleDeleteProduct = async (product: ProductWithCategory) => {
+    const confirm = await Swal.fire({
+      title: "Hapus produk?",
+      text: `Produk "${product.name}" akan dihapus permanen`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Ya, hapus",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#e11d48",
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        await Swal.fire(
+          "Gagal",
+          data?.error || "Gagal menghapus produk",
+          "error"
+        );
+        return;
+      }
+
+      setProducts((prev) => prev.filter((p) => p.id !== product.id));
+      await Swal.fire("Terhapus!", "Produk berhasil dihapus", "success");
+    } catch {
+      await Swal.fire("Gagal", "Gagal menghapus produk", "error");
+    }
+  };
 
   // =======================
   // RENDER
@@ -412,24 +487,7 @@ export default function ProductsPage() {
                 setSelectedProduct(product);
                 setShowBarcodeModal(true);
               }}
-              onDelete={async () => {
-                const confirm = await Swal.fire({
-                  title: "Hapus produk?",
-                  text: `Produk "${product.name}" akan dihapus permanen`,
-                  icon: "warning",
-                  showCancelButton: true,
-                  confirmButtonText: "Ya, hapus",
-                  cancelButtonText: "Batal",
-                  confirmButtonColor: "#e11d48",
-                });
-                if (confirm.isConfirmed) {
-                  await fetch(`/api/products/${product.id}`, {
-                    method: "DELETE",
-                  });
-                  setProducts((prev) => prev.filter((p) => p.id !== product.id));
-                  Swal.fire("Terhapus!", "Produk berhasil dihapus", "success");
-                }
-              }}
+              onDelete={() => void handleDeleteProduct(product)}
             />
           ))}
         </div>
@@ -510,25 +568,7 @@ export default function ProductsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={async () => {
-                              const confirm = await Swal.fire({
-                                title: "Hapus produk?",
-                                icon: "warning",
-                                showCancelButton: true,
-                                confirmButtonText: "Ya, hapus",
-                                cancelButtonText: "Batal",
-                                confirmButtonColor: "#e11d48",
-                              });
-                              if (confirm.isConfirmed) {
-                                await fetch(`/api/products/${product.id}`, {
-                                  method: "DELETE",
-                                });
-                                setProducts((prev) =>
-                                  prev.filter((p) => p.id !== product.id)
-                                );
-                                Swal.fire("Terhapus!", "Produk berhasil dihapus", "success");
-                              }
-                            }}
+                            onClick={() => void handleDeleteProduct(product)}
                             className="p-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-lg transition"
                             title="Hapus"
                           >

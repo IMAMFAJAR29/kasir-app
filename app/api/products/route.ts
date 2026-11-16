@@ -3,8 +3,15 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { hasPermission } from "@/lib/permissions";
-import { v4 as uuidv4 } from "uuid";
-import { ProductBody } from "@/types/products";
+import {
+  parseProductCreate,
+  ProductInputError,
+} from "@/lib/productInput";
+import { mapPrismaError, mapStockError } from "@/lib/prismaErrors";
+import {
+  applyProductStockChange,
+  getDefaultLocationId,
+} from "@/lib/productStock";
 
 // =======================
 // GET /api/products
@@ -12,20 +19,27 @@ import { ProductBody } from "@/types/products";
 export async function GET() {
   const auth = await getServerSession(authOptions);
   if (!auth?.user?.id) {
-    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Autentikasi diperlukan" },
+      { status: 401 }
+    );
   }
   if (!hasPermission(auth.user.role, auth.user.permissions, "products", "view")) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
+
   try {
     const products = await prisma.product.findMany({
-      include: { category: true }, // ini penting supaya ada properti category
+      include: { category: true },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(products, { status: 200 });
   } catch (err) {
     console.error("Error fetch products:", err);
-    return NextResponse.json([], { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal mengambil produk" },
+      { status: 500 }
+    );
   }
 }
 
@@ -35,219 +49,111 @@ export async function GET() {
 export async function POST(req: Request) {
   const auth = await getServerSession(authOptions);
   if (!auth?.user?.id) {
-    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Autentikasi diperlukan" },
+      { status: 401 }
+    );
   }
   if (!hasPermission(auth.user.role, auth.user.permissions, "products", "create")) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
+
   try {
-    const body: ProductBody = await req.json();
-    const { name, description, imageUrl, price, categoryId, sku, stock, barcode } = body;
+    const input = parseProductCreate(await req.json());
 
-    if (!name || !price) {
+    const [skuConflict, barcodeConflict] = await Promise.all([
+      prisma.product.findUnique({
+        where: { sku: input.sku },
+        select: { id: true },
+      }),
+      input.barcode
+        ? prisma.product.findUnique({
+            where: { barcode: input.barcode },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    if (skuConflict) {
       return NextResponse.json(
-        { error: "Nama dan harga wajib diisi" },
+        { error: "SKU sudah digunakan produk lain", field: "sku" },
+        { status: 400 }
+      );
+    }
+    if (barcodeConflict) {
+      return NextResponse.json(
+        { error: "Barcode sudah digunakan produk lain", field: "barcode" },
         { status: 400 }
       );
     }
 
-    const parsedPrice = parseFloat(price.toString());
-    if (isNaN(parsedPrice)) {
-      return NextResponse.json({ error: "Harga tidak valid" }, { status: 400 });
-    }
-
-    const parsedStock = stock ? parseInt(stock.toString()) : 0;
-    const parsedCategoryId = categoryId
-      ? parseInt(categoryId.toString())
-      : null;
-
-    // Jika SKU kosong, generate UUID
-    let finalSku = sku && sku.trim() !== "" ? sku.trim() : uuidv4();
-
-    // Cek apakah SKU sudah dipakai produk lain
-    const existingSku = await prisma.product.findUnique({
-      where: { sku: finalSku },
-    });
-    if (existingSku) {
-      return NextResponse.json(
-        { error: "SKU sudah digunakan produk lain" },
-        { status: 400 }
-      );
-    }
-
-    // Barcode: kosong -> null; validasi keunikan jika diisi
-    const finalBarcode =
-      barcode && String(barcode).trim() !== "" ? String(barcode).trim() : null;
-    if (finalBarcode) {
-      const existingBarcode = await prisma.product.findUnique({
-        where: { barcode: finalBarcode },
+    if (input.categoryId) {
+      const category = await prisma.category.findUnique({
+        where: { id: input.categoryId },
+        select: { id: true },
       });
-      if (existingBarcode) {
+      if (!category) {
         return NextResponse.json(
-          { error: "Barcode sudah digunakan produk lain" },
+          { error: "Kategori tidak ditemukan", field: "categoryId" },
           { status: 400 }
         );
       }
     }
 
-    const newProduct = await prisma.product.create({
-      data: {
-        name,
-        description,
-        imageUrl,
-        price: parsedPrice,
-        categoryId: parsedCategoryId,
-        stock: parsedStock,
-        sku: finalSku,
-        barcode: finalBarcode,
-      },
-      include: { category: true }, // <- ini tambahan penting
+    const product = await prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: {
+          name: input.name,
+          sku: input.sku,
+          barcode: input.barcode,
+          description: input.description,
+          imageUrl: input.imageUrl,
+          price: input.price,
+          costPrice: input.costPrice,
+          stock: 0,
+          categoryId: input.categoryId,
+        },
+        select: { id: true },
+      });
+
+      const locationId = await getDefaultLocationId(tx);
+      await applyProductStockChange(tx, {
+        productId: created.id,
+        nextStock: input.stock,
+        locationId,
+        productName: input.name,
+      });
+
+      return tx.product.findUniqueOrThrow({
+        where: { id: created.id },
+        include: { category: true },
+      });
     });
 
-    return NextResponse.json(newProduct, { status: 201 });
-  } catch (err: any) {
-    if (err?.code === "P2002") {
-      const target = Array.isArray(err?.meta?.target)
-        ? err.meta.target.join(",")
-        : String(err?.meta?.target || "");
-      if (target.includes("barcode")) {
-        return NextResponse.json(
-          { error: "Barcode sudah digunakan produk lain" },
-          { status: 400 }
-        );
-      }
-      if (target.includes("sku")) {
-        return NextResponse.json(
-          { error: "SKU sudah digunakan produk lain" },
-          { status: 400 }
-        );
-      }
+    return NextResponse.json(product, { status: 201 });
+  } catch (err) {
+    if (err instanceof ProductInputError) {
+      return NextResponse.json(
+        { error: err.message, field: err.field },
+        { status: 400 }
+      );
     }
+    const stockError = mapStockError(err);
+    if (stockError) {
+      return NextResponse.json(
+        { error: stockError.message },
+        { status: stockError.status }
+      );
+    }
+    const prismaError = mapPrismaError(err);
+    if (prismaError) {
+      return NextResponse.json(
+        { error: prismaError.message },
+        { status: prismaError.status }
+      );
+    }
+
     console.error("Error create product:", err);
     return NextResponse.json({ error: "Gagal buat produk" }, { status: 500 });
-  }
-}
-
-// =======================
-// PUT /api/products
-// =======================
-export async function PUT(req: Request) {
-  const auth = await getServerSession(authOptions);
-  if (!auth?.user?.id) {
-    return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
-  }
-  if (!hasPermission(auth.user.role, auth.user.permissions, "products", "update")) {
-    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
-  }
-  try {
-    const body: ProductBody = await req.json();
-    const { id, name, description, imageUrl, price, categoryId, sku, stock, barcode } =
-      body;
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "ID produk wajib diisi" },
-        { status: 400 }
-      );
-    }
-
-    const parsedId = parseInt(id.toString());
-    if (isNaN(parsedId)) {
-      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
-    }
-
-    const parsedPrice = parseFloat(price.toString());
-    if (isNaN(parsedPrice)) {
-      return NextResponse.json({ error: "Harga tidak valid" }, { status: 400 });
-    }
-
-    const parsedStock = stock ? parseInt(stock.toString()) : 0;
-    const parsedCategoryId = categoryId
-      ? parseInt(categoryId.toString())
-      : null;
-
-    // Pastikan produk ada
-    const existing = await prisma.product.findUnique({
-      where: { id: parsedId },
-    });
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Produk tidak ditemukan" },
-        { status: 404 }
-      );
-    }
-
-    // Jika SKU dikirim dan berbeda dari yang lama, cek apakah sudah dipakai produk lain
-    let finalSku = existing.sku;
-    if (sku && sku.trim() !== "" && sku !== existing.sku) {
-      const conflict = await prisma.product.findUnique({
-        where: { sku: sku.trim() },
-      });
-      if (conflict) {
-        return NextResponse.json(
-          { error: "SKU sudah digunakan produk lain" },
-          { status: 400 }
-        );
-      }
-      finalSku = sku.trim();
-    }
-
-    // Barcode: normalisasi; cek keunikan jika berubah/diisi
-    let finalBarcode = existing.barcode;
-    if (barcode !== undefined) {
-      const normalized =
-        barcode && String(barcode).trim() !== "" ? String(barcode).trim() : null;
-      if (normalized !== existing.barcode) {
-        if (normalized) {
-          const conflict = await prisma.product.findUnique({
-            where: { barcode: normalized },
-          });
-          if (conflict && conflict.id !== parsedId) {
-            return NextResponse.json(
-              { error: "Barcode sudah digunakan produk lain" },
-              { status: 400 }
-            );
-          }
-        }
-        finalBarcode = normalized;
-      }
-    }
-
-    const updated = await prisma.product.update({
-      where: { id: parsedId },
-      data: {
-        name,
-        description,
-        imageUrl,
-        price: parsedPrice,
-        categoryId: parsedCategoryId,
-        stock: parsedStock,
-        sku: finalSku,
-        barcode: finalBarcode,
-      },
-      include: { category: true }, // <- ini tambahan penting
-    });
-
-    return NextResponse.json(updated, { status: 200 });
-  } catch (err: any) {
-    if (err?.code === "P2002") {
-      const target = Array.isArray(err?.meta?.target)
-        ? err.meta.target.join(",")
-        : String(err?.meta?.target || "");
-      if (target.includes("barcode")) {
-        return NextResponse.json(
-          { error: "Barcode sudah digunakan produk lain" },
-          { status: 400 }
-        );
-      }
-      if (target.includes("sku")) {
-        return NextResponse.json(
-          { error: "SKU sudah digunakan produk lain" },
-          { status: 400 }
-        );
-      }
-    }
-    console.error("Error update product:", err);
-    return NextResponse.json({ error: "Gagal update produk" }, { status: 500 });
   }
 }

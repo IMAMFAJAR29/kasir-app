@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { authorizePurchaseReceipt } from "@/lib/purchaseReceiptAuth";
 import { evaluateReceiptLine } from "@/lib/purchaseReceiving";
 import { processPurchaseReceiptAccounting } from "@/lib/accounting/purchaseAccounting";
+import { incrementStockAtLocation } from "@/lib/productStock";
 
 const receiptInclude = {
   purchase: {
@@ -202,6 +203,13 @@ export async function PATCH(request: Request, context: RouteContext) {
           };
         }
 
+        // Hitung HPP rata-rata memakai stok sebelum penerimaan, lalu tambah stok.
+        const accounting = await processPurchaseReceiptAccounting(
+          receipt.id,
+          locationId,
+          tx
+        );
+
         for (const item of receipt.items) {
           if (item.receivedQty <= 0) continue;
 
@@ -210,28 +218,15 @@ export async function PATCH(request: Request, context: RouteContext) {
             : item.actualProductId;
           if (!stockProductId) continue;
 
-          await tx.product.update({
-            where: { id: stockProductId },
-            data: { stock: { increment: item.receivedQty } },
-          });
-          await tx.productStock.upsert({
-            where: {
-              productId_locationId: {
-                productId: stockProductId,
-                locationId,
-              },
-            },
-            update: { quantity: { increment: item.receivedQty } },
-            create: {
-              productId: stockProductId,
-              locationId,
-              quantity: item.receivedQty,
-            },
+          await incrementStockAtLocation(tx, {
+            productId: stockProductId,
+            locationId,
+            qty: item.receivedQty,
           });
         }
 
         return {
-          accounting: await processPurchaseReceiptAccounting(receipt.id, locationId, tx),
+          accounting,
           receipt: await tx.purchaseReceipt.findUnique({
             where: { id: receipt.id },
             include: receiptInclude,
