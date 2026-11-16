@@ -80,6 +80,6 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/((?!_next|favicon.ico|Logo\\.png\\.png|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$|auth|api/auth).*)",
+    "/((?!_next|favicon.ico|Logo\\.png\\.png|sw\\.js|templates|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|xlsx|xls|csv)$|auth|api/auth).*)",
   ],
 };
