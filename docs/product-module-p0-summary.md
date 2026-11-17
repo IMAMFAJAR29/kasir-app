@@ -1,6 +1,7 @@
 # Modul Product — Ringkasan Perbaikan P0 & Rencana Lanjutan
 
 Tanggal: 2026-11-16 (diperbarui 2026-11-17)
+Commit kode Fase A & B: `d7b06db` — `fix(product): perbaiki integritas stok, kategori, dan quality gate` (branch `main`, sudah di-push).
 Status: Perbaikan P0, Fase A (stok lanjutan), dan Fase B (kategori, `params`, quality gate) selesai. `npm run build` lolos dengan type-check dan lint aktif.
 
 ---
@@ -34,6 +35,7 @@ Perubahan:
 - `context.params` sekarang di-`await` sebelum membaca `id`.
 - ID divalidasi sebagai bilangan bulat positif.
 - GET detail, PUT, dan DELETE produk tidak lagi menerima `NaN`/`undefined`.
+- Fase B memperluas pola yang sama ke `customers/[id]`, `sales/[id]`, `reports/invoices/[id]`, dan `taxes/[id]` (detail di bagian 2.9).
 
 ### 2.2 Konsistensi stok
 
@@ -88,7 +90,7 @@ Fitur:
 - SKU kosong otomatis dibuat.
 - Stok hasil import dibuat di lokasi default.
 - Import bersifat all-or-nothing: jika ada satu error, tidak ada produk yang disimpan.
-- Error ditampilkan di modal import, bukan hanya alert generik.
+- Error ditampilkan di modal import, bukan hanya alert generik, termasuk total error sebenarnya jika detail dipotong 100 baris.
 - Template lama tetap kompatibel karena header `Harga`, `KategoriId`, `Deskripsi`, dan `URL Gambar` masih dikenali.
 
 Template baru: `public/templates/import-template.xlsx`
@@ -179,9 +181,30 @@ Audit ulang menemukan beberapa celah pada aturan stok P0. Perbaikan berikut suda
 - `db:seed` memakai `node --experimental-strip-types prisma/seed.ts` (Node 22.16).
 - `next.config.mjs` kembali menjalankan type-check dan lint saat build.
 
+**Ringkasan status Fase B**
+
+| Item | Status | Implementasi |
+|---|---|---|
+| Hapus kategori tidak aman | Selesai | Pre-check subkategori & produk; 409 dengan pesan jelas; 404 jika tidak ada. |
+| `PUT` kategori reset `parentId` | Selesai | `parentId` hanya ditulis jika field dikirim. |
+| Nama kategori tidak unik | Selesai | Validasi case-insensitive di API + unique index `Category_name_key` lewat migrasi. |
+| UI belum bisa edit kategori | Selesai | Tombol edit + modal edit + pesan error server. |
+| `params` Next.js 15 | Selesai | Customers, sales detail, taxes (dipindah ke route `[id]`), report invoice detail. |
+| Type-check/lint dimatikan saat build | Selesai | `next.config.mjs` kembali menjalankan keduanya; build bersih. |
+| `db:seed` salah file | Selesai | `node --experimental-strip-types prisma/seed.ts`. |
+| `stock: null` dianggap 0 | Selesai | `null` diabaikan; stok tidak terhapus. |
+| Harga 0 tidak bisa disimpan | Selesai | Input harga menampilkan 0 dan tetap valid. |
+| Total error import tidak terlihat | Selesai | UI menampilkan jumlah error sebenarnya di atas 100 detail. |
+| `CategoryModal` memakai `cat.depth` kosong | Selesai | `flattenCategories` mengisi `depth`. |
+| `costPrice` terkirim ke kasir | Selesai | Hanya dikirim ke pengguna dengan izin kelola produk. |
+
 ---
 
 ## 3. File yang berubah
+
+Satu file bisa muncul di lebih dari satu fase karena mengalami perubahan tambahan. Semua perubahan Fase A dan B sudah masuk ke commit `d7b06db`.
+
+File yang berubah pada P0:
 
 | File | Jenis |
 |---|---|
@@ -254,14 +277,15 @@ Verifikasi 2026-11-17 setelah Fase B:
 - `npx eslint .`: **0 error**, 6 warning lama (`react-hooks/exhaustive-deps` dan satu `<img>`); warning tidak menggagalkan build.
 - `npm run build`: berhasil, **51/51** static pages.
 - Build menjalankan `Linting and checking validity of types ...` karena `ignoreBuildErrors`/`ignoreDuringBuilds` sudah dihapus.
-- Migrasi `20261117120000_category_unique_name` sudah diterapkan ke database Neon; `prisma migrate status` bersih.
-- Dev server belum diuji end-to-end lewat HTTP di environment ini. Pengujian manual yang disarankan ada di bagian "Uji manual setelah Fase A & B".
+- Migrasi `20261117120000_category_unique_name` sudah diterapkan ke database Neon; `prisma migrate status` bersih dan `prisma migrate diff` melaporkan **No difference detected**.
+- Perubahan sudah di-commit sebagai `d7b06db` dan di-push ke `origin/main`.
+- Dev server belum diuji end-to-end lewat HTTP di environment ini. Pengujian manual yang disarankan ada di bagian 5.3.
 
 ---
 
-## 5. Perbaikan yang Belum
+## 5. Pekerjaan Lanjutan
 
-### P1 — sebelum integrasi Jubelio
+### 5.1 P1 — sebelum integrasi Jubelio
 
 | Item | Alasan |
 |---|---|
@@ -274,33 +298,17 @@ Verifikasi 2026-11-17 setelah Fase B:
 | Pagination & search server-side | `/api/products` masih mengembalikan seluruh katalog (harga modal sudah tidak dikirim ke kasir). |
 | SKU/barcode unik per tenant | Saat ini unik global. |
 
-### Fase B — selesai (2026-11-17)
+### 5.2 P2 — kualitas dan skala
 
-| Item | Status | Implementasi |
-|---|---|---|
-| Hapus kategori tidak aman | Selesai | Pre-check subkategori & produk; 409 dengan pesan jelas; 404 jika tidak ada. |
-| `PUT` kategori reset `parentId` | Selesai | `parentId` hanya ditulis jika field dikirim. |
-| Nama kategori tidak unik | Selesai | Validasi case-insensitive di API + unique index `Category_name_key` lewat migrasi. |
-| UI belum bisa edit kategori | Selesai | Tombol edit + modal edit + pesan error server. |
-| `params` Next.js 15 | Selesai | Customers, sales detail, taxes (dipindah ke route `[id]`), report invoice detail. |
-| Type-check/lint dimatikan saat build | Selesai | `next.config.mjs` kembali menjalankan keduanya; build bersih. |
-| `db:seed` salah file | Selesai | `node --experimental-strip-types prisma/seed.ts`. |
-| `stock: null` dianggap 0 | Selesai | `null` diabaikan; stok tidak terhapus. |
-| Harga 0 tidak bisa disimpan | Selesai | Input harga menampilkan 0 dan tetap valid. |
-| Total error import tidak terlihat | Selesai | UI menampilkan jumlah error sebenarnya di atas 100 detail. |
-| `CategoryModal` memakai `cat.depth` kosong | Selesai | `flattenCategories` mengisi `depth`. |
-| `costPrice` terkirim ke kasir | Selesai | Hanya dikirim ke pengguna dengan izin kelola produk. |
+- Product Group / Variant / Bundle.
+- Sinkronisasi Jubelio: credential per tenant, outbox, retry, webhook, logging.
+- Audit trail `createdBy`/`updatedBy`.
+- Soft delete dan lifecycle gambar Cloudinary.
+- Barcode 1D (saat ini cetak PDF memakai QR).
+- Test otomatis untuk CRUD dan mutasi stok.
+- Hapus `components/products/ProductList.tsx` yang tidak dipakai (dead code).
 
-### Sisa temuan setelah Fase B
-
-| Item | Dampak | Prioritas |
-|---|---|---|
-| `components/products/ProductList.tsx` tidak dipakai. | Dead code | P2 |
-| `GET /api/products` belum punya pagination/search server-side. | Performa katalog besar | P1 |
-| Tenancy, Jubelio ID/mapping, satuan, `isActive`, stock movement ledger, unique per tenant. | Belum ada | P1 |
-| Product variant/bundle, sinkronisasi Jubelio, audit trail, soft delete + lifecycle gambar, barcode 1D, test otomatis. | Belum ada | P2 |
-
-### Uji manual setelah Fase A & B
+### 5.3 Uji manual setelah Fase A & B
 
 1. Produk legacy (punya `Product.stock`, belum punya `ProductStock`) → buka `/warehouse/stock`, pastikan stok tampil benar; lakukan penyesuaian stok, pastikan total tidak turun.
 2. Dua lokasi aktif: stok produk hanya di lokasi B, lalu jual lewat POS. Penjualan harus berhasil dan memotong stok lokasi B; `Sale.locationId` terisi lokasi default.
@@ -315,15 +323,6 @@ Verifikasi 2026-11-17 setelah Fase B:
 11. Edit lalu hapus pelanggan dari `/sales/customers` → tidak lagi gagal karena `params`.
 12. Simpan produk dengan harga jual 0; lalu cek respons `/api/products` sebagai kasir → tidak ada `costPrice`.
 13. Import file dengan lebih dari 100 baris error → UI menampilkan total error sebenarnya.
-
-### P2 — kualitas dan skala
-
-- Product Group / Variant / Bundle.
-- Sinkronisasi Jubelio: credential per tenant, outbox, retry, webhook, logging.
-- Audit trail `createdBy`/`updatedBy`.
-- Soft delete dan lifecycle gambar Cloudinary.
-- Barcode 1D (saat ini cetak PDF memakai QR).
-- Test otomatis untuk CRUD dan mutasi stok.
 
 ---
 
@@ -363,8 +362,8 @@ Verifikasi 2026-11-17 setelah Fase B:
 
 ### 6.5 Kategori
 
-- Manajemen tree inline (tambah/edit/hapus tanpa modal terpisah).
-- Pencegahan siklus sudah ada di API; tampilkan pesan yang ramah di UI.
+- Edit kategori via modal sudah tersedia (nama dan induk); manajemen tree inline tanpa modal belum.
+- Pencegahan siklus dan pesan error sudah ada di API; UI menampilkan pesan server, validasi inline belum.
 - Mapping kategori Jubelio di samping nama kategori.
 
 ### 6.6 Stok
@@ -388,7 +387,7 @@ Verifikasi 2026-11-17 setelah Fase B:
 2. Unduh template terbaru.
 3. Isi minimal kolom `Nama` dan `Harga Jual`.
 4. Isi `Kategori` dengan nama kategori yang sudah ada, atau `Kategori ID`.
-5. Import. Jika ada error, modal akan menampilkan nomor baris dan penyebabnya; tidak ada data yang tersimpan sebagian.
+5. Import. Jika ada error, modal akan menampilkan nomor baris dan penyebabnya; jika error lebih dari 100 baris, total error sebenarnya tetap ditampilkan. Tidak ada data yang tersimpan sebagian.
 
 ---
 
@@ -398,6 +397,6 @@ Saat ini `Product`, `Category`, `Location`, dan `User` tidak memiliki `tenantId`
 
 - Semua pengguna dengan izin `products.view` melihat katalog yang sama.
 - Semua pengguna dengan izin `products.update` dapat mengubah produk mana pun.
-- Service Worker juga meng-cache `/api/products` per URL, bukan per pengguna.
+- Service Worker juga meng-cache `/api/products` dan `/api/categories` per URL, bukan per pengguna.
 
 Jika aplikasi memang satu database untuk banyak pelanggan, tenancy harus ditambahkan sebelum integrasi Jubelio. Jika satu deployment/DB per pelanggan, isolasi bersifat infrastruktur dan perlu dinyatakan eksplisit.
