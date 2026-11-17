@@ -110,11 +110,18 @@ export default function InvoicePage() {
 
     try {
       const res = await fetch(`/api/invoices/${inv.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Gagal hapus faktur");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Gagal hapus faktur");
+      }
       setInvoices((prev) => prev.filter((i) => i.id !== inv.id));
       Swal.fire("Terhapus!", "Faktur berhasil dihapus", "success");
     } catch (err) {
-      Swal.fire("Error", "Gagal menghapus faktur", "error");
+      Swal.fire(
+        "Error",
+        err instanceof Error ? err.message : "Gagal menghapus faktur",
+        "error"
+      );
     }
   };
 

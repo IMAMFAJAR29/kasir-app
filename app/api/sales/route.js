@@ -88,6 +88,12 @@ async function createSale(body, userId) {
         throw new Error("SHIFT_CLOSED");
       }
 
+      const defaultLocation = await tx.location.findFirst({
+        where: { isActive: true },
+        orderBy: { id: "asc" },
+        select: { id: true },
+      });
+
       const createdSale = await tx.sale.create({
         data: {
           total,
@@ -96,6 +102,7 @@ async function createSale(body, userId) {
           change: method === "cash" ? paymentAmount - total : 0,
           cashSessionId,
           clientTransactionId,
+          locationId: defaultLocation?.id ?? null,
           items: {
             create: normalizedItems.map((item) => ({
               productId: item.productId,
@@ -130,18 +137,13 @@ async function createSale(body, userId) {
         },
       });
       // 1. Kurangi stok produk secara atomik (validasi stok di helper)
-      const defaultLocation = await tx.location.findFirst({
-        where: { isActive: true },
-        orderBy: { id: "asc" },
-        select: { id: true },
-      });
-
       for (const item of createdSale.items) {
         await decrementStockAtLocation(tx, {
           productId: item.productId,
           locationId: defaultLocation?.id ?? null,
           qty: item.qty,
           productName: item.product?.name,
+          allowOtherLocations: true,
         });
       }
 

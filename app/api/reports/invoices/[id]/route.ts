@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  const id = Number(params.id);
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(req: Request, context: RouteContext) {
+  const { id: rawId } = await context.params;
+  const id = Number(rawId);
+
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+  }
 
   const invoice = await prisma.invoice.findUnique({
     where: { id },

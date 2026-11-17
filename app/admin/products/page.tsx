@@ -43,6 +43,7 @@ export default function ProductsPage() {
     categoryId: undefined,
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [stockSnapshot, setStockSnapshot] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
 
   // State modal
@@ -96,6 +97,7 @@ export default function ProductsPage() {
       categoryId: undefined,
     });
     setIsEditing(false);
+    setStockSnapshot(null);
     setShowProductFormModal(true);
     setShowDropdown(false);
   };
@@ -126,6 +128,10 @@ export default function ProductsPage() {
                     : detail?.message ?? "Baris tidak valid"
               )
             : [],
+          totalErrors:
+            typeof data?.totalErrors === "number"
+              ? data.totalErrors
+              : undefined,
         };
       }
 
@@ -185,13 +191,26 @@ export default function ProductsPage() {
     try {
       let res;
       let result: ProductWithCategory;
+      const payload: Partial<FormProduct> = { ...form };
+
+      // Jangan kirim stok lama saat edit jika user tidak mengubah field stok.
+      // Ini mencegah stok yang sudah berubah (mis. karena penjualan) tertimpa
+      // kembali ke nilai saat halaman dibuka.
+      if (
+        isEditing &&
+        form.id &&
+        stockSnapshot !== null &&
+        form.stock === stockSnapshot
+      ) {
+        delete payload.stock;
+      }
 
       // Update
       if (isEditing && form.id) {
         res = await fetch(`/api/products/${form.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => null);
@@ -208,7 +227,7 @@ export default function ProductsPage() {
         res = await fetch("/api/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => null);
@@ -221,6 +240,7 @@ export default function ProductsPage() {
       }
 
       setShowProductFormModal(false);
+      setStockSnapshot(null);
     } catch (error) {
       Swal.fire(
         "Error",
@@ -233,13 +253,18 @@ export default function ProductsPage() {
   // =======================
   // FLATTEN KATEGORI (UNTUK DROPDOWN)
   // =======================
-  function flattenCategories(cats: Category[], prefix = ""): Category[] {
+  function flattenCategories(
+    cats: Category[],
+    prefix = "",
+    depth = 0
+  ): Category[] {
     return cats.flatMap((c) => [
-      { ...c, name: prefix ? `${prefix} > ${c.name}` : c.name },
+      { ...c, name: prefix ? `${prefix} > ${c.name}` : c.name, depth },
       ...(c.children?.length
         ? flattenCategories(
             c.children,
-            prefix ? `${prefix} > ${c.name}` : c.name
+            prefix ? `${prefix} > ${c.name}` : c.name,
+            depth + 1
           )
         : []),
     ]);
@@ -293,6 +318,13 @@ export default function ProductsPage() {
       description: p.description ?? "",
       categoryId: p.category?.id ?? undefined,
     };
+  }
+
+  function openEditForm(product: ProductWithCategory) {
+    setForm(mapProductToForm(product));
+    setStockSnapshot(product.stock);
+    setIsEditing(true);
+    setShowProductFormModal(true);
   }
 
   const handleDeleteProduct = async (product: ProductWithCategory) => {
@@ -478,11 +510,7 @@ export default function ProductsPage() {
             <ProductCard
               key={product.id}
               product={product}
-              onEdit={() => {
-                setForm(mapProductToForm(product));
-                setIsEditing(true);
-                setShowProductFormModal(true);
-              }}
+              onEdit={() => openEditForm(product)}
               onPrintBarcode={() => {
                 setSelectedProduct(product);
                 setShowBarcodeModal(true);
@@ -546,11 +574,7 @@ export default function ProductsPage() {
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             type="button"
-                            onClick={() => {
-                              setForm(mapProductToForm(product));
-                              setIsEditing(true);
-                              setShowProductFormModal(true);
-                            }}
+                            onClick={() => openEditForm(product)}
                             className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg transition"
                           >
                             Edit
@@ -607,7 +631,10 @@ export default function ProductsPage() {
               categories={categories}
               flattenCategories={flattenCategories}
               setShowCategoryModal={setShowCategoryModal}
-              onClose={() => setShowProductFormModal(false)}
+              onClose={() => {
+                setShowProductFormModal(false);
+                setStockSnapshot(null);
+              }}
             />
           </div>
         </div>

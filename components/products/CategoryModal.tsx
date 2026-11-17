@@ -65,7 +65,7 @@ export default function CategoryModal({
                 onClose();
               }}
             >
-              <span style={{ paddingLeft: `${cat.depth * 16}px` }}>
+              <span style={{ paddingLeft: `${(cat.depth ?? 0) * 16}px` }}>
                 {cat.name}
               </span>
             </div>

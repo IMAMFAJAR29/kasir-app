@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Swal from "sweetalert2";
-import { Trash2, Plus, Save, Folder, Search, X } from "lucide-react";
+import { Trash2, Plus, Save, Folder, Search, X, Pencil } from "lucide-react";
 import Button from "@/components/Button";
 
 // ======= Interface =======
 interface Category {
   id: number;
   name: string;
+  parentId?: number | null;
   children?: Category[];
 }
 
@@ -45,6 +46,7 @@ export default function AdminCategoriesPage() {
   const [search, setSearch] = useState<string>("");
   const [selected, setSelected] = useState<number[]>([]);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [categoryError, setCategoryError] = useState<string>("");
   const [isBulkDeleting, setIsBulkDeleting] = useState<boolean>(false);
@@ -88,7 +90,7 @@ export default function AdminCategoriesPage() {
     loadCategories();
   }, [loadCategories]);
 
-  // ======= Tambah kategori =======
+  // ======= Tambah / edit kategori =======
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     if (!form.name || (form.type === "sub" && !form.parentId)) {
@@ -96,28 +98,52 @@ export default function AdminCategoriesPage() {
       return;
     }
 
-    const res = await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name,
-        parentId: form.type === "sub" ? Number(form.parentId) : null,
-      }),
-    });
+    const isEdit = editingId !== null;
+    const res = await fetch(
+      isEdit ? `/api/categories/${editingId}` : "/api/categories",
+      {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          parentId: form.type === "sub" ? Number(form.parentId) : null,
+        }),
+      }
+    );
 
     if (res.ok) {
       Swal.fire({
         icon: "success",
-        title: "Berhasil!",
+        title: isEdit ? "Kategori diperbarui!" : "Berhasil!",
         timer: 1200,
         showConfirmButton: false,
       });
       setForm({ type: "root", name: "", parentId: "", parentName: "" });
+      setEditingId(null);
       setShowAddModal(false);
       loadCategories();
     } else {
-      Swal.fire({ icon: "error", title: "Gagal menyimpan kategori" });
+      const data = await res.json().catch(() => null);
+      Swal.fire({
+        icon: "error",
+        title: "Gagal menyimpan kategori",
+        text: data?.error || undefined,
+      });
     }
+  }
+
+  function openEditModal(category: FlatCategory): void {
+    const parent = category.parentId
+      ? allCategories.find((item) => item.id === category.parentId)
+      : null;
+    setForm({
+      type: category.parentId ? "sub" : "root",
+      name: category.name,
+      parentId: category.parentId ?? "",
+      parentName: parent?.name ?? "",
+    });
+    setEditingId(category.id);
+    setShowAddModal(true);
   }
 
   // ======= Hapus kategori =======
@@ -135,7 +161,12 @@ export default function AdminCategoriesPage() {
         setSelected((prev) => prev.filter((s) => s !== id));
         await loadCategories();
       } else {
-        Swal.fire({ icon: "error", title: "Gagal menghapus kategori" });
+        const data = await res.json().catch(() => null);
+        Swal.fire({
+          icon: "error",
+          title: "Gagal menghapus kategori",
+          text: data?.error || undefined,
+        });
       }
     }
   }
@@ -282,6 +313,7 @@ export default function AdminCategoriesPage() {
         <Button
           onClick={() => {
             setForm({ type: "root", name: "", parentId: "", parentName: "" });
+            setEditingId(null);
             setShowAddModal(true);
           }}
           className="flex items-center gap-2 bg-blue-600 text-white shadow-sm hover:bg-blue-700"
@@ -475,12 +507,23 @@ export default function AdminCategoriesPage() {
                                     parentId: category.id,
                                     parentName: category.name,
                                   });
+                                  setEditingId(null);
                                   setShowAddModal(true);
                                 }}
                                 aria-label={`Tambah subkategori di ${category.name}`}
                                 className="rounded-lg px-2 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
                               >
                                 + Sub
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(category)}
+                                disabled={isBulkDeleting}
+                                aria-label={`Edit kategori ${category.name}`}
+                                title="Edit Kategori"
+                                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500"
+                              >
+                                <Pencil size={16} />
                               </button>
                               <button
                                 type="button"
@@ -510,12 +553,18 @@ export default function AdminCategoriesPage() {
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
           <div className="bg-white w-full max-w-lg rounded-3xl border border-slate-200 shadow-2xl p-6 relative">
             <h3 className="text-lg font-bold text-slate-900 mb-1">
-              {form.type === "sub" ? "Tambah Sub Kategori" : "Tambah Kategori Baru"}
+              {editingId !== null
+                ? "Edit Kategori"
+                : form.type === "sub"
+                  ? "Tambah Sub Kategori"
+                  : "Tambah Kategori Baru"}
             </h3>
             <p className="text-xs text-slate-500 mb-5">
-              {form.type === "sub"
-                ? `Menambahkan subkategori di bawah ${form.parentName || "induk"}`
-                : "Buat kategori utama baru untuk produk Anda"}
+              {editingId !== null
+                ? "Perbarui nama kategori atau pindahkan ke induk lain."
+                : form.type === "sub"
+                  ? `Menambahkan subkategori di bawah ${form.parentName || "induk"}`
+                  : "Buat kategori utama baru untuk produk Anda"}
             </p>
 
             {/* Pilih jenis kategori */}
@@ -552,7 +601,7 @@ export default function AdminCategoriesPage() {
             </div>
 
             {/* Pilih induk langsung jika sub kategori */}
-            {form.type === "sub" && !form.parentName && (
+            {form.type === "sub" && (!form.parentName || editingId !== null) && (
               <div className="mb-4">
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                   Pilih Kategori Induk:
@@ -605,7 +654,10 @@ export default function AdminCategoriesPage() {
                 <div className="flex justify-end gap-2 pt-2">
                   <Button
                     variant="outline"
-                    onClick={() => setShowAddModal(false)}
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setEditingId(null);
+                    }}
                     className="text-xs py-2 rounded-xl"
                   >
                     Batal
@@ -622,7 +674,10 @@ export default function AdminCategoriesPage() {
             )}
 
             <button
-              onClick={() => setShowAddModal(false)}
+              onClick={() => {
+                setShowAddModal(false);
+                setEditingId(null);
+              }}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100 transition"
               aria-label="Tutup"
             >

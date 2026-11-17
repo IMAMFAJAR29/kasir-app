@@ -33,7 +33,19 @@ export async function GET() {
       include: { category: true },
       orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json(products, { status: 200 });
+
+    // Harga modal hanya untuk pengguna yang boleh mengelola produk.
+    const canManageProducts =
+      hasPermission(auth.user.role, auth.user.permissions, "products", "update") ||
+      hasPermission(auth.user.role, auth.user.permissions, "products", "create") ||
+      hasPermission(auth.user.role, auth.user.permissions, "products", "delete");
+
+    if (canManageProducts) {
+      return NextResponse.json(products, { status: 200 });
+    }
+
+    const publicProducts = products.map(({ costPrice, ...product }) => product);
+    return NextResponse.json(publicProducts, { status: 200 });
   } catch (err) {
     console.error("Error fetch products:", err);
     return NextResponse.json(

@@ -39,18 +39,31 @@ export async function GET(req: NextRequest) {
       where: { locationId },
     });
 
+    // Produk yang sudah punya baris stok di lokasi mana pun. Produk di luar
+    // daftar ini adalah produk legacy yang masih memakai Product.stock.
+    const trackedRows = await prisma.productStock.findMany({
+      distinct: ["productId"],
+      select: { productId: true },
+    });
+    const trackedProductIds = new Set(
+      trackedRows.map((row) => row.productId)
+    );
+    const quantityByProduct = new Map(
+      stocks.map((row) => [row.productId, row.quantity])
+    );
+
     // Gabungkan stok ke produk
     const result = products.map((prod) => {
-      const stockRecord = stocks.find(
-        (s: ProductStock) => s.productId === prod.id
-      );
+      const locationQuantity = quantityByProduct.get(prod.id);
       return {
         id: prod.id,
         productId: prod.id,
         name: prod.name,
         sku: prod.sku,
         imageUrl: prod.imageUrl || "",
-        stock: stockRecord?.quantity || 0,
+        stock:
+          locationQuantity ??
+          (trackedProductIds.has(prod.id) ? 0 : prod.stock),
       };
     });
 

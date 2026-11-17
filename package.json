@@ -10,7 +10,7 @@
     "postinstall": "npx prisma generate",
     "migrate:deploy": "npx prisma migrate deploy",
     "db:push": "npx prisma db push",
-    "db:seed": "node prisma/seed.js"
+    "db:seed": "node --experimental-strip-types prisma/seed.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

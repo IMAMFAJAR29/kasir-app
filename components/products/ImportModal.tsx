@@ -13,6 +13,7 @@ export interface ImportResult {
   success: boolean;
   message?: string;
   details?: string[];
+  totalErrors?: number;
 }
 
 interface ImportModalProps {
@@ -42,6 +43,7 @@ export default function ImportModal({
   const [importFile, setImportFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [totalErrors, setTotalErrors] = useState(0);
   const [message, setMessage] = useState("");
 
   if (!show) return null;
@@ -50,6 +52,7 @@ export default function ImportModal({
     if (submitting) return;
     setImportFile(null);
     setErrors([]);
+    setTotalErrors(0);
     setMessage("");
     onClose();
   };
@@ -59,6 +62,7 @@ export default function ImportModal({
 
     setSubmitting(true);
     setErrors([]);
+    setTotalErrors(0);
     setMessage("");
 
     try {
@@ -71,6 +75,7 @@ export default function ImportModal({
 
       setMessage(result.message || "Import gagal");
       setErrors(result.details ?? []);
+      setTotalErrors(result.totalErrors ?? result.details?.length ?? 0);
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Import gagal diproses"
@@ -168,6 +173,12 @@ export default function ImportModal({
                 {errors.map((error, index) => (
                   <li key={`${index}-${error}`}>{error}</li>
                 ))}
+                {totalErrors > errors.length && (
+                  <li className="font-semibold">
+                    …dan {totalErrors - errors.length} error lainnya (total{" "}
+                    {totalErrors}).
+                  </li>
+                )}
               </ul>
             )}
           </div>

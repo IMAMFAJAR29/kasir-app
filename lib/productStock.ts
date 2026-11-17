@@ -31,23 +31,61 @@ export async function getDefaultLocationId(
   return location?.id ?? null;
 }
 
+/**
+ * Pastikan baris stok untuk lokasi tertentu tersedia.
+ *
+ * - Jika baris lokasi target sudah ada, tidak ada yang dilakukan.
+ * - Jika produk belum punya baris stok sama sekali (produk legacy), total
+ *   `Product.stock` di-seed ke lokasi target.
+ * - Jika produk sudah punya baris di lokasi lain, baris lokasi target dibuat
+ *   dengan quantity 0 agar stok tidak berpindah lokasi secara diam-diam.
+ */
 async function ensureLocationStock(
   tx: TransactionClient,
   productId: number,
   locationId: number
 ) {
-  const existing = await tx.productStock.count({ where: { productId } });
-  if (existing > 0) return;
-
-  const product = await tx.product.findUnique({
-    where: { id: productId },
-    select: { stock: true },
+  const existing = await tx.productStock.findUnique({
+    where: { productId_locationId: { productId, locationId } },
+    select: { id: true },
   });
-  if (!product) throw new InvalidStockError("Produk tidak ditemukan");
+  if (existing) return;
 
-  await tx.productStock.create({
-    data: { productId, locationId, quantity: product.stock },
+  const rowCount = await tx.productStock.count({ where: { productId } });
+  let seedQuantity = 0;
+
+  if (rowCount === 0) {
+    const product = await tx.product.findUnique({
+      where: { id: productId },
+      select: { stock: true },
+    });
+    if (!product) throw new InvalidStockError("Produk tidak ditemukan");
+    seedQuantity = product.stock;
+  }
+
+  await tx.productStock.upsert({
+    where: { productId_locationId: { productId, locationId } },
+    update: { quantity: { increment: 0 } },
+    create: { productId, locationId, quantity: seedQuantity },
   });
+}
+
+/**
+ * Baca quantity stok pada satu lokasi, sekaligus melakukan seeding produk
+ * legacy. Dipakai oleh alur penyesuaian stok agar `oldQuantity` tidak salah
+ * terbaca 0 untuk produk yang belum memiliki baris `ProductStock`.
+ */
+export async function getLocationStockQuantity(
+  tx: TransactionClient,
+  productId: number,
+  locationId: number
+): Promise<number> {
+  await ensureLocationStock(tx, productId, locationId);
+  const row = await tx.productStock.findUnique({
+    where: { productId_locationId: { productId, locationId } },
+    select: { quantity: true },
+  });
+  return row?.quantity ?? 0;
 }
 
 export async function recalculateProductStock(
@@ -148,9 +186,15 @@ export async function decrementStockAtLocation(
     locationId: number | null;
     qty: number;
     productName?: string;
+    /**
+     * Jika true, kekurangan stok di lokasi target boleh diambil dari lokasi
+     * lain. Dipakai oleh POS yang tidak memiliki pemilih lokasi.
+     */
+    allowOtherLocations?: boolean;
   }
 ) {
-  const { productId, locationId, qty, productName } = params;
+  const { productId, locationId, qty, productName, allowOtherLocations = false } =
+    params;
   if (!Number.isInteger(qty) || qty <= 0) {
     throw new InvalidStockError("Qty harus berupa bilangan bulat positif");
   }
@@ -178,15 +222,58 @@ export async function decrementStockAtLocation(
     where: { productId, locationId, quantity: { gte: qty } },
     data: { quantity: { decrement: qty } },
   });
-  if (updated.count !== 1) {
-    const row = await tx.productStock.findUnique({
-      where: { productId_locationId: { productId, locationId } },
-      select: { quantity: true },
-    });
+  if (updated.count === 1) {
+    await recalculateProductStock(tx, productId);
+    return;
+  }
+
+  const rows = await tx.productStock.findMany({
+    where: { productId },
+    select: { id: true, locationId: true, quantity: true },
+  });
+  const availableHere =
+    rows.find((row) => row.locationId === locationId)?.quantity ?? 0;
+  const availableElsewhere = rows
+    .filter((row) => row.locationId !== locationId)
+    .reduce((sum, row) => sum + row.quantity, 0);
+
+  if (!allowOtherLocations) {
     throw new InsufficientStockError(
-      `Stok ${productName ?? "produk"} tidak cukup (tersedia ${row?.quantity ?? 0}, dibutuhkan ${qty})`
+      `Stok ${productName ?? "produk"} di lokasi ini tidak cukup ` +
+        `(tersedia ${availableHere}, dibutuhkan ${qty}` +
+        (availableElsewhere > 0
+          ? `; tersedia ${availableElsewhere} di lokasi lain`
+          : "") +
+        ")"
     );
   }
+
+  if (availableHere + availableElsewhere < qty) {
+    throw new InsufficientStockError(
+      `Stok ${productName ?? "produk"} tidak cukup ` +
+        `(tersedia ${availableHere + availableElsewhere}, dibutuhkan ${qty})`
+    );
+  }
+
+  let remaining = qty;
+  const ordered = [...rows].sort((left, right) => {
+    if (left.locationId === locationId) return -1;
+    if (right.locationId === locationId) return 1;
+    return left.locationId - right.locationId;
+  });
+
+  for (const row of ordered) {
+    if (remaining <= 0) break;
+    const reduction = Math.min(row.quantity, remaining);
+    if (reduction <= 0) continue;
+
+    await tx.productStock.update({
+      where: { id: row.id },
+      data: { quantity: { decrement: reduction } },
+    });
+    remaining -= reduction;
+  }
+
   await recalculateProductStock(tx, productId);
 }
 
@@ -239,6 +326,7 @@ export async function setStockAtLocation(
     return;
   }
 
+  await ensureLocationStock(tx, productId, locationId);
   await tx.productStock.upsert({
     where: { productId_locationId: { productId, locationId } },
     update: { quantity },

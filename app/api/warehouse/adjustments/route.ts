@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { processStockAdjustmentAccounting } from "@/lib/accounting/adjustmentAccounting";
-import { setStockAtLocation } from "@/lib/productStock";
+import { getLocationStockQuantity, setStockAtLocation } from "@/lib/productStock";
 import { getErrorMessage } from "@/lib/prismaErrors";
 
 export async function POST(req: NextRequest) {
@@ -62,16 +62,11 @@ export async function POST(req: NextRequest) {
       const adjustmentLinesForAccounting = [];
 
       for (const item of normalizedItems) {
-        const stock = await tx.productStock.findUnique({
-          where: {
-            productId_locationId: {
-              productId: item.productId,
-              locationId: numericLocationId,
-            },
-          },
-        });
-
-        const oldQty = stock?.quantity ?? 0;
+        const oldQty = await getLocationStockQuantity(
+          tx,
+          item.productId,
+          numericLocationId
+        );
         const difference = item.newQuantity - oldQty;
 
         await setStockAtLocation(tx, {

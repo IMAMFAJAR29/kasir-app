@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { hasPermission } from "@/lib/permissions";
 import prisma from "@/lib/prisma";
+import { incrementStockAtLocation, getDefaultLocationId } from "@/lib/productStock";
+import { processInvoiceAccounting } from "@/lib/accounting/invoiceAccounting";
+import { reverseJournalEntry } from "@/lib/accounting/postingService";
+import { getErrorMessage } from "@/lib/prismaErrors";
 
 // ✅ GET by ID
 export async function GET(
@@ -65,12 +69,27 @@ export async function PUT(
 
     const existingInvoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
-      select: { id: true, status: true, paidAmount: true },
+      select: {
+        id: true,
+        status: true,
+        paidAmount: true,
+        locationId: true,
+        saleId: true,
+        items: { select: { productId: true, qty: true } },
+      },
     });
     if (!existingInvoice)
       return NextResponse.json(
         { error: "Faktur tidak ditemukan" },
         { status: 404 }
+      );
+    if (existingInvoice.saleId !== null)
+      return NextResponse.json(
+        {
+          error:
+            "Faktur dari transaksi POS tidak dapat diubah dari menu faktur. Kelola melalui riwayat penjualan.",
+        },
+        { status: 409 }
       );
     if (existingInvoice.status === "paid")
       return NextResponse.json(
@@ -107,19 +126,58 @@ export async function PUT(
       );
     }
 
+    const locationIdNumber = Number(locationId);
+    if (!Number.isSafeInteger(locationIdNumber) || locationIdNumber <= 0) {
+      return NextResponse.json({ error: "Lokasi faktur tidak valid" }, { status: 400 });
+    }
+
     let subtotal = 0;
-    const itemData = items
-      .filter((i: any) => i.productId)
-      .map((i: any) => {
-        const sub = Number(i.qty) * Number(i.price);
-        subtotal += sub;
-        return {
-          productId: Number(i.productId),
-          qty: Number(i.qty),
-          price: Number(i.price),
-          subtotal: sub,
-        };
+    const itemData: Array<{
+      productId: number;
+      qty: number;
+      price: number;
+      subtotal: number;
+    }> = [];
+
+    for (const item of items) {
+      if (!item || typeof item !== "object") {
+        return NextResponse.json(
+          { error: "Item faktur tidak valid" },
+          { status: 400 }
+        );
+      }
+      if (!item.productId) continue;
+
+      const qty = Number(item.qty);
+      const price = Number(item.price);
+      if (
+        !Number.isSafeInteger(qty) ||
+        qty <= 0 ||
+        !Number.isFinite(price) ||
+        price < 0
+      ) {
+        return NextResponse.json(
+          { error: "Qty atau harga item tidak valid" },
+          { status: 400 }
+        );
+      }
+
+      const sub = qty * price;
+      subtotal += sub;
+      itemData.push({
+        productId: Number(item.productId),
+        qty,
+        price,
+        subtotal: sub,
       });
+    }
+
+    if (itemData.length === 0) {
+      return NextResponse.json(
+        { error: "Semua item harus memiliki productId" },
+        { status: 400 }
+      );
+    }
 
     let taxRate = 0;
     if (taxId) {
@@ -127,46 +185,112 @@ export async function PUT(
       if (tax) taxRate = Number(tax.rate);
     }
 
+    const discountValue = Number(discount || 0);
+    const shippingValue = Number(shipping || 0);
+    const taxAmount =
+      ((subtotal - discountValue + shippingValue) * taxRate) / 100;
     const totalAmount =
-      subtotal +
-      Number(shipping || 0) -
-      Number(discount || 0) +
-      ((subtotal - Number(discount || 0) + Number(shipping || 0)) * taxRate) /
-        100;
+      subtotal + shippingValue - discountValue + taxAmount;
 
-    const updated = await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: {
-        invoiceNumber,
-        customerId: Number(customerId),
-        locationId: Number(locationId),
-        taxId: taxId ? Number(taxId) : null,
-        date: date ? new Date(date) : null,
-        termin: termin === "" || termin == null ? null : Number(termin),
-        dueDate: dueDate ? new Date(dueDate) : null,
-        refNo: refNo || null,
-        salesman: salesman || null,
-        discount: Number(discount || 0),
-        shipping: Number(shipping || 0),
-        notes: notes || "",
-        totalAmount,
-        paidAmount:
-          status === "paid" ? totalAmount : existingInvoice.paidAmount,
-        status,
-        items: {
-          deleteMany: {},
-          create: itemData,
+    const updated = await prisma.$transaction(async (tx) => {
+      // Kembalikan stok item lama ke lokasi faktur lama sebelum item diganti.
+      for (const item of existingInvoice.items) {
+        await incrementStockAtLocation(tx, {
+          productId: item.productId,
+          locationId: existingInvoice.locationId ?? locationIdNumber,
+          qty: item.qty,
+        });
+      }
+
+      const saved = await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          invoiceNumber,
+          customerId: Number(customerId),
+          locationId: locationIdNumber,
+          taxId: taxId ? Number(taxId) : null,
+          date: date ? new Date(date) : null,
+          termin: termin === "" || termin == null ? null : Number(termin),
+          dueDate: dueDate ? new Date(dueDate) : null,
+          refNo: refNo || null,
+          salesman: salesman || null,
+          discount: discountValue,
+          shipping: shippingValue,
+          notes: notes || "",
+          totalAmount,
+          paidAmount:
+            status === "paid" ? totalAmount : existingInvoice.paidAmount,
+          status,
+          items: {
+            deleteMany: {},
+            create: itemData,
+          },
         },
-      },
-      include: {
-        customer: { select: { name: true } },
-        location: { select: { name: true } },
-        items: true,
-      },
+        include: {
+          customer: { select: { name: true } },
+          location: { select: { name: true } },
+          items: true,
+        },
+      });
+
+      // Reverse jurnal faktur lama, lalu posting ulang sesuai nilai baru.
+      const previousJournal = await tx.journalEntry.findFirst({
+        where: {
+          sourceType: "INVOICE",
+          sourceId: String(invoiceId),
+          isReversal: false,
+          status: "POSTED",
+        },
+        select: { id: true },
+      });
+      if (previousJournal) {
+        await reverseJournalEntry(
+          previousJournal.id,
+          "Revisi faktur penjualan",
+          tx
+        );
+      }
+
+      await processInvoiceAccounting(
+        {
+          invoiceId: saved.id,
+          invoiceNumber: saved.invoiceNumber,
+          date: date ? new Date(date) : new Date(),
+          locationId: locationIdNumber,
+          status,
+          subtotal,
+          discount: discountValue,
+          shipping: shippingValue,
+          taxAmount,
+          totalAmount,
+          items: itemData.map((item) => ({
+            productId: item.productId,
+            qty: item.qty,
+          })),
+        },
+        tx
+      );
+
+      return saved;
     });
 
     return NextResponse.json(updated);
   } catch (err) {
+    if (err && typeof err === "object" && "code" in err) {
+      if (err.code === "INSUFFICIENT_STOCK") {
+        return NextResponse.json(
+          { error: getErrorMessage(err, "Stok tidak mencukupi") },
+          { status: 409 }
+        );
+      }
+      if (err.code === "INVALID_STOCK") {
+        return NextResponse.json(
+          { error: getErrorMessage(err, "Stok tidak valid") },
+          { status: 400 }
+        );
+      }
+    }
+
     console.error("❌ Error update invoice:", err);
     return NextResponse.json({ error: "Gagal update faktur" }, { status: 500 });
   }
@@ -195,11 +319,27 @@ export async function DELETE(
 
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
+      select: {
+        id: true,
+        status: true,
+        saleId: true,
+        locationId: true,
+        items: { select: { productId: true, qty: true } },
+      },
     });
     if (!invoice)
       return NextResponse.json(
         { error: "Faktur tidak ditemukan" },
         { status: 404 }
+      );
+
+    if (invoice.saleId !== null)
+      return NextResponse.json(
+        {
+          error:
+            "Faktur dari transaksi POS tidak dapat dihapus dari menu faktur. Kelola melalui riwayat penjualan.",
+        },
+        { status: 409 }
       );
 
     if (invoice.status === "paid")
@@ -208,17 +348,63 @@ export async function DELETE(
         { status: 400 }
       );
 
-    // Hapus item terkait
-    await prisma.invoiceItem.deleteMany({ where: { invoiceId } });
+    await prisma.$transaction(async (tx) => {
+      // Kembalikan stok item faktur ke lokasi asal.
+      const restoreLocationId =
+        invoice.locationId ?? (await getDefaultLocationId(tx));
+      for (const item of invoice.items) {
+        await incrementStockAtLocation(tx, {
+          productId: item.productId,
+          locationId: restoreLocationId,
+          qty: item.qty,
+        });
+      }
 
-    // Hapus invoice
-    await prisma.invoice.delete({ where: { id: invoiceId } });
+      // Reverse jurnal faktur agar laporan keuangan tetap seimbang.
+      const previousJournal = await tx.journalEntry.findFirst({
+        where: {
+          sourceType: "INVOICE",
+          sourceId: String(invoiceId),
+          isReversal: false,
+          status: "POSTED",
+        },
+        select: { id: true },
+      });
+      if (previousJournal) {
+        await reverseJournalEntry(
+          previousJournal.id,
+          "Faktur penjualan dihapus",
+          tx
+        );
+      }
+
+      // Hapus item terkait
+      await tx.invoiceItem.deleteMany({ where: { invoiceId } });
+
+      // Hapus invoice
+      await tx.invoice.delete({ where: { id: invoiceId } });
+    });
 
     return NextResponse.json(
       { message: "Faktur berhasil dihapus" },
       { status: 200 }
     );
   } catch (err) {
+    if (err && typeof err === "object" && "code" in err) {
+      if (err.code === "INSUFFICIENT_STOCK") {
+        return NextResponse.json(
+          { error: getErrorMessage(err, "Stok tidak mencukupi") },
+          { status: 409 }
+        );
+      }
+      if (err.code === "INVALID_STOCK") {
+        return NextResponse.json(
+          { error: getErrorMessage(err, "Stok tidak valid") },
+          { status: 400 }
+        );
+      }
+    }
+
     console.error("❌ Error delete invoice:", err);
     return NextResponse.json(
       { error: "Gagal menghapus faktur" },

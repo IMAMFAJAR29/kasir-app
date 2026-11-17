@@ -28,6 +28,7 @@ export interface Category {
   name: string;
   parentId?: number | null;
   children?: Category[];
+  depth?: number;
 }
 
 // Tipe data untuk form tambah / edit produk

@@ -25,16 +25,8 @@ const nextConfig = {
     },
   },
 
-  // ⚙️ Tambahan untuk mempercepat development
-  typescript: {
-    // ❗ Lewati type checking di dev agar startup lebih cepat
-    ignoreBuildErrors: true,
-  },
-
-  eslint: {
-    // ❗ Lewati linting di dev agar hot reload & start lebih cepat
-    ignoreDuringBuilds: true,
-  },
+  // Type-check dan lint dijalankan saat build agar build hijau benar-benar
+  // mencerminkan kualitas kode. Warning lint tidak menggagalkan build.
 
   // 🚀 Opsional: aktifkan TurboPack (lebih cepat di Next 15)
   // kamu juga bisa jalankan: npm run dev -- --turbo

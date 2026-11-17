@@ -83,13 +83,16 @@ export async function postJournalEntry(
     throw new Error("Jurnal harus memiliki minimal satu baris debit dan kredit.");
   }
 
-  // 1. Cek idempotensi: jika sudah pernah diposting untuk dokumen ini, kembalikan entri yang ada
+  // 1. Cek idempotensi: jika sudah pernah diposting untuk dokumen ini, kembalikan entri yang ada.
+  // Hanya entri POSTED yang dianggap aktif; entri yang sudah di-VOID karena
+  // reversal boleh diposting ulang (mis. revisi faktur).
   if (sourceId) {
     const existing = await tx.journalEntry.findFirst({
       where: {
         sourceType,
         sourceId: String(sourceId),
         isReversal: false,
+        status: "POSTED",
       },
       include: {
         lines: {

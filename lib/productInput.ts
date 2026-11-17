@@ -201,7 +201,8 @@ export function parseProductUpdate(value: unknown): ProductUpdateInput {
     input.costPrice =
       readNumber(body.costPrice, "costPrice", "Harga beli", { min: 0 }) ?? 0;
   }
-  if (body.stock !== undefined) {
+  // `null` berarti "jangan ubah stok", bukan 0.
+  if (body.stock !== undefined && body.stock !== null) {
     input.stock =
       readNumber(body.stock, "stock", "Stok", { min: 0, integer: true }) ?? 0;
   }

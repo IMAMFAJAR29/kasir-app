@@ -4,10 +4,9 @@ import { authOptions } from "@/lib/authOptions";
 import prisma from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
 
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(req: Request, context: RouteContext) {
   const auth = await getServerSession(authOptions);
   if (!auth?.user?.id) {
     return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
@@ -17,7 +16,7 @@ export async function GET(
   }
 
   try {
-    const { id } = params;
+    const { id } = await context.params;
     const sale = await prisma.sale.findUnique({
       where: { id: Number(id) },
       include: {

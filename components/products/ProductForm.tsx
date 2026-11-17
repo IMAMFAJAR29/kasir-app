@@ -84,7 +84,7 @@ export default function ProductForm({
         placeholder="Harga Jual"
         min={0}
         step="0.01"
-        value={form.price === 0 ? "" : form.price}
+        value={form.price}
         onChange={(e) =>
           setForm({
             ...form,
@@ -101,7 +101,7 @@ export default function ProductForm({
         placeholder="Harga Beli"
         min={0}
         step="0.01"
-        value={form.costPrice === 0 ? "" : form.costPrice}
+        value={form.costPrice}
         onChange={(e) =>
           setForm({
             ...form,

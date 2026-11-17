@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { hasPermission } from "@/lib/permissions";
 import { buildTree } from "@/lib/categoryTree";
+import { mapPrismaError } from "@/lib/prismaErrors";
 
 // GET: ambil semua kategori (dalam bentuk tree)
 export async function GET() {
@@ -81,6 +82,17 @@ export async function POST(req) {
       }
     }
 
+    const duplicate = await prisma.category.findFirst({
+      where: { name: { equals: normalizedName, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        { error: `Kategori "${normalizedName}" sudah ada`, field: "name" },
+        { status: 400 }
+      );
+    }
+
     const newCategory = await prisma.category.create({
       data: {
         name: normalizedName,
@@ -90,6 +102,14 @@ export async function POST(req) {
 
     return NextResponse.json(newCategory, { status: 201 });
   } catch (error) {
+    const mapped = mapPrismaError(error);
+    if (mapped) {
+      return NextResponse.json(
+        { error: mapped.message, field: "name" },
+        { status: mapped.status }
+      );
+    }
+
     console.error("Error creating category:", error);
     return NextResponse.json(
       { error: "Gagal membuat kategori" },

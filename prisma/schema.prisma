@@ -14,7 +14,7 @@ datasource db {
 // ===========================================================
 model Category {
   id        Int        @id @default(autoincrement())
-  name      String
+  name      String     @unique
   slug      String?    @unique
   parentId  Int?
   parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
