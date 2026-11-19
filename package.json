@@ -4,13 +4,18 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:debug": "node --inspect node_modules/next/dist/bin/next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "check": "npx tsc --noEmit && npx next lint",
+    "check:build": "npm run check && npm run build",
     "postinstall": "npx prisma generate",
     "migrate:deploy": "npx prisma migrate deploy",
     "db:push": "npx prisma db push",
-    "db:seed": "node --experimental-strip-types prisma/seed.ts"
+    "db:studio": "npx prisma studio",
+    "db:seed": "node --experimental-strip-types prisma/seed.ts",
+    "db:seed:debug": "node --experimental-strip-types prisma/seed-debug.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
