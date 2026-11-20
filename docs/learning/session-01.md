@@ -79,21 +79,20 @@ Refresh tabel di Prisma Studio, lalu isi:
 
 **ID transaksi uji (catat di sini):** ____________________
 
-### D. Cek konsistensi (opsional)
-
-Jalankan di terminal (ganti `PRODUCT_ID`):
+### D. Cek konsistensi (opsional tapi disarankan)
 
 ```bash
-npx prisma db execute --stdin <<SQL
-SELECT p.id, p.sku, p.stock, COALESCE(SUM(ps.quantity), 0) AS total_lokasi
-FROM "Product" p
-LEFT JOIN "ProductStock" ps ON ps."productId" = p.id
-WHERE p.id = PRODUCT_ID
-GROUP BY p.id, p.sku, p.stock;
-SQL
+npm run db:check-stock
 ```
 
-`p.stock` harus **sama** dengan `total_lokasi`.
+Hasil yang benar:
+
+```
+Produk diperiksa: N
+OK: Product.stock dan ProductStock konsisten.
+```
+
+Kalau muncul daftar produk, berarti ada stok yang tidak sinkron — catat sebagai temuan.
 
 ---
 

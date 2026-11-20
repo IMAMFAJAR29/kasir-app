@@ -14,6 +14,7 @@
     "migrate:deploy": "npx prisma migrate deploy",
     "db:push": "npx prisma db push",
     "db:studio": "npx prisma studio",
+    "db:check-stock": "node --experimental-strip-types prisma/checkIntegrity.ts",
     "db:seed": "node --experimental-strip-types prisma/seed.ts",
     "db:seed:debug": "node --experimental-strip-types prisma/seed-debug.ts"
   },

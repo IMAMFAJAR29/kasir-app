@@ -78,3 +78,25 @@ Konsekuensi:
 - `README` yang menjelaskan arsitektur (masih README bawaan `create-next-app`).
 
 Item-item ini masuk rencana minggu 3–6, bukan sekarang.
+
+## 7. Temuan awal integritas stok (20 November 2026)
+
+Dijalankan dengan `npm run db:check-stock` (read-only).
+
+Hasil: **9 produk diperiksa, 6 tidak sinkron** antara `Product.stock` dan `SUM(ProductStock.quantity)`.
+
+| Produk | `Product.stock` | Total lokasi |
+|---|---:|---:|
+| #13 Kopi jawa | 2 | 4 |
+| #15 imam | 2 | 12 |
+| #16 Ani | 5 | 113 |
+| #19 ada | 2 | 8 |
+| #22 Tier 4 (SKU > 5.000) | 1.000.000 | 0 |
+| #23 Magnum Filter | 10 | 0 |
+
+Catatan:
+
+- Produk #22 dan #23 punya stok di `Product.stock` tetapi **belum punya baris** `ProductStock` (kondisi produk legacy; akan di-seed saat pertama kali dimutasi).
+- Produk #13, #15, #16, #19 punya total lokasi **lebih besar** dari `Product.stock`, kemungkinan `recalculateProductStock` tidak terpanggil setelah penambahan stok (penerimaan/purchase).
+- **Jangan diperbaiki dulu.** Ini bahan investigasi minggu 2: pahami dulu alur mana yang membuat nilai itu menyimpang.
+- POS membaca `ProductStock`, jadi penjualan tetap berjalan; yang berpotensi salah adalah tampilan total stok/laporan.
