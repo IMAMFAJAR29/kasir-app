@@ -147,11 +147,16 @@ Lalu tanya AI dengan 4 hal itu. Ini mengubah "tolong benerin" menjadi laporan bu
 
 ## 11. Sesi pertama (hari ini, 30 menit)
 
-1. Pastikan `npm run dev` jalan **tanpa** F5/debugger.
-2. Tutup tab `/pos`, buka tab baru.
-3. Lakukan satu checkout tunai.
-4. DevTools → Network → filter `sales` → buka request → lihat **Payload** dan **Response** (harus `201`).
-5. Jalankan `npm run db:studio` → cari transaksi baru dan produk yang stoknya turun.
-6. Tulis `docs/learning/session-01.md` dengan format bagian 6.
+Konteks: aplikasi belajar, satu pengguna, data bukan data bisnis nyata.
+Boleh memakai `localhost:3000` + database production, dengan aturan **hanya menambah data**.
 
-Selesai. Tidak ada debugger, tidak ada risiko, dan ada tiga bukti nyata.
+1. Pastikan `npm run dev` jalan **tanpa** F5/debugger.
+2. Catat kondisi produk sebelum checkout (`Product.stock`, `ProductStock.quantity`).
+3. Tutup tab `/pos`, buka tab baru, lakukan satu checkout tunai.
+4. DevTools → Network → filter `sales` → lihat **Payload** dan **Response** (harus `201`).
+5. Jalankan `npm run db:studio` → cek transaksi baru, invoice, dan stok turun.
+6. Tandai transaksi itu sebagai **data uji** dan catat ID-nya.
+7. Isi `docs/learning/session-01.md`.
+
+Yang **tidak** boleh di production: hapus data, migrate, `db push`, seed, atau eksperimen "sengaja rusak".
+Untuk itu, siapkan Neon branch sebelum minggu 3.
