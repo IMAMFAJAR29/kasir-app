@@ -4,6 +4,7 @@ import {
   decrementStockAtLocation,
   InvalidStockError,
 } from "@/lib/productStock";
+import { explodeItems, loadBundleMap } from "@/lib/bom";
 
 export interface InvoiceAccountingParams {
   invoiceId: number;
@@ -17,6 +18,8 @@ export interface InvoiceAccountingParams {
   taxAmount: number;
   totalAmount: number;
   items: Array<{ productId: number; qty: number }>;
+  /** Konsumsi stok hasil ekspansi bundle. Jika kosong, dihitung dari `items`. */
+  consumption?: Array<{ productId: number; qty: number }>;
 }
 
 export async function processInvoiceAccounting(
@@ -35,28 +38,39 @@ export async function processInvoiceAccounting(
     taxAmount,
     totalAmount,
     items,
+    consumption: providedConsumption,
   } = params;
 
-  // 1. Kurangi stok barang (validasi stok di helper)
+  const consumption =
+    providedConsumption ??
+    explodeItems(
+      items,
+      await loadBundleMap(
+        tx,
+        items.map((item) => item.productId)
+      )
+    );
+
+  // 1. Kurangi stok (komponen untuk bundle), validasi stok di helper
   let totalCost = 0;
-  for (const item of items) {
+  for (const line of consumption) {
     const product = await tx.product.findUnique({
-      where: { id: item.productId },
+      where: { id: line.productId },
       select: { costPrice: true, name: true },
     });
 
     if (!product) {
       throw new InvalidStockError(
-        `Produk dengan ID ${item.productId} tidak ditemukan`
+        `Produk dengan ID ${line.productId} tidak ditemukan`
       );
     }
 
-    totalCost += Number(product.costPrice || 0) * item.qty;
+    totalCost += Number(product.costPrice || 0) * line.qty;
 
     await decrementStockAtLocation(tx, {
-      productId: item.productId,
+      productId: line.productId,
       locationId,
-      qty: item.qty,
+      qty: line.qty,
       productName: product.name,
     });
   }

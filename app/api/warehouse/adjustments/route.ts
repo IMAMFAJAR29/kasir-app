@@ -1,7 +1,7 @@
 import prisma, { TRANSACTION_OPTIONS } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { processStockAdjustmentAccounting } from "@/lib/accounting/adjustmentAccounting";
-import { getLocationStockQuantity, setStockAtLocation } from "@/lib/productStock";
+import { getLocationStockQuantity, setStockAtLocation, InvalidStockError } from "@/lib/productStock";
 import { getErrorMessage } from "@/lib/prismaErrors";
 
 export async function POST(req: NextRequest) {
@@ -50,6 +50,18 @@ export async function POST(req: NextRequest) {
     const adjustmentDate = date ? new Date(date) : new Date();
 
     const adjustment = await prisma.$transaction(async (tx) => {
+      // Produk bundle tidak punya stok sendiri, jadi tidak bisa disesuaikan.
+      const bundleRows = await tx.bom.findMany({
+        where: { productId: { in: normalizedItems.map((item) => item.productId) } },
+        select: { product: { select: { sku: true } } },
+      });
+      if (bundleRows.length > 0) {
+        const skus = bundleRows.map((row) => row.product.sku).join(", ");
+        throw new InvalidStockError(
+          `Produk bundle tidak bisa disesuaikan stoknya (${skus}). Sesuaikan stok komponennya.`
+        );
+      }
+
       const createdAdjustment = await tx.stockAdjustment.create({
         data: {
           no: adjustmentNo,

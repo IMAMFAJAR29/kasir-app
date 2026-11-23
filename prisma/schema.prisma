@@ -51,6 +51,43 @@ model Product {
   purchaseItems PurchaseItem[]
   expectedReceiptItems PurchaseReceiptItem[] @relation("ExpectedReceiptProduct")
   actualReceiptItems   PurchaseReceiptItem[] @relation("ActualReceiptProduct")
+  bom          Bom?                  @relation("ProductBom")
+  componentOf  BomComponent[]        @relation("BomComponentProduct")
+}
+
+//
+// ===========================================================
+// BILL OF MATERIALS (Produk Bundle)
+// ===========================================================
+// Keberadaan baris `Bom` menandakan sebuah Product adalah produk bundle.
+// Produk bundle tidak memiliki stok sendiri; stoknya dihitung dari stok
+// komponen (BomComponent) saat dibaca.
+model Bom {
+  id        Int      @id @default(autoincrement())
+  productId Int      @unique
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product    Product        @relation("ProductBom", fields: [productId], references: [id], onDelete: Cascade)
+  components BomComponent[]
+
+  @@map("bom")
+}
+
+model BomComponent {
+  id                 Int @id @default(autoincrement())
+  bomId              Int
+  componentProductId Int
+  // Jumlah unit komponen yang dibutuhkan untuk 1 unit bundle.
+  quantity           Int @default(1)
+
+  bom              Bom     @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  componentProduct Product @relation("BomComponentProduct", fields: [componentProductId], references: [id], onDelete: Restrict)
+
+  @@unique([bomId, componentProductId])
+  @@index([componentProductId])
+  @@map("bom_component")
 }
 
 //
@@ -210,6 +247,9 @@ model InvoiceItem {
   qty       Int
   price     Decimal
   subtotal  Decimal @default(0.00)
+  // Snapshot komposisi bundle saat faktur dibuat: [{ productId, qty }] per unit.
+  // Dipakai untuk mengembalikan stok komponen yang benar saat faktur diubah/dihapus.
+  components Json?
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])

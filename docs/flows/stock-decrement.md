@@ -57,7 +57,9 @@ Edit/hapus produk
 | Aksi pengguna | Route | Fungsi stok yang dipanggil |
 |---|---|---|
 | Bayar di POS | `POST /api/sales` | `decrementStockAtLocation(..., allowOtherLocations: true)` |
+| Bayar produk bundle di POS | `POST /api/sales` | `explodeItems()` lalu `decrementStockAtLocation` per **komponen** (lihat `docs/flows/product-bundle.md`) |
 | Buat/edit/hapus faktur | `POST/PUT/DELETE /api/invoices` | `decrementStockAtLocation` / `incrementStockAtLocation` |
+| Faktur produk bundle | `POST/PUT/DELETE /api/invoices` | stok komponen, restore dari snapshot `invoice_items.components` |
 | Selesaikan penerimaan barang | `POST /api/purchases/receipts/[id]` | `incrementStockAtLocation` |
 | Penyesuaian stok | `POST /api/warehouse/adjustments` | `setStockAtLocation` |
 | Create/update produk | `POST /api/products`, `PUT /api/products/[id]` | `applyProductStockChange` |
@@ -83,19 +85,33 @@ Edit/hapus produk
 5. Faktur **ketat per lokasi** — stok tidak boleh berpindah gudang tanpa sengaja.
 6. Semua mutasi stok harus berada di dalam `prisma.$transaction` yang sama dengan pembuatan `Sale`/`Invoice`. Kalau stok gagal, transaksi harus rollback.
 
-## 5. Titik breakpoint yang harus dipasang
+## 5. Cara melihat alur tanpa debugger (minggu 1–2)
 
-Pasang breakpoint di urutan ini, lalu checkout 1 item dari POS:
+Aturan: **jangan pakai F5 / breakpoint sampai minggu 7.** Breakpoint membekukan
+seluruh server, sehingga app tampak hang dan bukan lagi latihan. Untuk sekarang,
+lihat alur dari luar:
 
-| # | File | Lokasi | Yang dilihat |
+| # | Alat | Yang dilihat | Di mana |
 |---|---|---|---|
-| 1 | `app/pos/page.tsx` | di sekitar `fetch("/api/sales")` (~baris 649) | payload `items`, `method`, `payment`, `cashSessionId` |
-| 2 | `app/api/sales/route.js` | awal `createSale()` | `body`, `userId`, validasi mana yang lolos |
-| 3 | `app/api/sales/route.js` | di dalam `prisma.$transaction` | `defaultLocation.id`, `createdSale.id` |
-| 4 | `lib/productStock.ts` | dalam `decrementStockAtLocation` | `productId`, `locationId`, `qty`, hasil `updated.count` |
-| 5 | `lib/productStock.ts` | dalam `recalculateProductStock` | `aggregate._sum.quantity` sebelum update |
+| 1 | Network tab | payload `items`, `method`, `payment`, `cashSessionId`, status response | DevTools → Network → filter `sales` |
+| 2 | Terminal `npm run dev` | log request dan pesan error server | terminal kedua |
+| 3 | Prisma Studio | baris `ProductStock`, `Product.stock`, `transactions`, `transaction_items` | `npm run db:studio` |
+| 4 | `npm run db:check-stock` | selisih `Product.stock` vs total lokasi | terminal |
 
-Di VS Code: panel **Run and Debug** → pilih `Next.js: server (breakpoint di API/lib)` → F5 → buka `/pos` → lakukan checkout.
+Kalau butuh titik observasi di dalam fungsi, pakai `console.log` sementara
+(minggu 3), bukan breakpoint.
+
+### Nanti (minggu 7): breakpoint
+
+| # | File | Fungsi | Yang diamati |
+|---|---|---|---|
+| 1 | `app/api/sales/route.js` | `createSale()` | `body`, `userId`, validasi yang lolos |
+| 2 | `app/api/sales/route.js` | dalam `prisma.$transaction` | `defaultLocation.id`, `createdSale.id` |
+| 3 | `lib/productStock.ts` | `decrementStockAtLocation()` | `productId`, `locationId`, `qty`, `updated.count` |
+| 4 | `lib/productStock.ts` | `recalculateProductStock()` | `aggregate._sum.quantity` sebelum update |
+
+Dipakai **setelah** minggu 7: satu breakpoint, di fungsi terpisah, dan bukan saat
+sedang mencoba fitur.
 
 ## 6. Bukti di database
 
@@ -138,8 +154,8 @@ Query terakhir adalah **tes integritas**. Kalau mengembalikan baris, ada stok ya
 
 | Gejala | Kecurigaan utama | Cek di mana |
 |---|---|---|
-| Checkout sukses (200) tapi stok tidak turun | `decrementStockAtLocation` tidak terpanggil, atau `locationId` null | breakpoint #4, payload #3 |
-| `Product.stock` turun tapi `ProductStock` tidak | `recalculateProductStock` terpanggil tanpa update baris lokasi | breakpoint #5 + query integritas |
+| Checkout sukses (200) tapi stok tidak turun | `decrementStockAtLocation` tidak terpanggil, atau `locationId` null | payload Network (`items`, `locationId`) + `ProductStock` di Studio |
+| `Product.stock` turun tapi `ProductStock` tidak | `recalculateProductStock` terpanggil tanpa update baris lokasi | query integritas §6 + `ProductStock` di Studio |
 | Error 409 "stok tidak cukup" padahal stok ada | stok ada di lokasi lain, tapi `allowOtherLocations` false (alur faktur) | cek `ProductStock` per lokasi |
 | Error 500 saat checkout | exception di dalam transaksi (journal/COA tidak lengkap) | log server, cek `postJournalEntry` |
 | Stok turun dua kali untuk satu transaksi | retry tanpa `clientTransactionId` yang sama, atau sync offline ganda | tabel `transactions.clientTransactionId` |

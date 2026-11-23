@@ -294,6 +294,15 @@ export default function ProductList({
                   )}
                 </div>
 
+                {/* Bundle Badge */}
+                {product.isBundle && (
+                  <div className="absolute top-2 right-2">
+                    <span className="rounded-md bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white shadow-xs">
+                      Bundle
+                    </span>
+                  </div>
+                )}
+
                 {/* Added animation feedback */}
                 {isRecentlyAdded && (
                   <div className="absolute inset-0 bg-emerald-600/90 backdrop-blur-xs flex items-center justify-center text-white font-bold text-xs gap-1 animate-in fade-in zoom-in-90 duration-150">

@@ -7,11 +7,25 @@ import {
   parseProductCreate,
   ProductInputError,
 } from "@/lib/productInput";
+import { BomInputError, toProductResponse } from "@/lib/bom";
+import { parseBundleFields, validateBundleComponents } from "@/lib/bomInput";
 import { mapPrismaError, mapStockError } from "@/lib/prismaErrors";
 import {
   applyProductStockChange,
   getDefaultLocationId,
 } from "@/lib/productStock";
+
+const bundleInclude = {
+  category: true,
+  bom: {
+    select: {
+      components: {
+        select: { componentProductId: true, quantity: true },
+        orderBy: { id: "asc" as const },
+      },
+    },
+  },
+} as const;
 
 // =======================
 // GET /api/products
@@ -30,9 +44,18 @@ export async function GET() {
 
   try {
     const products = await prisma.product.findMany({
-      include: { category: true },
+      include: bundleInclude,
       orderBy: { createdAt: "desc" },
     });
+
+    // Stok bundle dihitung dari stok komponennya (Product.stock agregat).
+    const stockByProductId = new Map(
+      products.map((product) => [product.id, product.stock])
+    );
+
+    const hydrated = products.map((product) =>
+      toProductResponse(product, stockByProductId)
+    );
 
     // Harga modal hanya untuk pengguna yang boleh mengelola produk.
     const canManageProducts =
@@ -41,10 +64,10 @@ export async function GET() {
       hasPermission(auth.user.role, auth.user.permissions, "products", "delete");
 
     if (canManageProducts) {
-      return NextResponse.json(products, { status: 200 });
+      return NextResponse.json(hydrated, { status: 200 });
     }
 
-    const publicProducts = products.map(({ costPrice, ...product }) => product);
+    const publicProducts = hydrated.map(({ costPrice, ...product }) => product);
     return NextResponse.json(publicProducts, { status: 200 });
   } catch (err) {
     console.error("Error fetch products:", err);
@@ -71,7 +94,20 @@ export async function POST(req: Request) {
   }
 
   try {
-    const input = parseProductCreate(await req.json());
+    const body = await req.json();
+    const input = parseProductCreate(body);
+    const bundleFields = parseBundleFields(body);
+    const isBundle = bundleFields.isBundle === true;
+
+    if (isBundle && input.stock > 0) {
+      return NextResponse.json(
+        {
+          error: "Produk bundle tidak memiliki stok sendiri; stok dihitung dari komponen",
+          field: "stock",
+        },
+        { status: 400 }
+      );
+    }
 
     const [skuConflict, barcodeConflict] = await Promise.all([
       prisma.product.findUnique({
@@ -128,23 +164,61 @@ export async function POST(req: Request) {
         select: { id: true },
       });
 
-      const locationId = await getDefaultLocationId(tx);
-      await applyProductStockChange(tx, {
-        productId: created.id,
-        nextStock: input.stock,
-        locationId,
-        productName: input.name,
+      if (isBundle) {
+        const components = bundleFields.components ?? [];
+        await validateBundleComponents(tx, created.id, components);
+        await tx.bom.create({
+          data: {
+            productId: created.id,
+            components: {
+              create: components.map((component) => ({
+                componentProductId: component.componentProductId,
+                quantity: component.quantity,
+              })),
+            },
+          },
+        });
+      } else {
+        const locationId = await getDefaultLocationId(tx);
+        await applyProductStockChange(tx, {
+          productId: created.id,
+          nextStock: input.stock,
+          locationId,
+          productName: input.name,
+        });
+      }
+
+      const saved = await tx.product.findUniqueOrThrow({
+        where: { id: created.id },
+        include: bundleInclude,
       });
 
-      return tx.product.findUniqueOrThrow({
-        where: { id: created.id },
-        include: { category: true },
-      });
+      const componentIds =
+        saved.bom?.components.map((component) => component.componentProductId) ?? [];
+
+      const componentStocks =
+        componentIds.length > 0
+          ? await tx.product.findMany({
+              where: { id: { in: componentIds } },
+              select: { id: true, stock: true },
+            })
+          : [];
+
+      return toProductResponse(
+        saved,
+        new Map(componentStocks.map((row) => [row.id, row.stock]))
+      );
     }, TRANSACTION_OPTIONS);
 
     return NextResponse.json(product, { status: 201 });
   } catch (err) {
     if (err instanceof ProductInputError) {
+      return NextResponse.json(
+        { error: err.message, field: err.field },
+        { status: 400 }
+      );
+    }
+    if (err instanceof BomInputError) {
       return NextResponse.json(
         { error: err.message, field: err.field },
         { status: 400 }

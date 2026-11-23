@@ -5,6 +5,7 @@ import prisma, { TRANSACTION_OPTIONS } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
 import { postJournalEntry } from "@/lib/accounting/postingService";
 import { decrementStockAtLocation } from "@/lib/productStock";
+import { explodeItems, loadBundleMap } from "@/lib/bom";
 
 async function createSale(body, userId) {
   const { items, method, payment, cashSessionId, clientTransactionId } = body;
@@ -136,13 +137,29 @@ async function createSale(body, userId) {
           },
         },
       });
-      // 1. Kurangi stok produk secara atomik (validasi stok di helper)
-      for (const item of createdSale.items) {
+      // 1. Ekspansi bundle ke komponen, lalu kurangi stok komponen secara atomik
+      const bundleMap = await loadBundleMap(
+        tx,
+        createdSale.items.map((item) => item.productId)
+      );
+      const consumption = explodeItems(createdSale.items, bundleMap);
+      const productNames = new Map(
+        createdSale.items.map((item) => [item.productId, item.product?.name])
+      );
+      // Nama komponen dipakai agar pesan stok kurang menyebut penyebab sebenarnya.
+      for (const components of bundleMap.values()) {
+        for (const component of components) {
+          if (productNames.get(component.componentProductId) === undefined) {
+            productNames.set(component.componentProductId, component.name);
+          }
+        }
+      }
+      for (const line of consumption) {
         await decrementStockAtLocation(tx, {
-          productId: item.productId,
+          productId: line.productId,
           locationId: defaultLocation?.id ?? null,
-          qty: item.qty,
-          productName: item.product?.name,
+          qty: line.qty,
+          productName: productNames.get(line.productId),
           allowOtherLocations: true,
         });
       }
@@ -150,8 +167,16 @@ async function createSale(body, userId) {
       // 2. Hitung total HPP dan buat Jurnal Akuntansi otomatis
       let totalCost = 0;
       for (const item of createdSale.items) {
-        const unitCost = Number(item.product?.costPrice || 0);
-        totalCost += unitCost * item.qty;
+        const components = bundleMap.get(item.productId);
+        if (components && components.length > 0) {
+          const unitCost = components.reduce(
+            (sum, component) => sum + component.costPrice * component.quantity,
+            0
+          );
+          totalCost += unitCost * item.qty;
+        } else {
+          totalCost += Number(item.product?.costPrice || 0) * item.qty;
+        }
       }
 
       const receiptAccountCode =

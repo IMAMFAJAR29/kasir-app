@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { computeBundleStock } from "@/lib/bom";
 
 // Interface ProductStock
 interface ProductStock {
@@ -52,18 +53,54 @@ export async function GET(req: NextRequest) {
       stocks.map((row) => [row.productId, row.quantity])
     );
 
+    // Komposisi bundle untuk semua produk bundle.
+    const boms = await prisma.bom.findMany({
+      select: {
+        productId: true,
+        components: { select: { componentProductId: true, quantity: true } },
+      },
+    });
+    const bundleMap = new Map(
+      boms.map((bom) => [
+        bom.productId,
+        bom.components.map((component) => ({
+          componentProductId: component.componentProductId,
+          quantity: component.quantity,
+        })),
+      ])
+    );
+
+    const stockOf = (productId: number, fallbackLegacyStock: number) =>
+      quantityByProduct.get(productId) ??
+      (trackedProductIds.has(productId) ? 0 : fallbackLegacyStock);
+
+    const legacyStockByProduct = new Map(
+      products.map((prod) => [prod.id, prod.stock])
+    );
+
     // Gabungkan stok ke produk
     const result = products.map((prod) => {
-      const locationQuantity = quantityByProduct.get(prod.id);
+      const components = bundleMap.get(prod.id);
+      const isBundle = Boolean(components);
+      const availableByProductId = new Map(
+        Array.from(new Set((components ?? []).map((c) => c.componentProductId))).map(
+          (componentId) => [
+            componentId,
+            stockOf(componentId, legacyStockByProduct.get(componentId) ?? 0),
+          ]
+        )
+      );
+
       return {
         id: prod.id,
         productId: prod.id,
         name: prod.name,
         sku: prod.sku,
         imageUrl: prod.imageUrl || "",
-        stock:
-          locationQuantity ??
-          (trackedProductIds.has(prod.id) ? 0 : prod.stock),
+        isBundle,
+        stock: isBundle
+          ? computeBundleStock(components ?? [], availableByProductId)
+          : stockOf(prod.id, prod.stock),
       };
     });
 

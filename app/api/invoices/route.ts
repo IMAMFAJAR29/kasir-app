@@ -5,6 +5,7 @@ import { hasPermission } from "@/lib/permissions";
 import prisma, { TRANSACTION_OPTIONS } from "@/lib/prisma";
 import { processInvoiceAccounting } from "@/lib/accounting/invoiceAccounting";
 import { getErrorMessage } from "@/lib/prismaErrors";
+import { explodeItems, loadBundleMap } from "@/lib/bom";
 
 // ✅ GET: Ambil semua invoice
 export async function GET() {
@@ -110,7 +111,12 @@ export async function POST(req: Request) {
 
     // Hitung subtotal
     let subtotal = 0;
-    const invoiceItemsData = items
+    const invoiceItemsData: Array<{
+      productId: number;
+      qty: number;
+      price: number;
+      subtotal: number;
+    }> = items
       .filter((item: any) => item.productId)
       .map((item: any) => {
         const itemSubtotal = (item.qty || 0) * (item.price || 0);
@@ -143,6 +149,27 @@ export async function POST(req: Request) {
 
     // Buat invoice & jalankan pembukuan akuntansi secara atomik
     const invoice = await prisma.$transaction(async (tx) => {
+      // Snapshot komposisi bundle per item agar restore stok saat edit/hapus
+      // memakai komposisi saat faktur dibuat, bukan BOM terkini.
+      const bundleMap = await loadBundleMap(
+        tx,
+        invoiceItemsData.map((item) => item.productId)
+      );
+
+      const itemsWithSnapshot = invoiceItemsData.map((item) => {
+        const components = bundleMap.get(item.productId);
+        return {
+          ...item,
+          components:
+            components && components.length > 0
+              ? components.map((component) => ({
+                  productId: component.componentProductId,
+                  qty: component.quantity * item.qty,
+                }))
+              : undefined,
+        };
+      });
+
       const createdInvoice = await tx.invoice.create({
         data: {
           invoiceNumber,
@@ -160,7 +187,7 @@ export async function POST(req: Request) {
           paidAmount: status === "paid" ? totalAmount : 0,
           status,
           dueDate: dueDate ? new Date(dueDate) : null,
-          items: { create: invoiceItemsData },
+          items: { create: itemsWithSnapshot },
         },
         include: {
           customer: { select: { name: true } },
@@ -187,6 +214,7 @@ export async function POST(req: Request) {
             productId: i.productId,
             qty: i.qty,
           })),
+          consumption: explodeItems(invoiceItemsData, bundleMap),
         },
         tx
       );

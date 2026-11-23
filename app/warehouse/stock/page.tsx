@@ -26,6 +26,7 @@ interface ProductApi {
   imageUrl?: string;
   stocks: Record<number, number>;
   price?: number;
+  isBundle?: boolean;
 }
 
 export default function StockPage() {
@@ -60,6 +61,7 @@ export default function StockPage() {
             sku: p.sku,
             imageUrl: p.imageUrl,
             price: p.price ?? 0,
+            isBundle: Boolean(p.isBundle),
             stocks: { [loc.id]: p.stock },
           });
       });
@@ -118,6 +120,8 @@ export default function StockPage() {
   }, [products, selectedLocation]);
 
   const toggleProduct = (product: ProductApi) => {
+    // Produk bundle tidak punya stok sendiri sehingga tidak bisa disesuaikan.
+    if (product.isBundle) return;
     const stockProduct: StockProduct = {
       id: product.id,
       name: product.name,
@@ -332,7 +336,13 @@ export default function StockPage() {
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleProduct(prod)}
-                          className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500"
+                          disabled={prod.isBundle}
+                          title={
+                            prod.isBundle
+                              ? "Produk bundle tidak bisa disesuaikan stoknya"
+                              : undefined
+                          }
+                          className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
                         />
                       </td>
                       <td className="px-5 py-3 align-middle">
@@ -351,7 +361,14 @@ export default function StockPage() {
                             )}
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900 text-sm">{prod.name}</p>
+                            <p className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+                              {prod.name}
+                              {prod.isBundle && (
+                                <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-indigo-700">
+                                  Bundle
+                                </span>
+                              )}
+                            </p>
                             <p className="text-xs text-slate-400 font-mono mt-0.5">SKU: {prod.sku}</p>
                           </div>
                         </div>

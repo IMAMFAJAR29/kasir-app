@@ -1,6 +1,11 @@
 # Baseline Kesehatan Repo
 
 Dibuat: 19 November 2026
+Diperbarui: 23 November 2026 (lihat §8)
+
+> **Status:** ini snapshot historis pada commit `cae7f52`. Repo sudah bergerak
+> 4 commit dan working tree sedang kotor. Angka di §1 **jangan diubah** — pakai
+> §8 untuk membandingkan kondisi sekarang.
 
 Dokumen ini adalah "foto" kondisi repo sebelum sesi belajar/debug dimulai.
 
@@ -100,3 +105,42 @@ Catatan:
 - Produk #13, #15, #16, #19 punya total lokasi **lebih besar** dari `Product.stock`, kemungkinan `recalculateProductStock` tidak terpanggil setelah penambahan stok (penerimaan/purchase).
 - **Jangan diperbaiki dulu.** Ini bahan investigasi minggu 2: pahami dulu alur mana yang membuat nilai itu menyimpang.
 - POS membaca `ProductStock`, jadi penjualan tetap berjalan; yang berpotensi salah adalah tampilan total stok/laporan.
+
+---
+
+## 8. Perubahan setelah baseline (23 November 2026)
+
+Snapshot §1 tetap dipakai sebagai pembanding. Kondisi repo sekarang:
+
+| Item | Nilai | Catatan |
+|---|---|---|
+| HEAD `main` | `154be90` | 4 commit setelah baseline |
+| Commit baru | `10d8334`, `4d17ead`, `f44acd1`, `154be90` | dokumentasi belajar + tool `db:check-stock` |
+| Working tree | **kotor**: 6 file, 489 baris | perubahan auth/user management, belum di-commit sejak 17 Nov |
+| `docs/auth-google-audit.md` | untracked | hasil audit login Google |
+| Test otomatis | 0 file | belum berubah |
+| Route API | 41 | belum berubah |
+
+Aturan yang tetap berlaku:
+
+- `npm run check` tetap harus lolos sebelum dan sesudah task.
+- Angka di tabel ini **bukan** baseline baru. Kalau butuh baseline baru, catat
+  commit yang bersih (tanpa perubahan yang menggantung) dan buat file terpisah.
+
+### 8.1 Fitur Produk Bundle (23 November 2026)
+
+| Item | Nilai | Catatan |
+|---|---|---|
+| Model Prisma baru | `Bom`, `BomComponent` | tabel `bom`, `bom_component` |
+| Kolom baru | `invoice_items.components` (JSONB) | snapshot komposisi untuk restore stok |
+| Migrasi | `20261123090000_add_product_bom` | sudah diterapkan ke Neon (23 Nov 2026) |
+| Route API | 41 (tidak berubah) | BOM dikelola lewat `/api/products[/[id]]` |
+| Dokumentasi | `docs/flows/product-bundle.md` | alur lengkap + invariant |
+
+Aturan baru yang wajib dipertahankan:
+
+- Produk bundle **tidak punya stok sendiri**: `Product.stock` = 0 dan tanpa baris `ProductStock`.
+- Stok bundle dihitung dari komponen saat dibaca (`lib/bom.ts` -> `computeBundleStock`).
+- Penjualan (POS & faktur) mencatat SKU bundle tetapi memotong stok **komponen**.
+- Penyesuaian stok dan penerimaan barang **menolak** produk bundle.
+- `npm run db:check-stock` juga memeriksa bundle (stok 0, tanpa baris lokasi).

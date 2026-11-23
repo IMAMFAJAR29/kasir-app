@@ -151,6 +151,25 @@ export async function PATCH(request: Request, context: RouteContext) {
           };
         }
 
+        // Produk bundle tidak punya stok sendiri; stoknya dari komponen.
+        const receivedProductIds = receipt.items
+          .filter((item) => item.receivedQty > 0)
+          .map((item) => (item.productMatches ? item.productId : item.actualProductId))
+          .filter((id): id is number => typeof id === "number" && id > 0);
+        if (receivedProductIds.length > 0) {
+          const bundleRows = await tx.bom.findMany({
+            where: { productId: { in: receivedProductIds } },
+            select: { product: { select: { sku: true } } },
+          });
+          if (bundleRows.length > 0) {
+            const skus = bundleRows.map((row) => row.product.sku).join(", ");
+            return {
+              error: `Produk bundle tidak bisa diterima sebagai stok (${skus}). Terima stok komponennya.`,
+              status: 400,
+            };
+          }
+        }
+
         // Serialize receipt finalization per purchase so concurrent receipts cannot
         // both pass the cumulative ordered-quantity check.
         await tx.$queryRaw<Array<{ id: number }>>`

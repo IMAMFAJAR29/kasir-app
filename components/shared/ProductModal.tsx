@@ -74,7 +74,14 @@ export default function ProductModal({
                 )}
                 <h4 className="font-semibold text-sm">{p.name}</h4>
                 <p className="text-xs text-gray-500">SKU: {p.sku}</p>
-                <p className="text-xs text-gray-500">Stok: {p.stock}</p>
+                <p className="text-xs text-gray-500">
+                  Stok: {p.stock}
+                  {p.isBundle && (
+                    <span className="ml-1.5 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-indigo-700">
+                      Bundle
+                    </span>
+                  )}
+                </p>
               </div>
             ))}
           </div>

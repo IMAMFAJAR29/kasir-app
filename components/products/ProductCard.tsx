@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Edit2, Barcode, Trash2, Package } from "lucide-react";
+import { Edit2, Barcode, Trash2, Package, Boxes } from "lucide-react";
 import { ProductWithCategory } from "@/types/products";
 
 interface ProductCardProps {
@@ -7,6 +7,7 @@ interface ProductCardProps {
   onEdit?: () => void;
   onPrintBarcode?: () => void;
   onDelete?: () => void;
+  onConvertToBundle?: () => void;
 }
 
 export default function ProductCard({
@@ -14,6 +15,7 @@ export default function ProductCard({
   onEdit,
   onPrintBarcode,
   onDelete,
+  onConvertToBundle,
 }: ProductCardProps) {
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 5;
@@ -55,6 +57,16 @@ export default function ProductCard({
             )}
           </div>
 
+          {/* Bundle Badge */}
+          {product.isBundle && (
+            <div className="absolute left-2.5 top-9">
+              <span className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white shadow-xs">
+                <Boxes size={12} />
+                Bundle
+              </span>
+            </div>
+          )}
+
           {/* Category Chip Overlay */}
           {product.category && (
             <div className="absolute top-2.5 right-2.5">
@@ -78,6 +90,11 @@ export default function ProductCard({
           <p className="text-base font-bold text-slate-900">
             Rp {Number(product.price).toLocaleString("id-ID")}
           </p>
+          {product.isBundle && product.bundleComponents?.length ? (
+            <p className="text-xs text-slate-400">
+              {product.bundleComponents.length} komponen
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -91,6 +108,17 @@ export default function ProductCard({
           >
             <Edit2 size={13} />
             <span>Edit</span>
+          </button>
+        )}
+
+        {onConvertToBundle && !product.isBundle && (
+          <button
+            type="button"
+            onClick={onConvertToBundle}
+            title="Jadikan Produk Bundle"
+            className="p-2 text-xs font-medium border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 rounded-xl transition cursor-pointer active:scale-95"
+          >
+            <Boxes size={15} />
           </button>
         )}
 

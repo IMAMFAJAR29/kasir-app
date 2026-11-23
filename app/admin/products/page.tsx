@@ -41,6 +41,8 @@ export default function ProductsPage() {
     imageUrl: "",
     description: "",
     categoryId: undefined,
+    isBundle: false,
+    bundleComponents: [],
   });
   const [isEditing, setIsEditing] = useState(false);
   const [stockSnapshot, setStockSnapshot] = useState<number | null>(null);
@@ -95,6 +97,8 @@ export default function ProductsPage() {
       imageUrl: "",
       description: "",
       categoryId: undefined,
+      isBundle: false,
+      bundleComponents: [],
     });
     setIsEditing(false);
     setStockSnapshot(null);
@@ -188,21 +192,37 @@ export default function ProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (form.isBundle && form.bundleComponents.length === 0) {
+      Swal.fire(
+        "Komposisi kosong",
+        "Produk bundle minimal punya satu komponen.",
+        "warning"
+      );
+      return;
+    }
+
     try {
       let res;
       let result: ProductWithCategory;
-      const payload: Partial<FormProduct> = { ...form };
-
-      // Jangan kirim stok lama saat edit jika user tidak mengubah field stok.
-      // Ini mencegah stok yang sudah berubah (mis. karena penjualan) tertimpa
-      // kembali ke nilai saat halaman dibuka.
-      if (
-        isEditing &&
-        form.id &&
-        stockSnapshot !== null &&
-        form.stock === stockSnapshot
-      ) {
-        delete payload.stock;
+      const payload: Record<string, unknown> = {
+        name: form.name,
+        sku: form.sku,
+        barcode: form.barcode,
+        price: form.price,
+        costPrice: form.costPrice,
+        imageUrl: form.imageUrl,
+        description: form.description,
+        categoryId: form.categoryId ?? null,
+        isBundle: form.isBundle,
+      };
+      if (form.isBundle) {
+        payload.components = form.bundleComponents;
+      } else if (isEditing && form.id && stockSnapshot !== null && form.stock === stockSnapshot) {
+        // Jangan kirim stok lama saat edit jika user tidak mengubah field stok.
+        // Ini mencegah stok yang sudah berubah (mis. karena penjualan) tertimpa
+        // kembali ke nilai saat halaman dibuka.
+      } else {
+        payload.stock = form.stock;
       }
 
       // Update
@@ -295,11 +315,12 @@ export default function ProductsPage() {
   });
 
   // Metrik ringkasan
-  const totalInventoryValue = products.reduce(
-    (sum, p) => sum + Number(p.price) * p.stock,
-    0
-  );
-  const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= 5).length;
+  const totalInventoryValue = products
+    .filter((p) => !p.isBundle)
+    .reduce((sum, p) => sum + Number(p.price) * p.stock, 0);
+  const lowStockCount = products.filter(
+    (p) => p.stock > 0 && p.stock <= 5
+  ).length;
   const outOfStockCount = products.filter((p) => p.stock <= 0).length;
 
   // =======================
@@ -317,12 +338,42 @@ export default function ProductsPage() {
       imageUrl: p.imageUrl ?? "",
       description: p.description ?? "",
       categoryId: p.category?.id ?? undefined,
+      isBundle: Boolean(p.isBundle),
+      bundleComponents: p.bundleComponents ?? [],
     };
   }
 
   function openEditForm(product: ProductWithCategory) {
     setForm(mapProductToForm(product));
     setStockSnapshot(product.stock);
+    setIsEditing(true);
+    setShowProductFormModal(true);
+  }
+
+  /**
+   * Konversi produk satuan menjadi bundle. Server tetap memvalidasi stok 0 dan
+   * tidak adanya riwayat transaksi; tombol ini hanya menyiapkan form-nya.
+   */
+  function openConvertToBundleForm(product: ProductWithCategory) {
+    if (product.isBundle) {
+      openEditForm(product);
+      return;
+    }
+    if (product.stock !== 0) {
+      void Swal.fire(
+        "Stok belum nol",
+        "Produk hanya bisa dijadikan bundle jika stoknya 0. Kosongkan stok terlebih dahulu.",
+        "warning"
+      );
+      return;
+    }
+    setForm({
+      ...mapProductToForm(product),
+      isBundle: true,
+      stock: 0,
+      bundleComponents: [],
+    });
+    setStockSnapshot(0);
     setIsEditing(true);
     setShowProductFormModal(true);
   }
@@ -516,6 +567,7 @@ export default function ProductsPage() {
                 setShowBarcodeModal(true);
               }}
               onDelete={() => void handleDeleteProduct(product)}
+              onConvertToBundle={() => openConvertToBundleForm(product)}
             />
           ))}
         </div>
@@ -543,7 +595,14 @@ export default function ProductsPage() {
                   return (
                     <tr key={product.id} className="hover:bg-slate-50/70 transition">
                       <td className="p-4 font-semibold text-slate-900">
-                        {product.name}
+                        <div className="flex items-center gap-2">
+                          <span>{product.name}</span>
+                          {product.isBundle && (
+                            <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                              Bundle
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4 text-xs font-mono text-slate-500">
                         {product.sku || "-"}
@@ -579,6 +638,15 @@ export default function ProductsPage() {
                           >
                             Edit
                           </button>
+                          {!product.isBundle && (
+                            <button
+                              type="button"
+                              onClick={() => openConvertToBundleForm(product)}
+                              className="px-2.5 py-1 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition"
+                            >
+                              Jadikan Bundle
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => {
@@ -631,6 +699,7 @@ export default function ProductsPage() {
               categories={categories}
               flattenCategories={flattenCategories}
               setShowCategoryModal={setShowCategoryModal}
+              products={products}
               onClose={() => {
                 setShowProductFormModal(false);
                 setStockSnapshot(null);

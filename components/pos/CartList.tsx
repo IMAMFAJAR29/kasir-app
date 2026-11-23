@@ -54,6 +54,11 @@ export default function CartList({
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-sm text-slate-900 truncate">
                   {item.name}
+                  {item.isBundle && (
+                    <span className="ml-1.5 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-indigo-700">
+                      Bundle
+                    </span>
+                  )}
                 </p>
                 <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
                   <span>Rp {item.price.toLocaleString("id-ID")}</span>

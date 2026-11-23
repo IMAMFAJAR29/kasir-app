@@ -7,6 +7,7 @@ import { incrementStockAtLocation, getDefaultLocationId } from "@/lib/productSto
 import { processInvoiceAccounting } from "@/lib/accounting/invoiceAccounting";
 import { reverseJournalEntry } from "@/lib/accounting/postingService";
 import { getErrorMessage } from "@/lib/prismaErrors";
+import { explodeItems, loadBundleMap, restoreItemsToConsumption } from "@/lib/bom";
 
 // ✅ GET by ID
 export async function GET(
@@ -75,7 +76,7 @@ export async function PUT(
         paidAmount: true,
         locationId: true,
         saleId: true,
-        items: { select: { productId: true, qty: true } },
+        items: { select: { productId: true, qty: true, components: true } },
       },
     });
     if (!existingInvoice)
@@ -194,13 +195,36 @@ export async function PUT(
 
     const updated = await prisma.$transaction(async (tx) => {
       // Kembalikan stok item lama ke lokasi faktur lama sebelum item diganti.
-      for (const item of existingInvoice.items) {
+      // Untuk bundle, pakai snapshot komposisi saat faktur dibuat.
+      const restoreLocationId =
+        existingInvoice.locationId ?? locationIdNumber;
+      const restoreConsumption = restoreItemsToConsumption(existingInvoice.items);
+      for (const line of restoreConsumption) {
         await incrementStockAtLocation(tx, {
-          productId: item.productId,
-          locationId: existingInvoice.locationId ?? locationIdNumber,
-          qty: item.qty,
+          productId: line.productId,
+          locationId: restoreLocationId,
+          qty: line.qty,
         });
       }
+
+      // Snapshot komposisi untuk item baru.
+      const bundleMap = await loadBundleMap(
+        tx,
+        itemData.map((item) => item.productId)
+      );
+      const itemDataWithSnapshot = itemData.map((item) => {
+        const components = bundleMap.get(item.productId);
+        return {
+          ...item,
+          components:
+            components && components.length > 0
+              ? components.map((component) => ({
+                  productId: component.componentProductId,
+                  qty: component.quantity * item.qty,
+                }))
+              : undefined,
+        };
+      });
 
       const saved = await tx.invoice.update({
         where: { id: invoiceId },
@@ -223,7 +247,7 @@ export async function PUT(
           status,
           items: {
             deleteMany: {},
-            create: itemData,
+            create: itemDataWithSnapshot,
           },
         },
         include: {
@@ -267,6 +291,7 @@ export async function PUT(
             productId: item.productId,
             qty: item.qty,
           })),
+          consumption: explodeItems(itemData, bundleMap),
         },
         tx
       );
@@ -324,7 +349,7 @@ export async function DELETE(
         status: true,
         saleId: true,
         locationId: true,
-        items: { select: { productId: true, qty: true } },
+        items: { select: { productId: true, qty: true, components: true } },
       },
     });
     if (!invoice)
@@ -352,11 +377,12 @@ export async function DELETE(
       // Kembalikan stok item faktur ke lokasi asal.
       const restoreLocationId =
         invoice.locationId ?? (await getDefaultLocationId(tx));
-      for (const item of invoice.items) {
+      const restoreConsumption = restoreItemsToConsumption(invoice.items);
+      for (const line of restoreConsumption) {
         await incrementStockAtLocation(tx, {
-          productId: item.productId,
+          productId: line.productId,
           locationId: restoreLocationId,
-          qty: item.qty,
+          qty: line.qty,
         });
       }
 

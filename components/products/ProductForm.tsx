@@ -2,7 +2,12 @@
 import Image from "next/image";
 import { Upload, Save, X } from "lucide-react";
 import Button from "../Button";
-import { Category, FormProduct } from "@/types/products";
+import BundleComponentsEditor from "./BundleComponentsEditor";
+import {
+  Category,
+  FormProduct,
+  ProductWithCategory,
+} from "@/types/products";
 
 interface ProductFormProps {
   form: FormProduct;
@@ -14,6 +19,7 @@ interface ProductFormProps {
   categories: Category[];
   flattenCategories: (cats: Category[]) => Category[];
   setShowCategoryModal: (show: boolean) => void;
+  products: ProductWithCategory[];
   onClose?: () => void;
 }
 
@@ -27,6 +33,7 @@ export default function ProductForm({
   categories,
   flattenCategories,
   setShowCategoryModal,
+  products,
   onClose,
 }: ProductFormProps) {
   return (
@@ -63,20 +70,30 @@ export default function ProductForm({
       />
 
       {/* Stok */}
-      <input
-        type="number"
-        placeholder="Stok"
-        min={0}
-        step={1}
-        value={form.stock === 0 ? "" : form.stock}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            stock: e.target.value === "" ? 0 : Number(e.target.value), // tetap number
-          })
-        }
-        className="form-control"
-      />
+      <div className="flex flex-col gap-1">
+        <input
+          type="number"
+          placeholder={form.isBundle ? "Stok dihitung dari komponen" : "Stok"}
+          min={0}
+          step={1}
+          value={form.isBundle ? "" : form.stock === 0 ? "" : form.stock}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              stock: e.target.value === "" ? 0 : Number(e.target.value), // tetap number
+            })
+          }
+          className={`form-control ${
+            form.isBundle ? "cursor-not-allowed bg-slate-100 text-slate-400" : ""
+          }`}
+          disabled={form.isBundle}
+        />
+        {form.isBundle && (
+          <span className="text-xs text-slate-400">
+            Stok bundle dihitung otomatis dari komponen.
+          </span>
+        )}
+      </div>
 
       {/* Harga Jual */}
       <input
@@ -169,6 +186,40 @@ export default function ProductForm({
         className="form-control col-span-1 min-h-24 resize-y sm:col-span-2"
         rows={4}
       />
+
+      {/* Produk Bundle */}
+      <div className="col-span-1 sm:col-span-2">
+        <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.isBundle}
+            onChange={(e) =>
+              setForm({ ...form, isBundle: e.target.checked, stock: 0 })
+            }
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-blue-600"
+          />
+          <span>
+            <span className="block text-sm font-semibold text-slate-800">
+              Jadikan produk bundle
+            </span>
+            <span className="block text-xs text-slate-500">
+              Produk bundle dijual sebagai satu SKU, tetapi stoknya diambil dari
+              stok komponen.
+            </span>
+          </span>
+        </label>
+      </div>
+
+      {form.isBundle && (
+        <BundleComponentsEditor
+          components={form.bundleComponents}
+          onChange={(bundleComponents) =>
+            setForm((prev) => ({ ...prev, bundleComponents }))
+          }
+          products={products}
+          currentProductId={form.id}
+        />
+      )}
 
       {/* Kategori */}
       <div className="col-span-1 sm:col-span-2">

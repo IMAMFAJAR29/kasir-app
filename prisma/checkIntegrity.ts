@@ -17,11 +17,16 @@ async function main() {
       name: true,
       stock: true,
       stocks: { select: { locationId: true, quantity: true } },
+      bom: { select: { id: true } },
     },
     orderBy: { id: "asc" },
   });
 
   const mismatches = products.filter((product) => {
+    // Produk bundle tidak boleh punya stok maupun baris stok sendiri.
+    if (product.bom) {
+      return product.stock !== 0 || product.stocks.length > 0;
+    }
     const total = product.stocks.reduce((sum, row) => sum + row.quantity, 0);
     return total !== product.stock;
   });
@@ -35,6 +40,12 @@ async function main() {
 
   console.log(`DITEMUKAN ${mismatches.length} produk tidak sinkron:\n`);
   for (const product of mismatches) {
+    if (product.bom) {
+      console.log(
+        `- #${product.id} ${product.sku} "${product.name}": BUNDLE harus stok 0, ditemukan Product.stock=${product.stock}, baris lokasi=${product.stocks.length}`
+      );
+      continue;
+    }
     const total = product.stocks.reduce((sum, row) => sum + row.quantity, 0);
     console.log(
       `- #${product.id} ${product.sku} "${product.name}": Product.stock=${product.stock}, total lokasi=${total}`

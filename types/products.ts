@@ -1,6 +1,11 @@
 // types/product.ts
 
 // Tipe dasar produk dari database
+export interface BundleComponent {
+  componentProductId: number;
+  quantity: number;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -12,6 +17,8 @@ export interface Product {
   imageUrl?: string;
   description?: string;
   categoryId?: number | null;
+  isBundle?: boolean;
+  bundleComponents?: BundleComponent[];
 }
 
 // Tipe produk dengan relasi ke kategori
@@ -43,6 +50,8 @@ export interface FormProduct {
   imageUrl: string;
   description: string;
   categoryId?: number | null;
+  isBundle: boolean;
+  bundleComponents: BundleComponent[];
 }
 
 // Tipe data untuk API (request body)
