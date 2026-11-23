@@ -101,10 +101,10 @@ export default function ReceiptModal({
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm z-50 animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+    <div className="fixed inset-0 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm z-50 animate-in fade-in duration-150 overflow-y-auto">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col my-auto max-h-[calc(100dvh-2rem)]">
         {/* Header Transaksi Sukses */}
-        <div className="bg-emerald-600 text-white p-5 text-center relative">
+        <div className="bg-emerald-600 text-white p-5 text-center relative shrink-0">
           <button
             onClick={onClose}
             className="absolute top-3 right-3 text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10 transition"
@@ -129,7 +129,7 @@ export default function ReceiptModal({
         </div>
 
         {/* Paper Receipt Body */}
-        <div className="p-5 space-y-4 text-xs font-sans text-slate-700 max-h-[60vh] overflow-y-auto">
+        <div className="p-5 space-y-4 text-xs font-sans text-slate-700 overflow-y-auto min-h-0 flex-1">
           {/* List Item */}
           <div className="space-y-2 border-b border-dashed border-slate-200 pb-3">
             <div className="flex justify-between text-xs font-semibold text-slate-400 uppercase tracking-wider">
@@ -189,7 +189,7 @@ export default function ReceiptModal({
         </div>
 
         {/* Action Buttons */}
-        <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-2">
+        <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-2 shrink-0">
           <Button
             variant="outline"
             onClick={onClose}
