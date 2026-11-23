@@ -102,7 +102,7 @@ export default function ReceiptModal({
 
   return (
     <div className="fixed inset-0 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm z-50 animate-in fade-in duration-150 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col my-auto max-h-[calc(100dvh-2rem)]">
+      <div className="receipt-sheet bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col my-auto">
         {/* Header Transaksi Sukses */}
         <div className="bg-emerald-600 text-white p-5 text-center relative shrink-0">
           <button

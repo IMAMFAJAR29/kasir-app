@@ -39,6 +39,11 @@ export default function PaymentSection({
   }, [offline, onSelect, selected]);
 
   useEffect(() => {
+    if (total <= 0) {
+      setPayment(0);
+      setChange(0);
+      return;
+    }
     if (selected === "cash") {
       setChange(payment - total > 0 ? payment - total : 0);
     } else {

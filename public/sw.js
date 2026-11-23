@@ -1,4 +1,4 @@
-const CACHE_NAME = "anima-pos-v2";
+const CACHE_NAME = "anima-pos-v3";
 const APP_ROUTE = "/pos";
 
 self.addEventListener("install", (event) => {
