@@ -635,11 +635,11 @@ export default function ProductsPage() {
                         Rp {Number(product.price).toLocaleString("id-ID")}
                       </td>
                       <td className="p-4 text-center">
-                        <div className="flex flex-wrap items-center justify-center gap-1.5">
+                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => openEditForm(product)}
-                            className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-800 transition hover:bg-slate-200"
+                            className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg bg-slate-100 px-2.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-200"
                           >
                             Edit
                           </button>
@@ -647,7 +647,7 @@ export default function ProductsPage() {
                             <button
                               type="button"
                               onClick={() => openConvertToBundleForm(product)}
-                              className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                              className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg bg-indigo-50 px-2.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
                             >
                               Ubah ke Bundle
                             </button>
@@ -658,7 +658,7 @@ export default function ProductsPage() {
                               setSelectedProduct(product);
                               setShowBarcodeModal(true);
                             }}
-                            className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+                            className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
                             title="Barcode"
                           >
                             Barcode
@@ -666,7 +666,7 @@ export default function ProductsPage() {
                           <button
                             type="button"
                             onClick={() => void handleDeleteProduct(product)}
-                            className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg px-3 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                            className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg px-2.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
                             title="Hapus"
                           >
                             Hapus
