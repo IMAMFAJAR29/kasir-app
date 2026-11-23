@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { Upload, Save, X } from "lucide-react";
+import { Upload, Save, X, Boxes, Package } from "lucide-react";
 import Button from "../Button";
 import BundleComponentsEditor from "./BundleComponentsEditor";
 import {
@@ -20,8 +20,12 @@ interface ProductFormProps {
   flattenCategories: (cats: Category[]) => Category[];
   setShowCategoryModal: (show: boolean) => void;
   products: ProductWithCategory[];
+  /** Ubah produk satuan yang sudah tersimpan menjadi bundle. */
+  onConvertToBundle?: () => void;
   onClose?: () => void;
 }
+
+const MAX_BUNDLE_COMPONENTS = 100;
 
 export default function ProductForm({
   form,
@@ -34,13 +38,57 @@ export default function ProductForm({
   flattenCategories,
   setShowCategoryModal,
   products,
+  onConvertToBundle,
   onClose,
 }: ProductFormProps) {
+  const isBundle = form.isBundle;
+
+  // Stok bundle adalah stok turunan: min(floor(stok komponen / qty)).
+  const derivedBundleStock = (() => {
+    if (!isBundle || form.bundleComponents.length === 0) return 0;
+    const stockById = new Map(products.map((p) => [p.id, p.stock]));
+    return form.bundleComponents.reduce((minimum, component) => {
+      const available = stockById.get(component.componentProductId) ?? 0;
+      return Math.min(minimum, Math.floor(available / component.quantity));
+    }, Number.POSITIVE_INFINITY);
+  })();
+
   return (
     <form
       className="grid grid-cols-1 sm:grid-cols-2 gap-4"
       onSubmit={handleSubmit}
     >
+      {/* Jenis produk: hanya label, jenis ditentukan dari tombol tambah */}
+      <div className="col-span-1 sm:col-span-2">
+        <div
+          className={`flex items-start gap-2.5 rounded-2xl border p-3 ${
+            isBundle
+              ? "border-indigo-200 bg-indigo-50/60"
+              : "border-slate-200 bg-slate-50/60"
+          }`}
+        >
+          {isBundle ? (
+            <Boxes size={18} className="mt-0.5 shrink-0 text-indigo-600" />
+          ) : (
+            <Package size={18} className="mt-0.5 shrink-0 text-slate-500" />
+          )}
+          <div>
+            <p
+              className={`text-sm font-semibold ${
+                isBundle ? "text-indigo-800" : "text-slate-800"
+              }`}
+            >
+              {isBundle ? "Produk Bundle" : "Produk Satuan"}
+            </p>
+            <p className="text-xs text-slate-500">
+              {isBundle
+                ? "Dijual sebagai satu SKU; stoknya dihitung dari komposisi komponen."
+                : "Produk yang memiliki stok sendiri dan dijual per satuan."}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Nama Produk */}
       <input
         type="text"
@@ -54,46 +102,40 @@ export default function ProductForm({
       {/* SKU */}
       <input
         type="text"
-        placeholder="SKU Produk"
+        placeholder={isBundle ? "SKU Produk Bundle" : "SKU Produk"}
         value={form.sku}
         onChange={(e) => setForm({ ...form, sku: e.target.value })}
         className="form-control"
       />
 
-      {/* Barcode */}
-      <input
-        type="text"
-        placeholder="Barcode (opsional, boleh sama dengan SKU)"
-        value={form.barcode}
-        onChange={(e) => setForm({ ...form, barcode: e.target.value })}
-        className="form-control"
-      />
+      {!isBundle && (
+        <>
+          {/* Barcode */}
+          <input
+            type="text"
+            placeholder="Barcode (opsional, boleh sama dengan SKU)"
+            value={form.barcode}
+            onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+            className="form-control"
+          />
 
-      {/* Stok */}
-      <div className="flex flex-col gap-1">
-        <input
-          type="number"
-          placeholder={form.isBundle ? "Stok dihitung dari komponen" : "Stok"}
-          min={0}
-          step={1}
-          value={form.isBundle ? "" : form.stock === 0 ? "" : form.stock}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              stock: e.target.value === "" ? 0 : Number(e.target.value), // tetap number
-            })
-          }
-          className={`form-control ${
-            form.isBundle ? "cursor-not-allowed bg-slate-100 text-slate-400" : ""
-          }`}
-          disabled={form.isBundle}
-        />
-        {form.isBundle && (
-          <span className="text-xs text-slate-400">
-            Stok bundle dihitung otomatis dari komponen.
-          </span>
-        )}
-      </div>
+          {/* Stok */}
+          <input
+            type="number"
+            placeholder="Stok"
+            min={0}
+            step={1}
+            value={form.stock === 0 ? "" : form.stock}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                stock: e.target.value === "" ? 0 : Number(e.target.value), // tetap number
+              })
+            }
+            className="form-control"
+          />
+        </>
+      )}
 
       {/* Harga Jual */}
       <input
@@ -112,21 +154,35 @@ export default function ProductForm({
         required
       />
 
-      {/* Harga Beli */}
-      <input
-        type="number"
-        placeholder="Harga Beli"
-        min={0}
-        step="0.01"
-        value={form.costPrice}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            costPrice: e.target.value === "" ? 0 : Number(e.target.value),
-          })
-        }
-        className="form-control"
-      />
+      {isBundle ? (
+        <div className="flex flex-col justify-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50/60 px-4 py-3">
+          <span className="text-xs font-medium text-indigo-700">
+            Stok bundle (otomatis)
+          </span>
+          <span className="text-lg font-bold text-indigo-900">
+            {derivedBundleStock} unit
+          </span>
+          <span className="text-xs text-indigo-600/80">
+            Dihitung dari stok komponen terkini.
+          </span>
+        </div>
+      ) : (
+        /* Harga Beli */
+        <input
+          type="number"
+          placeholder="Harga Beli"
+          min={0}
+          step="0.01"
+          value={form.costPrice}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              costPrice: e.target.value === "" ? 0 : Number(e.target.value),
+            })
+          }
+          className="form-control"
+        />
+      )}
 
       {/* Upload Gambar */}
       <div className="col-span-1 sm:col-span-2 flex flex-col gap-2">
@@ -187,30 +243,8 @@ export default function ProductForm({
         rows={4}
       />
 
-      {/* Produk Bundle */}
-      <div className="col-span-1 sm:col-span-2">
-        <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.isBundle}
-            onChange={(e) =>
-              setForm({ ...form, isBundle: e.target.checked, stock: 0 })
-            }
-            className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-blue-600"
-          />
-          <span>
-            <span className="block text-sm font-semibold text-slate-800">
-              Jadikan produk bundle
-            </span>
-            <span className="block text-xs text-slate-500">
-              Produk bundle dijual sebagai satu SKU, tetapi stoknya diambil dari
-              stok komponen.
-            </span>
-          </span>
-        </label>
-      </div>
-
-      {form.isBundle && (
+      {/* Komposisi bundle — hanya untuk produk bundle */}
+      {isBundle && (
         <BundleComponentsEditor
           components={form.bundleComponents}
           onChange={(bundleComponents) =>
@@ -236,13 +270,35 @@ export default function ProductForm({
             : "Pilih kategori..."}
         </button>
       </div>
+
+      {/* Ubah jenis produk: satuan -> bundle (hanya saat edit produk satuan) */}
+      {!isBundle && isEditing && onConvertToBundle && (
+        <div className="col-span-1 sm:col-span-2">
+          <button
+            type="button"
+            onClick={onConvertToBundle}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+          >
+            <Boxes size={16} /> Ubah Jenis menjadi Produk Bundle
+          </button>
+          <p className="mt-1 text-xs text-slate-400">
+            Produk yang sudah memiliki transaksi tidak dapat diubah menjadi bundle.
+          </p>
+        </div>
+      )}
+
       {/* Tombol Aksi */}
       <div className="mt-4 col-span-1 sm:col-span-2 flex gap-2">
         <Button
           type="submit"
           className="flex items-center gap-2 bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
         >
-          <Save size={16} /> {isEditing ? "Update Produk" : "Tambah Produk"}
+          <Save size={16} />{" "}
+          {isEditing
+            ? "Update Produk"
+            : isBundle
+            ? "Tambah Produk Bundle"
+            : "Tambah Produk"}
         </Button>
         <Button
           type="button"

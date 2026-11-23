@@ -85,7 +85,7 @@ export default function ProductsPage() {
   // =======================
   // TAMBAH PRODUK MANUAL
   // =======================
-  const handleAddManual = () => {
+  const handleAddManual = (isBundle: boolean) => {
     setForm({
       id: undefined,
       name: "",
@@ -97,7 +97,7 @@ export default function ProductsPage() {
       imageUrl: "",
       description: "",
       categoryId: undefined,
-      isBundle: false,
+      isBundle,
       bundleComponents: [],
     });
     setIsEditing(false);
@@ -196,6 +196,15 @@ export default function ProductsPage() {
       Swal.fire(
         "Komposisi kosong",
         "Produk bundle minimal punya satu komponen.",
+        "warning"
+      );
+      return;
+    }
+
+    if (form.isBundle && form.bundleComponents.length > 100) {
+      Swal.fire(
+        "Komposisi terlalu banyak",
+        "Komposisi bundle maksimal 100 komponen.",
         "warning"
       );
       return;
@@ -351,29 +360,20 @@ export default function ProductsPage() {
   }
 
   /**
-   * Konversi produk satuan menjadi bundle. Server tetap memvalidasi stok 0 dan
-   * tidak adanya riwayat transaksi; tombol ini hanya menyiapkan form-nya.
+   * Ubah jenis produk satuan menjadi bundle. Server memvalidasi riwayat
+   * transaksi (bukan stok); stok bundle langsung mengikuti komposisi.
    */
   function openConvertToBundleForm(product: ProductWithCategory) {
     if (product.isBundle) {
       openEditForm(product);
       return;
     }
-    if (product.stock !== 0) {
-      void Swal.fire(
-        "Stok belum nol",
-        "Produk hanya bisa dijadikan bundle jika stoknya 0. Kosongkan stok terlebih dahulu.",
-        "warning"
-      );
-      return;
-    }
     setForm({
       ...mapProductToForm(product),
       isBundle: true,
-      stock: 0,
       bundleComponents: [],
     });
-    setStockSnapshot(0);
+    setStockSnapshot(product.stock);
     setIsEditing(true);
     setShowProductFormModal(true);
   }
@@ -440,12 +440,18 @@ export default function ProductsPage() {
             </Button>
 
             {showDropdown && (
-              <div className="absolute right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl w-48 z-30 p-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="absolute right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl w-56 z-30 p-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
                 <button
-                  onClick={handleAddManual}
+                  onClick={() => handleAddManual(false)}
                   className="block w-full text-left px-3.5 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition cursor-pointer font-medium"
                 >
-                  Input Satuan
+                  Produk Satuan
+                </button>
+                <button
+                  onClick={() => handleAddManual(true)}
+                  className="block w-full text-left px-3.5 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition cursor-pointer font-medium"
+                >
+                  Produk Bundle
                 </button>
                 <button
                   onClick={() => {
@@ -644,7 +650,7 @@ export default function ProductsPage() {
                               onClick={() => openConvertToBundleForm(product)}
                               className="px-2.5 py-1 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition"
                             >
-                              Jadikan Bundle
+                              Ubah ke Bundle
                             </button>
                           )}
                           <button
@@ -700,6 +706,13 @@ export default function ProductsPage() {
               flattenCategories={flattenCategories}
               setShowCategoryModal={setShowCategoryModal}
               products={products}
+              onConvertToBundle={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  isBundle: true,
+                  bundleComponents: [],
+                }))
+              }
               onClose={() => {
                 setShowProductFormModal(false);
                 setStockSnapshot(null);

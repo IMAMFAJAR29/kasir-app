@@ -115,7 +115,7 @@ export default function ProductCard({
           <button
             type="button"
             onClick={onConvertToBundle}
-            title="Jadikan Produk Bundle"
+            title="Ubah jenis menjadi produk bundle"
             className="p-2 text-xs font-medium border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 rounded-xl transition cursor-pointer active:scale-95"
           >
             <Boxes size={15} />

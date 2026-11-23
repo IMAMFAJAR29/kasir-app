@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Minus, Plus, Search, Trash2, Package } from "lucide-react";
+import { Minus, Plus, Trash2, Package } from "lucide-react";
+import Button from "@/components/Button";
+import ProductModal from "@/components/shared/ProductModal";
 import { BundleComponent, ProductWithCategory } from "@/types/products";
 
 interface BundleComponentsEditorProps {
@@ -18,6 +20,7 @@ export default function BundleComponentsEditor({
   products,
   currentProductId,
 }: BundleComponentsEditorProps) {
+  const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState("");
 
   const componentById = useMemo(
@@ -25,26 +28,30 @@ export default function BundleComponentsEditor({
     [products]
   );
 
-  const candidates = useMemo(() => {
+  // Komponen hanya boleh produk satuan dan bukan produk itu sendiri. Produk
+  // yang sudah dipilih tetap tampil di modal dalam keadaan nonaktif.
+  const selectableProducts = useMemo(
+    () =>
+      products.filter(
+        (product) => !product.isBundle && product.id !== currentProductId
+      ),
+    [products, currentProductId]
+  );
+
+  const filteredProducts = useMemo(() => {
     const keyword = search.trim().toLowerCase();
-    if (!keyword) return [];
-    return products
-      .filter((product) => !product.isBundle)
-      .filter((product) => product.id !== currentProductId)
-      .filter(
-        (product) =>
-          product.name.toLowerCase().includes(keyword) ||
-          product.sku?.toLowerCase().includes(keyword)
-      )
-      .slice(0, 8);
-  }, [products, search, currentProductId]);
+    if (!keyword) return selectableProducts;
+    return selectableProducts.filter(
+      (product) =>
+        product.name.toLowerCase().includes(keyword) ||
+        product.sku?.toLowerCase().includes(keyword)
+    );
+  }, [selectableProducts, search]);
 
   const addComponent = (product: ProductWithCategory) => {
-    if (components.some((item) => item.componentProductId === product.id)) {
-      setSearch("");
-      return;
-    }
+    if (components.some((item) => item.componentProductId === product.id)) return;
     onChange([...components, { componentProductId: product.id, quantity: 1 }]);
+    setShowModal(false);
     setSearch("");
   };
 
@@ -64,45 +71,23 @@ export default function BundleComponentsEditor({
 
   return (
     <div className="col-span-1 space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:col-span-2">
-      <div>
-        <p className="text-sm font-semibold text-slate-800">Komposisi Bundle</p>
-        <p className="text-xs text-slate-500">
-          Stok bundle dihitung otomatis dari stok komponen. Komponen tidak boleh
-          berupa produk bundle lain.
-        </p>
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Cari produk komponen (nama / SKU)..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="form-control pl-9"
-        />
-        {candidates.length > 0 && (
-          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-            {candidates.map((product) => (
-              <button
-                key={product.id}
-                type="button"
-                onClick={() => addComponent(product)}
-                className="flex w-full items-center justify-between gap-3 px-3.5 py-2 text-left text-sm transition hover:bg-slate-50"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate font-medium text-slate-800">
-                    {product.name}
-                  </span>
-                  <span className="block truncate text-xs text-slate-400">
-                    {product.sku} &bull; stok {product.stock}
-                  </span>
-                </span>
-                <Plus size={15} className="shrink-0 text-slate-500" />
-              </button>
-            ))}
-          </div>
-        )}
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-slate-800">Komposisi Bundle</p>
+          <p className="text-xs text-slate-500">
+            Stok bundle dihitung otomatis dari stok komponen. Komponen tidak boleh
+            berupa produk bundle lain.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-1.5"
+        >
+          <Plus size={15} /> Tambah Komponen
+        </Button>
       </div>
 
       {components.length === 0 ? (
@@ -110,7 +95,7 @@ export default function BundleComponentsEditor({
           <Package size={22} className="text-slate-400" />
           <p className="text-sm font-medium text-slate-600">Belum ada komponen</p>
           <p className="text-xs text-slate-400">
-            Cari dan tambahkan minimal satu produk komponen.
+            Tambahkan minimal satu produk satuan sebagai penyusun bundle.
           </p>
         </div>
       ) : (
@@ -180,6 +165,21 @@ export default function BundleComponentsEditor({
           })}
         </div>
       )}
+
+      <ProductModal
+        open={showModal}
+        title="Pilih Produk Komponen"
+        products={selectableProducts}
+        filteredProducts={filteredProducts}
+        onAddProduct={addComponent}
+        onClose={() => {
+          setShowModal(false);
+          setSearch("");
+        }}
+        onSearch={setSearch}
+        requireContext={false}
+        disabledIds={components.map((item) => item.componentProductId)}
+      />
     </div>
   );
 }

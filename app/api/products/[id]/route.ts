@@ -30,15 +30,16 @@ const bundleInclude = {
 type RouteContext = { params: Promise<{ id: string }> };
 
 /**
- * Produk satuan hanya boleh dijadikan bundle jika stok 0 dan belum pernah
- * dipakai transaksi, agar tidak ada stok/riwayat yang menggantung.
+ * Produk satuan boleh diubah menjadi bundle meskipun masih punya stok.
+ * Yang dilarang adalah produk yang sudah punya riwayat transaksi, karena
+ * riwayat itu merujuk pada produk satuan dan tidak bisa diubah menjadi bundle.
  */
 async function findBundleConversionBlocker(productId: number): Promise<string | null> {
-  const [product, sales, invoices, purchases, adjustments, receipts] =
+  const [product, sales, invoices, purchases, adjustments, receipts, usedAsComponent] =
     await Promise.all([
       prisma.product.findUnique({
         where: { id: productId },
-        select: { stock: true },
+        select: { id: true },
       }),
       prisma.saleItem.count({ where: { productId } }),
       prisma.invoiceItem.count({ where: { productId } }),
@@ -47,11 +48,13 @@ async function findBundleConversionBlocker(productId: number): Promise<string | 
       prisma.purchaseReceiptItem.count({
         where: { OR: [{ productId }, { actualProductId: productId }] },
       }),
+      prisma.bomComponent.count({ where: { componentProductId: productId } }),
     ]);
 
   if (!product) return "Produk tidak ditemukan";
-  if (product.stock !== 0) {
-    return "Produk hanya bisa dijadikan bundle jika stoknya 0. Kosongkan stok terlebih dahulu.";
+
+  if (usedAsComponent > 0) {
+    return "Produk tidak dapat diubah menjadi bundle karena masih menjadi komponen produk bundle lain.";
   }
 
   const blockers: string[] = [];
@@ -62,7 +65,7 @@ async function findBundleConversionBlocker(productId: number): Promise<string | 
   if (receipts > 0) blockers.push(`${receipts} penerimaan barang`);
 
   if (blockers.length > 0) {
-    return `Produk belum bisa dijadikan bundle karena sudah punya riwayat ${blockers.join(", ")}.`;
+    return `Produk tidak dapat diubah menjadi bundle karena sudah memiliki transaksi (${blockers.join(", ")}).`;
   }
 
   return null;

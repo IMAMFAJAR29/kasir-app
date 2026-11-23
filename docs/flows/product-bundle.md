@@ -75,7 +75,7 @@ Faktur (/invoices)
 | Penyesuaian stok | `POST /api/warehouse/adjustments` | **Ditolak** (400) untuk produk bundle |
 | Selesaikan penerimaan barang | `POST /api/purchases/receipts/[id]` | **Ditolak** (400) untuk produk bundle |
 | Hapus produk yang jadi komponen | `DELETE /api/products/[id]` | **Ditolak** (409) dengan daftar SKU bundle pemakai |
-| Konversi produk satuan -> bundle | `PUT /api/products/[id]` dengan `isBundle: true` | Hanya jika stok 0 dan tanpa riwayat transaksi |
+| Konversi produk satuan -> bundle | `PUT /api/products/[id]` dengan `isBundle: true` | Boleh meski masih ada stok; **ditolak jika sudah punya transaksi** atau masih dipakai sebagai komponen bundle lain. Stok bundle langsung mengikuti komposisi. |
 
 ## 4. Invariant
 
@@ -104,7 +104,7 @@ Faktur (/invoices)
 | Stok bundle tidak turun setelah penjualan | Wajar: stok bundle derived. Periksa stok **komponen**. |
 | 409 "stok tidak cukup" saat jual bundle | Komponen kurang; pesan menyebut nama komponen. |
 | Stok komponen tidak kembali setelah faktur dihapus | `invoice_items.components` kosong (faktur lama) -> fallback ke `productId`/`qty`. |
-| Stok produk berubah saat dijadikan bundle | Harus ditolak: guard konversi mensyaratkan stok 0. |
+| Stok produk berubah saat dijadikan bundle | Wajar: baris `ProductStock` lama dihapus dan stok bundle kini derived dari komponen. Guard konversi hanya memeriksa riwayat transaksi, bukan stok. |
 | `npm run db:check-stock` menandai bundle | Bundle punya `Product.stock` != 0 atau baris `ProductStock`. |
 | Bundle tidak muncul pilihan komponennya di form | Picker menyembunyikan produk bundle (anti nested) dan produk itu sendiri. |
 
