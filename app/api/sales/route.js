@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/authOptions";
-import prisma from "@/lib/prisma";
+import prisma, { TRANSACTION_OPTIONS } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
 import { postJournalEntry } from "@/lib/accounting/postingService";
 import { decrementStockAtLocation } from "@/lib/productStock";
@@ -206,7 +206,7 @@ async function createSale(body, userId) {
       );
 
       return createdSale;
-    });
+    }, TRANSACTION_OPTIONS);
     return { sale, status: 201 };
   } catch (error) {
     if (

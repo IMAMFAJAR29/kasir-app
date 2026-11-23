@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { hasPermission } from "@/lib/permissions";
-import prisma from "@/lib/prisma";
+import prisma, { TRANSACTION_OPTIONS } from "@/lib/prisma";
 import { incrementStockAtLocation, getDefaultLocationId } from "@/lib/productStock";
 import { processInvoiceAccounting } from "@/lib/accounting/invoiceAccounting";
 import { reverseJournalEntry } from "@/lib/accounting/postingService";
@@ -272,7 +272,7 @@ export async function PUT(
       );
 
       return saved;
-    });
+    }, TRANSACTION_OPTIONS);
 
     return NextResponse.json(updated);
   } catch (err) {
@@ -383,7 +383,7 @@ export async function DELETE(
 
       // Hapus invoice
       await tx.invoice.delete({ where: { id: invoiceId } });
-    });
+    }, TRANSACTION_OPTIONS);
 
     return NextResponse.json(
       { message: "Faktur berhasil dihapus" },

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { hasPermission } from "@/lib/permissions";
-import prisma from "@/lib/prisma";
+import prisma, { TRANSACTION_OPTIONS } from "@/lib/prisma";
 import { processInvoiceAccounting } from "@/lib/accounting/invoiceAccounting";
 import { getErrorMessage } from "@/lib/prismaErrors";
 
@@ -192,7 +192,7 @@ export async function POST(req: Request) {
       );
 
       return createdInvoice;
-    });
+    }, TRANSACTION_OPTIONS);
 
     return NextResponse.json(invoice, { status: 201 });
   } catch (err) {

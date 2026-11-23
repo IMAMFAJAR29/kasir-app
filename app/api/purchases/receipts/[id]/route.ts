@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import prisma, { TRANSACTION_OPTIONS } from "@/lib/prisma";
 import { authorizePurchaseReceipt } from "@/lib/purchaseReceiptAuth";
 import { evaluateReceiptLine } from "@/lib/purchaseReceiving";
 import { processPurchaseReceiptAccounting } from "@/lib/accounting/purchaseAccounting";
@@ -451,7 +451,7 @@ export async function PATCH(request: Request, context: RouteContext) {
           include: receiptInclude,
         }),
       };
-    });
+    }, TRANSACTION_OPTIONS);
 
     if ("error" in result) {
       return NextResponse.json(

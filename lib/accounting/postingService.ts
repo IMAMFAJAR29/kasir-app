@@ -34,8 +34,7 @@ export async function getAccountIdByCode(code: string, tx: DbClient = prisma): P
   });
 
   if (!account) {
-    // Inisialisasi default accounts jika belum ada
-    await ensureDefaultAccountsExist();
+    await ensureDefaultAccountsExist(tx);
     account = await tx.account.findUnique({
       where: { code },
       select: { id: true },

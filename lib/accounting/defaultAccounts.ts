@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 
 export interface DefaultAccountDef {
@@ -140,9 +141,11 @@ export const DEFAULT_ACCOUNTS: DefaultAccountDef[] = [
   },
 ];
 
-export async function ensureDefaultAccountsExist() {
+export async function ensureDefaultAccountsExist(
+  tx: Prisma.TransactionClient | typeof prisma = prisma
+) {
   for (const acc of DEFAULT_ACCOUNTS) {
-    await prisma.account.upsert({
+    await tx.account.upsert({
       where: { code: acc.code },
       update: {
         name: acc.name,

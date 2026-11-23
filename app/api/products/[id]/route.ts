@@ -1,4 +1,4 @@
-import prisma from "@/lib/prisma";
+import prisma, { TRANSACTION_OPTIONS } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
@@ -170,7 +170,7 @@ export async function PUT(req: Request, context: RouteContext) {
         where: { id },
         include: { category: true },
       });
-    });
+    }, TRANSACTION_OPTIONS);
 
     return NextResponse.json(updated, { status: 200 });
   } catch (err) {
@@ -262,7 +262,7 @@ export async function DELETE(req: Request, context: RouteContext) {
     await prisma.$transaction(async (tx) => {
       await tx.productStock.deleteMany({ where: { productId: id } });
       await tx.product.delete({ where: { id } });
-    });
+    }, TRANSACTION_OPTIONS);
 
     return NextResponse.json(
       { message: "Produk berhasil dihapus" },

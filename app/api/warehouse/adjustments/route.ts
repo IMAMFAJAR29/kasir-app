@@ -1,4 +1,4 @@
-import prisma from "@/lib/prisma";
+import prisma, { TRANSACTION_OPTIONS } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { processStockAdjustmentAccounting } from "@/lib/accounting/adjustmentAccounting";
 import { getLocationStockQuantity, setStockAtLocation } from "@/lib/productStock";
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       );
 
       return createdAdjustment;
-    });
+    }, TRANSACTION_OPTIONS);
 
     return NextResponse.json({
       message: "Penyesuaian stok berhasil",
