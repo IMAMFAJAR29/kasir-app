@@ -7,7 +7,6 @@ interface ProductCardProps {
   onEdit?: () => void;
   onPrintBarcode?: () => void;
   onDelete?: () => void;
-  onConvertToBundle?: () => void;
 }
 
 export default function ProductCard({
@@ -15,7 +14,6 @@ export default function ProductCard({
   onEdit,
   onPrintBarcode,
   onDelete,
-  onConvertToBundle,
 }: ProductCardProps) {
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 5;
@@ -108,17 +106,6 @@ export default function ProductCard({
           >
             <Edit2 size={13} />
             <span>Edit</span>
-          </button>
-        )}
-
-        {onConvertToBundle && !product.isBundle && (
-          <button
-            type="button"
-            onClick={onConvertToBundle}
-            title="Ubah jenis menjadi produk bundle"
-            className="p-2 text-xs font-medium border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 rounded-xl transition cursor-pointer active:scale-95"
-          >
-            <Boxes size={15} />
           </button>
         )}
 
