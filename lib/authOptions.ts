@@ -17,9 +17,13 @@ import {
   recordAdminLoginFailure,
 } from "@/lib/adminLoginRateLimit";
 import { authenticatePasswordUser } from "@/lib/authenticateUser";
+import { getMasterOwner } from "@/lib/userOwnership";
 
 const DUMMY_PIN_HASH =
   "$2b$12$m2zY1muuMEIsflosdWFRhOGtNKt/u5t.iuk7fIii20Bv1U6kcmkgu";
+
+/** Redirect kembali ke halaman login dengan kode error yang bisa dibaca UI. */
+const authError = (code: string) => `/auth?error=${code}`;
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -37,6 +41,8 @@ export const authOptions: NextAuthOptions = {
         area: { label: "Area aplikasi", type: "text" },
       },
       async authorize(credentials, request) {
+        // Area "cashier" menandai login NIK + PIN. Dipakai oleh kasir maupun
+        // administrator yang dibuat oleh pemilik utama (bukan akun master).
         if (credentials?.area === "cashier") {
           const nik =
             typeof credentials.nik === "string"
@@ -69,13 +75,21 @@ export const authOptions: NextAuthOptions = {
             user?.pinHash || DUMMY_PIN_HASH
           );
           const permissions = normalizePermissions(user?.permissions);
+          const roleAllowed = user?.role === "CASHIER" || user?.role === "ADMIN";
+          const permissionAllowed = user
+            ? user.role === "CASHIER"
+              ? hasPermission(user.role, permissions, "pos", "view")
+              : hasPermission(user.role, permissions, "dashboard", "view") ||
+                hasPermission(user.role, permissions, "systemSettings", "view") ||
+                hasPermission(user.role, permissions, "pos", "view")
+            : false;
           if (
             !user ||
             !pinMatches ||
             !user.isActive ||
-            user.role !== "CASHIER" ||
             !user.pinHash ||
-            !hasPermission(user.role, permissions, "pos", "view")
+            !roleAllowed ||
+            !permissionAllowed
           ) {
             await recordCashierLoginFailure(nik, clientIp, Boolean(user));
             return null;
@@ -116,6 +130,15 @@ export const authOptions: NextAuthOptions = {
 
         if (await isAdminLoginLocked(email, clientIp)) return null;
 
+        // Login email + password hanya untuk pemilik utama (master).
+        // Akun admin/kasir lain wajib memakai NIK & PIN.
+        const master = await getMasterOwner();
+        const masterEmail = master?.email?.trim().toLowerCase() || "";
+        if (!masterEmail || email !== masterEmail) {
+          await recordAdminLoginFailure(email, clientIp, false);
+          return null;
+        }
+
         const result = await authenticatePasswordUser(email, password, area);
         if (!result.ok) {
           if (result.reason === "invalid") {
@@ -139,40 +162,75 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   pages: { signIn: "/auth" },
   callbacks: {
-    async signIn({ user, account }) {
-      if (account?.provider !== "google" || !user.email) return true;
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== "google") return true;
 
-      const email = user.email.trim().toLowerCase();
+      const email = user.email?.trim().toLowerCase() || "";
+      if (!email) return authError("GoogleEmailMissing");
+      if (
+        (profile as { email_verified?: boolean } | undefined)?.email_verified ===
+        false
+      ) {
+        return authError("GoogleEmailUnverified");
+      }
+
+      const master = await getMasterOwner();
+
+      // Belum ada akun sama sekali → login Google pertama menjadi pemilik utama.
+      if (!master) {
+        if (process.env.ALLOW_GOOGLE_ADMIN_BOOTSTRAP === "false") {
+          return authError("GoogleBootstrapDisabled");
+        }
+        const deletedEmailHash = createHash("sha256")
+          .update(email)
+          .digest("hex");
+        const deletedUser = await prisma.user.findFirst({
+          where: { deletedEmailHash },
+          select: { id: true },
+        });
+        if (deletedUser) return authError("AccountDeleted");
+
+        await prisma.user.create({
+          data: {
+            name: user.name || email,
+            email,
+            password: await bcrypt.hash(
+              randomBytes(32).toString("hex"),
+              10
+            ),
+            role: "ADMIN",
+          },
+        });
+        return true;
+      }
+
+      const masterEmail = master.email?.trim().toLowerCase() || "";
+      if (masterEmail && email === masterEmail) {
+        if (!master.isActive) return authError("AccountInactive");
+        if (master.role !== "ADMIN") return authError("MasterNotAdmin");
+        return true;
+      }
+
+      // Akun lain harus sudah terdaftar dan aktif. Google login hanya untuk
+      // administrator; kasir tetap wajib memakai NIK & PIN.
       const existingUser = await prisma.user.findUnique({
         where: { email },
         select: { isActive: true, role: true },
       });
-      if (existingUser) {
-        return existingUser.isActive && existingUser.role === "ADMIN";
+      if (existingUser && !existingUser.isActive) {
+        return authError("AccountInactive");
       }
-      const deletedEmailHash = createHash("sha256")
-        .update(email)
-        .digest("hex");
+      if (existingUser?.role === "ADMIN") return true;
+      if (existingUser) return authError("GoogleMasterOnly");
+
+      const deletedEmailHash = createHash("sha256").update(email).digest("hex");
       const deletedUser = await prisma.user.findFirst({
         where: { deletedEmailHash },
         select: { id: true },
       });
-      if (deletedUser) return false;
+      if (deletedUser) return authError("AccountDeleted");
 
-      const firstUser = (await prisma.user.count()) === 0;
-      const bootstrapAllowed =
-        process.env.ALLOW_GOOGLE_ADMIN_BOOTSTRAP !== "false";
-      if (!firstUser || !bootstrapAllowed) return false;
-      const password = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
-      await prisma.user.create({
-        data: {
-          name: user.name || user.email,
-          email,
-          password,
-          role: "ADMIN",
-        },
-      });
-      return true;
+      return authError("GoogleMasterOnly");
     },
     async jwt({ token, user }) {
       if (user?.authMethod) token.authMethod = user.authMethod;

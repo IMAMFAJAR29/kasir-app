@@ -9,13 +9,16 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await getServerSession(authOptions);
+  // Menutup shift adalah hak kasir atas shift miliknya sendiri. Cukup izin
+  // `pos.view`; route ini tetap dibatasi oleh `userId` pada klausa `where`,
+  // sehingga tidak bisa menutup shift pengguna lain.
   if (
     !auth?.user?.id ||
     !hasPermission(
       auth.user.role,
       auth.user.permissions,
       "pos",
-      "update"
+      "view"
     )
   ) {
     return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });

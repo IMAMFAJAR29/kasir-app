@@ -53,6 +53,7 @@ model Product {
   actualReceiptItems   PurchaseReceiptItem[] @relation("ActualReceiptProduct")
   bom          Bom?                  @relation("ProductBom")
   componentOf  BomComponent[]        @relation("BomComponentProduct")
+  transferItems StockTransferItem[]
 }
 
 //
@@ -108,6 +109,101 @@ model Location {
   invoices    Invoice[]
   purchases   Purchase[]
   journalLines JournalEntryLine[]
+
+  registers               PosRegister[]        @relation("RegisterLocation")
+  registersAsWarehouse    PosRegister[]        @relation("RegisterWarehouse")
+  cashSessions            CashSession[]        @relation("CashSessionLocation")
+  cashSessionsAsWarehouse CashSession[]        @relation("CashSessionWarehouse")
+  userAccess              UserLocationAccess[]
+  transfersOut            StockTransfer[]      @relation("TransferFrom")
+  transfersIn             StockTransfer[]      @relation("TransferTo")
+}
+
+//
+// ===========================================================
+// STOCK TRANSFER (Perpindahan stok antar gudang)
+// ===========================================================
+// Mengurangi stok di gudang asal dan menambah di gudang tujuan dalam satu
+// transaksi. Produk bundle tidak dapat ditransfer langsung; pindahkan
+// komponennya.
+model StockTransfer {
+  id             Int      @id @default(autoincrement())
+  no             String   @unique
+  date           DateTime @default(now())
+  fromLocationId Int
+  toLocationId   Int
+  note           String?
+  status         String   @default("POSTED")
+  createdBy      String?
+  createdAt      DateTime @default(now())
+
+  fromLocation Location            @relation("TransferFrom", fields: [fromLocationId], references: [id], onDelete: Restrict)
+  toLocation   Location            @relation("TransferTo", fields: [toLocationId], references: [id], onDelete: Restrict)
+  items        StockTransferItem[]
+
+  @@index([fromLocationId, date])
+  @@index([toLocationId, date])
+  @@map("stock_transfers")
+}
+
+model StockTransferItem {
+  id         Int     @id @default(autoincrement())
+  transferId Int
+  productId  Int
+  qty        Int
+  costPrice  Decimal @default(0.00)
+
+  transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  product  Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([transferId, productId])
+  @@index([productId])
+  @@map("stock_transfer_items")
+}
+
+//
+// ===========================================================
+// POS REGISTER (Mesin Kasir)
+// ===========================================================
+// Satu outlet (Location) dapat memiliki banyak mesin kasir.
+// Setiap mesin menunjuk satu gudang stok (warehouseId) yang dipakai
+// sebagai sumber pengurangan stok transaksi POS. Satu gudang boleh
+// dipakai oleh beberapa mesin kasir.
+model PosRegister {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String
+  locationId  Int
+  warehouseId Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  location     Location      @relation("RegisterLocation", fields: [locationId], references: [id], onDelete: Restrict)
+  warehouse    Location      @relation("RegisterWarehouse", fields: [warehouseId], references: [id], onDelete: Restrict)
+  cashSessions CashSession[]
+
+  @@unique([locationId, code])
+  @@index([locationId])
+  @@index([warehouseId])
+  @@map("pos_registers")
+}
+
+//
+// ===========================================================
+// USER LOCATION ACCESS (Pembatasan kasir per outlet)
+// ===========================================================
+// Tanpa baris = pengguna boleh mengakses semua outlet (perilaku lama).
+model UserLocationAccess {
+  userId     String
+  locationId Int
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, locationId])
+  @@index([locationId])
+  @@map("user_location_access")
 }
 
 //
@@ -419,6 +515,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   cashSessions CashSession[]
+  locationAccess UserLocationAccess[]
 
   @@index([deletedEmailHash])
 }
@@ -434,17 +531,25 @@ model CashierLoginAttempt {
 model CashSession {
   id          String    @id @default(uuid())
   userId      String
+  registerId  Int?
+  locationId  Int?
+  warehouseId Int?
   openingCash Decimal   @default(0.00)
   closingCash Decimal?
   openedAt    DateTime  @default(now())
   closedAt    DateTime?
   notes       String?
 
-  user  User   @relation(fields: [userId], references: [id], onDelete: Restrict)
-  sales Sale[]
+  user      User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  register  PosRegister? @relation(fields: [registerId], references: [id], onDelete: Restrict)
+  location  Location?    @relation("CashSessionLocation", fields: [locationId], references: [id], onDelete: Restrict)
+  warehouse Location?    @relation("CashSessionWarehouse", fields: [warehouseId], references: [id], onDelete: Restrict)
+  sales     Sale[]
 
   @@index([userId, openedAt])
   @@index([closedAt])
+  @@index([registerId, closedAt])
+  @@index([locationId])
   @@map("cash_sessions")
 }
 

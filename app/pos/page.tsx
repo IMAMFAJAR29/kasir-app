@@ -28,6 +28,12 @@ interface CashSession {
   openingCash: number;
   expectedCash: number;
   openedAt: string;
+  registerId?: number | null;
+  locationId?: number | null;
+  warehouseId?: number | null;
+  register?: { id: number; name: string; code: string } | null;
+  location?: { id: number; name: string } | null;
+  warehouse?: { id: number; name: string } | null;
 }
 
 interface QueuedSale {
@@ -89,6 +95,12 @@ export default function PosPage() {
   const [showPinFields, setShowPinFields] = useState(false);
   const [isChangingPin, setIsChangingPin] = useState(false);
   const [pinError, setPinError] = useState("");
+  const [registerId, setRegisterId] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const param = new URLSearchParams(window.location.search).get("registerId");
+    const parsed = param ? Number(param) : null;
+    return parsed && Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+  });
   const syncingRef = useRef(false);
   const initializedKeyRef = useRef<string | null>(null);
   const previousOnlineRef = useRef(true);
@@ -99,7 +111,7 @@ export default function PosPage() {
         ? cachedIdentity
         : null;
   const storageKey = identity?.id
-    ? `anima-pos:v1:${identity.id}`
+    ? `anima-pos:v1:${identity.id}${registerId !== null ? `:register-${registerId}` : ""}`
     : null;
 
   const total = useMemo(
@@ -169,6 +181,40 @@ export default function PosPage() {
     setIsPinModalOpen(true);
   };
 
+  /**
+   * Muat katalog POS. Jika shift terikat mesin kasir, stok yang ditampilkan
+   * adalah stok gudang mesin tersebut agar kasir tidak menjual barang yang
+   * tidak tersedia di gudangnya.
+   */
+  const loadProducts = useCallback(
+    async (warehouseId?: number | null): Promise<Product[]> => {
+      const productsResponse = await fetch("/api/products");
+      if (!productsResponse.ok) {
+        throw new Error(`Gagal memuat produk (${productsResponse.status})`);
+      }
+      const loadedProducts = await productsResponse.json();
+      if (!Array.isArray(loadedProducts)) {
+        throw new Error("Data produk dari server tidak valid");
+      }
+      if (!warehouseId) return loadedProducts as Product[];
+
+      const stockResponse = await fetch(
+        `/api/warehouse/stock?locationId=${warehouseId}`
+      );
+      if (!stockResponse.ok) return loadedProducts as Product[];
+      const stockRows: Array<{ id: number; stock: number }> =
+        await stockResponse.json();
+      const stockByProductId = new Map(
+        stockRows.map((row) => [row.id, row.stock])
+      );
+      return (loadedProducts as Product[]).map((product) => ({
+        ...product,
+        stock: stockByProductId.get(product.id) ?? 0,
+      }));
+    },
+    []
+  );
+
   const persistState = useCallback(
     (updates: Partial<StoredPosState>) => {
       if (!storageKey) return;
@@ -235,7 +281,11 @@ export default function PosPage() {
           }
         }
         if (syncedAll && queue.length > 0 && navigator.onLine) {
-          const sessionResponse = await fetch("/api/cash-sessions/current");
+          const sessionResponse = await fetch(
+            registerId !== null
+              ? `/api/cash-sessions/current?registerId=${registerId}`
+              : "/api/cash-sessions/current"
+          );
           if (sessionResponse.ok) {
             const sessionResult = await sessionResponse.json();
             setCashSession(sessionResult.session);
@@ -251,7 +301,7 @@ export default function PosPage() {
         setIsSynchronizing(false);
       }
     },
-    [persistState, storageKey]
+    [persistState, registerId, storageKey]
   );
 
   useEffect(() => {
@@ -367,24 +417,19 @@ export default function PosPage() {
       if (!navigator.onLine) return;
 
       try {
-        const [productsResponse, sessionResponse] = await Promise.all([
-          fetch("/api/products"),
-          fetch("/api/cash-sessions/current"),
-        ]);
-        if (!productsResponse.ok) {
-          throw new Error(`Gagal memuat produk (${productsResponse.status})`);
-        }
+        const sessionUrl =
+          registerId !== null
+            ? `/api/cash-sessions/current?registerId=${registerId}`
+            : "/api/cash-sessions/current";
+        const sessionResponse = await fetch(sessionUrl);
         if (!sessionResponse.ok) {
           throw new Error(`Gagal memuat shift kasir (${sessionResponse.status})`);
         }
-        const [loadedProducts, sessionResult] = await Promise.all([
-          productsResponse.json(),
-          sessionResponse.json(),
-        ]);
+        const sessionResult = await sessionResponse.json();
+        const loadedProducts = await loadProducts(
+          sessionResult.session?.warehouseId ?? null
+        );
         if (cancelled) return;
-        if (!Array.isArray(loadedProducts)) {
-          throw new Error("Data produk dari server tidak valid");
-        }
         setProducts(loadedProducts);
         setCashSession(sessionResult.session);
         persistState({
@@ -405,7 +450,7 @@ export default function PosPage() {
     return () => {
       cancelled = true;
     };
-  }, [persistState, status, storageKey]);
+  }, [loadProducts, persistState, registerId, status, storageKey]);
 
   useEffect(() => {
     const wasOffline = !previousOnlineRef.current;
@@ -414,20 +459,18 @@ export default function PosPage() {
 
     const refreshOnlineData = async () => {
       try {
-        const [productsResponse, sessionResponse] = await Promise.all([
-          fetch("/api/products"),
-          fetch("/api/cash-sessions/current"),
-        ]);
-        if (!productsResponse.ok || !sessionResponse.ok) {
+        const sessionUrl =
+          registerId !== null
+            ? `/api/cash-sessions/current?registerId=${registerId}`
+            : "/api/cash-sessions/current";
+        const sessionResponse = await fetch(sessionUrl);
+        if (!sessionResponse.ok) {
           throw new Error("Gagal memperbarui data POS saat online.");
         }
-        const [loadedProducts, sessionResult] = await Promise.all([
-          productsResponse.json(),
-          sessionResponse.json(),
-        ]);
-        if (!Array.isArray(loadedProducts)) {
-          throw new Error("Data produk dari server tidak valid.");
-        }
+        const sessionResult = await sessionResponse.json();
+        const loadedProducts = await loadProducts(
+          sessionResult.session?.warehouseId ?? null
+        );
         setProducts(loadedProducts);
         setCashSession(sessionResult.session);
         persistState({
@@ -442,7 +485,7 @@ export default function PosPage() {
       }
     };
     void refreshOnlineData();
-  }, [isOnline, isReady, persistState]);
+  }, [isOnline, isReady, loadProducts, persistState, registerId]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -504,12 +547,20 @@ export default function PosPage() {
       const response = await fetch("/api/cash-sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ openingCash: amount }),
+        body: JSON.stringify({
+          openingCash: amount,
+          ...(registerId !== null ? { registerId } : {}),
+        }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Gagal membuka shift.");
       setCashSession(result.session);
       setOpeningCash("");
+      if (result.session?.warehouseId) {
+        const refreshed = await loadProducts(result.session.warehouseId);
+        setProducts(refreshed);
+        persistState({ products: refreshed });
+      }
     } catch (error) {
       await Swal.fire(
         "Shift belum dibuka",

@@ -10,11 +10,13 @@ import {
   Building2,
   CheckCircle2,
   XCircle,
-  Search
+  Search,
+  MonitorSmartphone
 } from "lucide-react";
 import Swal from "sweetalert2";
 import Button from "@/components/Button";
 import { Badge } from "@/components/ui/badge";
+import RegisterManager from "@/components/pos/back-office/RegisterManager";
 
 interface Location {
   id: number;
@@ -29,6 +31,7 @@ export default function LocationsPage() {
   const [address, setAddress] = useState("");
   const [search, setSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registerOutletId, setRegisterOutletId] = useState<number | null>(null);
 
   const fetchLocations = async () => {
     const res = await fetch("/api/locations");
@@ -347,6 +350,21 @@ export default function LocationsPage() {
 
                       <div className="flex items-center gap-1">
                         <button
+                          onClick={() =>
+                            setRegisterOutletId((current) =>
+                              current === loc.id ? null : loc.id
+                            )
+                          }
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            registerOutletId === loc.id
+                              ? "text-indigo-700 bg-indigo-50"
+                              : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                          }`}
+                          title="Kelola mesin kasir"
+                        >
+                          <MonitorSmartphone className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleEdit(loc)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                           title="Edit Lokasi"
@@ -398,6 +416,17 @@ export default function LocationsPage() {
           )}
         </div>
       </div>
+
+      {registerOutletId !== null && (
+        <RegisterManager
+          outletId={registerOutletId}
+          outlets={locations.map((loc) => ({
+            id: loc.id,
+            name: loc.name,
+            isActive: loc.isActive,
+          }))}
+        />
+      )}
     </div>
   );
 }

@@ -25,7 +25,7 @@ export default function HomeRedirect() {
               "pos",
               "view"
             )
-          ? "/pos"
+          ? "/pos/back-office"
           : "/auth";
       router.replace(destination);
     } else if (status === "unauthenticated") {

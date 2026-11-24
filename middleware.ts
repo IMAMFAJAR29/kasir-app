@@ -1,6 +1,11 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { getRequiredPermission, hasPermission } from "@/lib/permissions";
+import {
+  getRequiredPermission,
+  hasPermission,
+  canReadPosSupportData,
+  canManagePosRegisters,
+} from "@/lib/permissions";
 
 export default withAuth(
   function middleware(request) {
@@ -13,9 +18,9 @@ export default withAuth(
       if (isApiRoute) {
         return NextResponse.json({ error: "Autentikasi diperlukan" }, { status: 401 });
       }
-      if (pathname === "/pos") {
+      if (pathname === "/pos" || pathname.startsWith("/pos/")) {
         const authUrl = new URL("/auth", request.url);
-        authUrl.searchParams.set("redirect", "/pos");
+        authUrl.searchParams.set("redirect", "/pos/back-office");
         return NextResponse.redirect(authUrl);
       }
       return NextResponse.redirect(new URL("/auth", request.url));
@@ -35,18 +40,18 @@ export default withAuth(
           { status: 401 }
         );
       }
-      return NextResponse.redirect(new URL("/auth?redirect=%2Fpos", request.url));
+      return NextResponse.redirect(new URL("/auth?redirect=%2Fpos%2Fback-office", request.url));
     }
 
     if (pathname === "/") {
       if (token.role === "CASHIER") {
-        return NextResponse.redirect(new URL("/pos", request.url));
+        return NextResponse.redirect(new URL("/pos/back-office", request.url));
       }
       if (hasPermission(token.role, token.permissions, "dashboard", "view")) {
         return NextResponse.redirect(new URL("/admin/dashboard", request.url));
       }
       if (hasPermission(token.role, token.permissions, "pos", "view")) {
-        return NextResponse.redirect(new URL("/pos", request.url));
+        return NextResponse.redirect(new URL("/pos/back-office", request.url));
       }
       if (hasPermission(token.role, token.permissions, "systemSettings", "view")) {
         return NextResponse.redirect(new URL("/admin/settings", request.url));
@@ -55,14 +60,19 @@ export default withAuth(
     }
 
     const requiredPermission = getRequiredPermission(pathname, method);
+    const isRegisterWrite =
+      /^\/api\/pos-registers(?:\/|$)/.test(pathname) && method !== "GET";
     const isAllowed =
-      requiredPermission &&
-      hasPermission(
-        token.role,
-        token.permissions,
-        requiredPermission.module,
-        requiredPermission.action
-      );
+      (requiredPermission &&
+        hasPermission(
+          token.role,
+          token.permissions,
+          requiredPermission.module,
+          requiredPermission.action
+        ) &&
+        (!isRegisterWrite ||
+          canManagePosRegisters(token.role, token.permissions, method))) ||
+      canReadPosSupportData(token.role, token.permissions, pathname, method);
     if (isAllowed) return NextResponse.next();
 
     if (isApiRoute) {

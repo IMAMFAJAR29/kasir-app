@@ -12,7 +12,7 @@ export interface JournalLineInput {
 
 export interface CreateJournalEntryParams {
   transactionDate?: Date;
-  sourceType: "SALE" | "INVOICE" | "RECEIPT" | "ADJUSTMENT" | "PAYMENT" | "MANUAL";
+  sourceType: "SALE" | "INVOICE" | "RECEIPT" | "ADJUSTMENT" | "PAYMENT" | "TRANSFER" | "MANUAL";
   sourceId?: string;
   description: string;
   lines: JournalLineInput[];

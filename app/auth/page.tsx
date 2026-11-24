@@ -31,13 +31,47 @@ export default function AuthPage() {
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search).get("redirect") || "/admin/dashboard"
       : "/admin/dashboard";
+  // Login kasir maupun tombol "Buka Kasir" milik Owner sama-sama melewati
+  // Cashier Back Office sebelum masuk ke layar penjualan.
+  const wantsPos =
+    redirectTarget === "/pos" || redirectTarget.startsWith("/pos/back-office");
+
+  // Tampilkan alasan penolakan login Google yang dikirim NextAuth via ?error=.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("error");
+    if (!code) return;
+    const messages: Record<string, string> = {
+      GoogleMasterOnly:
+        "Akun Google ini bukan pemilik utama. Gunakan NIK dan PIN untuk masuk.",
+      AccountInactive: "Akun ini sudah dinonaktifkan oleh administrator.",
+      AccountDeleted: "Akun dengan email ini sudah dihapus dan tidak dapat dipakai lagi.",
+      GoogleEmailMissing: "Akun Google tidak memiliki alamat email.",
+      GoogleEmailUnverified: "Email Google belum diverifikasi.",
+      GoogleBootstrapDisabled:
+        "Login Google sebagai pemilik utama sedang dinonaktifkan.",
+      MasterNotAdmin: "Akun pemilik utama tidak memiliki peran administrator.",
+      AccessDenied: "Akses login Google ditolak. Pastikan akun Anda terdaftar sebagai administrator.",
+      OAuthCallback: "Google menolak proses login. Periksa konfigurasi OAuth atau coba lagi.",
+      OAuthSignin: "Tidak dapat memulai login Google. Coba lagi beberapa saat.",
+      Configuration: "Konfigurasi autentikasi Google belum lengkap.",
+    };
+    void Swal.fire({
+      icon: "error",
+      title: "Gagal Masuk dengan Google",
+      text: messages[code] || `Login Google gagal (${code}).`,
+      confirmButtonColor: "#1769e0",
+    });
+    const url = new URL(window.location.href);
+    url.searchParams.delete("error");
+    window.history.replaceState({}, "", url.toString());
+  }, []);
 
   // State utama
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginRole, setLoginRole] = useState<LoginRole>(
-    redirectTarget === "/pos" ? "CASHIER" : "ADMIN"
+    wantsPos ? "CASHIER" : "ADMIN"
   );
   const [form, setForm] = useState({
     name: "",
@@ -81,7 +115,7 @@ export default function AuthPage() {
     ) {
       const destination =
         loginRole === "CASHIER"
-          ? "/pos"
+          ? "/pos/back-office"
           : hasPermission(
                 session?.user?.role,
                 session?.user?.permissions,
@@ -149,8 +183,8 @@ export default function AuthPage() {
 
         if (result?.ok) {
           const destination =
-            redirectTarget === "/pos" || loginRole === "CASHIER"
-              ? "/pos"
+            wantsPos || loginRole === "CASHIER"
+              ? "/pos/back-office"
               : "/admin/dashboard";
 
           // ✅ Tunggu session benar-benar aktif sebelum redirect

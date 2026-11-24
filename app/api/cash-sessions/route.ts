@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/authOptions";
 import prisma from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
+import { canAccessLocation, loadRegisterContext } from "@/lib/posAccess";
 
 export async function POST(request: Request) {
   const auth = await getServerSession(authOptions);
@@ -18,10 +19,84 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
-  const body = await request.json();
-  const openingCash = Number(body.openingCash);
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Data permintaan tidak valid" }, { status: 400 });
+  }
+  const source = (body ?? {}) as Record<string, unknown>;
+  const openingCash = Number(source.openingCash);
   if (!Number.isFinite(openingCash) || openingCash < 0) {
     return NextResponse.json({ error: "Modal awal tidak valid" }, { status: 400 });
+  }
+
+  // registerId opsional untuk kompatibilitas, tetapi Cashier Back Office
+  // selalu mengirimkannya. Tanpa register, shift memakai konteks lama.
+  const registerId =
+    source.registerId === undefined || source.registerId === null
+      ? null
+      : Number(source.registerId);
+  if (registerId !== null && (!Number.isSafeInteger(registerId) || registerId <= 0)) {
+    return NextResponse.json({ error: "Mesin kasir tidak valid" }, { status: 400 });
+  }
+
+  let locationId: number | null = null;
+  let warehouseId: number | null = null;
+
+  if (registerId !== null) {
+    const register = await loadRegisterContext(prisma, registerId);
+    if (!register) {
+      return NextResponse.json({ error: "Mesin kasir tidak ditemukan" }, { status: 404 });
+    }
+    if (!register.isActive) {
+      return NextResponse.json({ error: "Mesin kasir tidak aktif" }, { status: 409 });
+    }
+    if (!register.location.isActive || !register.warehouse.isActive) {
+      return NextResponse.json(
+        { error: "Outlet atau gudang mesin kasir tidak aktif" },
+        { status: 409 }
+      );
+    }
+    if (
+      !(await canAccessLocation(
+        prisma,
+        auth.user.id,
+        auth.user.role,
+        register.locationId
+      ))
+    ) {
+      return NextResponse.json(
+        { error: "Anda tidak memiliki akses ke outlet mesin ini" },
+        { status: 403 }
+      );
+    }
+
+    // Mesin hanya boleh dipakai satu kasir pada satu waktu.
+    const occupied = await prisma.cashSession.findFirst({
+      where: { registerId, closedAt: null },
+      select: { id: true, userId: true, user: { select: { name: true } } },
+    });
+    if (occupied) {
+      if (occupied.userId === auth.user.id) {
+        return NextResponse.json(
+          {
+            error: "Anda sudah membuka shift di mesin ini",
+            sessionId: occupied.id,
+          },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(
+        {
+          error: `Mesin kasir sedang digunakan oleh ${occupied.user.name}`,
+        },
+        { status: 409 }
+      );
+    }
+
+    locationId = register.locationId;
+    warehouseId = register.warehouseId;
   }
 
   try {
@@ -29,6 +104,9 @@ export async function POST(request: Request) {
       data: {
         userId: auth.user.id,
         openingCash,
+        registerId,
+        locationId,
+        warehouseId,
       },
     });
 
@@ -39,6 +117,9 @@ export async function POST(request: Request) {
           openingCash: Number(cashSession.openingCash),
           openedAt: cashSession.openedAt,
           expectedCash: Number(cashSession.openingCash),
+          registerId: cashSession.registerId,
+          locationId: cashSession.locationId,
+          warehouseId: cashSession.warehouseId,
         },
       },
       { status: 201 }
@@ -51,7 +132,11 @@ export async function POST(request: Request) {
       error.code === "P2002"
     ) {
       return NextResponse.json(
-        { error: "Anda sudah memiliki shift kasir yang masih terbuka" },
+        {
+          error: registerId
+            ? "Shift Anda masih terbuka di mesin lain. Tutup shift tersebut sebelum membuka kasir di mesin ini."
+            : "Anda sudah memiliki shift kasir yang masih terbuka",
+        },
         { status: 409 }
       );
     }
@@ -83,7 +168,11 @@ export async function GET() {
         { closedAt: { gte: startOfToday } },
       ],
     },
-    include: { user: { select: { id: true, name: true, email: true } } },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      register: { select: { id: true, name: true, code: true } },
+      location: { select: { id: true, name: true } },
+    },
     orderBy: { openedAt: "desc" },
     take: 100,
   });
@@ -111,6 +200,8 @@ export async function GET() {
       return {
         id: cashSession.id,
         cashier: cashSession.user,
+        register: cashSession.register,
+        location: cashSession.location,
         openingCash: Number(cashSession.openingCash),
         expectedCash,
         closingCash:

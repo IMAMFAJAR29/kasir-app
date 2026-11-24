@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { computeBundleStock } from "@/lib/bom";
+import { authOptions } from "@/lib/authOptions";
+import { canAccessLocation } from "@/lib/posAccess";
 
 // Interface ProductStock
 interface ProductStock {
@@ -27,6 +30,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         { error: "locationId must be a number" },
         { status: 400 }
+      );
+    }
+
+    // Kasir hanya boleh membaca stok gudang yang menjadi hak outletnya.
+    const session = await getServerSession(authOptions);
+    if (
+      session?.user?.id &&
+      !(await canAccessLocation(
+        prisma,
+        session.user.id,
+        session.user.role,
+        locationId
+      ))
+    ) {
+      return NextResponse.json(
+        { error: "Anda tidak memiliki akses ke gudang ini" },
+        { status: 403 }
       );
     }
 

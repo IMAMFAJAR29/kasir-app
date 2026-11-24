@@ -84,16 +84,35 @@ async function createSale(body, userId) {
     const sale = await prisma.$transaction(async (tx) => {
       const activeSession = await tx.cashSession.findFirst({
         where: { id: cashSessionId, userId, closedAt: null },
+        select: { id: true, registerId: true, locationId: true, warehouseId: true },
       });
       if (!activeSession) {
         throw new Error("SHIFT_CLOSED");
       }
 
-      const defaultLocation = await tx.location.findFirst({
-        where: { isActive: true },
-        orderBy: { id: "asc" },
-        select: { id: true },
-      });
+      // Shift yang dibuka lewat Cashier Back Office sudah membawa konteks
+      // outlet + gudang mesin. Transaksi wajib memakai gudang tersebut dan
+      // tidak boleh mengambil stok dari gudang lain. Shift lama (tanpa
+      // register) tetap memakai perilaku sebelumnya agar tidak memutus
+      // transaksi yang sedang berjalan.
+      const boundToRegister = activeSession.registerId !== null;
+      const stockLocationId = boundToRegister
+        ? activeSession.warehouseId
+        : (
+            await tx.location.findFirst({
+              where: { isActive: true },
+              orderBy: { id: "asc" },
+              select: { id: true },
+            })
+          )?.id ?? null;
+      const saleLocationId = boundToRegister
+        ? activeSession.locationId
+        : stockLocationId;
+      const allowOtherLocations = !boundToRegister;
+
+      if (boundToRegister && !stockLocationId) {
+        throw new Error("REGISTER_WAREHOUSE_MISSING");
+      }
 
       const createdSale = await tx.sale.create({
         data: {
@@ -103,7 +122,7 @@ async function createSale(body, userId) {
           change: method === "cash" ? paymentAmount - total : 0,
           cashSessionId,
           clientTransactionId,
-          locationId: defaultLocation?.id ?? null,
+          locationId: saleLocationId,
           items: {
             create: normalizedItems.map((item) => ({
               productId: item.productId,
@@ -124,6 +143,7 @@ async function createSale(body, userId) {
         data: {
           invoiceNumber,
           saleId: createdSale.id,
+          locationId: saleLocationId,
           totalAmount: createdSale.total,
           paidAmount: createdSale.payment ?? 0,
           status: method === "cash" ? "paid" : "unpaid",
@@ -157,10 +177,10 @@ async function createSale(body, userId) {
       for (const line of consumption) {
         await decrementStockAtLocation(tx, {
           productId: line.productId,
-          locationId: defaultLocation?.id ?? null,
+          locationId: stockLocationId,
           qty: line.qty,
           productName: productNames.get(line.productId),
-          allowOtherLocations: true,
+          allowOtherLocations,
         });
       }
 
@@ -192,16 +212,20 @@ async function createSale(body, userId) {
           debit: createdSale.total,
           credit: 0,
           description: `Penerimaan POS #${createdSale.id} (${method})`,
+          locationId: saleLocationId ?? undefined,
         },
         {
           accountCode: "4-1000", // Pendapatan Penjualan Barang
           debit: 0,
           credit: createdSale.total,
           description: `Penjualan POS #${createdSale.id}`,
+          locationId: saleLocationId ?? undefined,
         },
       ];
 
-      // Jika ada modal HPP yang dicatat
+      // Jika ada modal HPP yang dicatat.
+      // Baris persediaan memakai gudang mesin agar mutasi stok dan jurnal
+      // menunjuk lokasi fisik yang sama.
       if (totalCost > 0) {
         journalLines.push(
           {
@@ -209,12 +233,14 @@ async function createSale(body, userId) {
             debit: totalCost,
             credit: 0,
             description: `HPP Penjualan POS #${createdSale.id}`,
+            locationId: stockLocationId ?? undefined,
           },
           {
             accountCode: "1-1300", // Persediaan Barang Dagang
             debit: 0,
             credit: totalCost,
             description: `Pengurangan Persediaan POS #${createdSale.id}`,
+            locationId: stockLocationId ?? undefined,
           }
         );
       }
@@ -256,6 +282,13 @@ async function createSale(body, userId) {
     }
     if (error instanceof Error && error.message === "SHIFT_CLOSED") {
       return { error: "Shift kasir sudah ditutup", status: 409 };
+    }
+    if (error instanceof Error && error.message === "REGISTER_WAREHOUSE_MISSING") {
+      return {
+        error:
+          "Gudang mesin kasir belum dikonfigurasi. Hubungi administrator sebelum bertransaksi.",
+        status: 409,
+      };
     }
     if (error && typeof error === "object" && "code" in error) {
       if (error.code === "INSUFFICIENT_STOCK") {

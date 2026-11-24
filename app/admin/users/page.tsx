@@ -24,6 +24,13 @@ interface ManagedUser {
   createdAt: string;
   isOwner: boolean;
   isActive: boolean;
+  locationIds?: number[];
+}
+
+interface OutletOption {
+  id: number;
+  name: string;
+  isActive: boolean;
 }
 
 export default function CashierAccountsPage() {
@@ -46,6 +53,9 @@ export default function CashierAccountsPage() {
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editPermissions, setEditPermissions] = useState<UserPermissions>({});
+  const [outlets, setOutlets] = useState<OutletOption[]>([]);
+  const [locationIds, setLocationIds] = useState<number[]>([]);
+  const [editLocationIds, setEditLocationIds] = useState<number[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [savingPermissions, setSavingPermissions] = useState(false);
@@ -89,6 +99,13 @@ export default function CashierAccountsPage() {
     void loadUsers();
   }, [loadUsers]);
 
+  useEffect(() => {
+    fetch("/api/locations")
+      .then((response) => response.json())
+      .then((data) => setOutlets(Array.isArray(data) ? data : []))
+      .catch(() => setOutlets([]));
+  }, []);
+
   const createCashier = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
@@ -102,6 +119,7 @@ export default function CashierAccountsPage() {
           role,
           permissions,
           isActive,
+          ...(role === "CASHIER" ? { locationIds } : {}),
         }),
       });
       const result = await response.json();
@@ -114,6 +132,7 @@ export default function CashierAccountsPage() {
       setIsActive(true);
       setRole("CASHIER");
       setPermissions(defaultCashierPermissions);
+      setLocationIds([]);
       await loadUsers();
       await Swal.fire(
         role === "ADMIN" ? "Administrator dibuat" : "Pengguna Kasir POS dibuat",
@@ -226,6 +245,7 @@ export default function CashierAccountsPage() {
               }
             : {}),
           permissions: editPermissions,
+          ...(editingRole === "CASHIER" ? { locationIds: editLocationIds } : {}),
         }),
       });
       const result = await response.json();
@@ -405,6 +425,47 @@ export default function CashierAccountsPage() {
             </p>
             <PermissionsGrid value={permissions} onChange={setPermissions} />
         </div>
+        {role === "CASHIER" && (
+          <div className="space-y-2 sm:col-span-2">
+            <p className="text-sm font-semibold text-slate-700">
+              Akses outlet
+            </p>
+            <p className="text-xs text-slate-500">
+              Kosongkan untuk memberi akses ke semua outlet. Pilih outlet untuk
+              membatasi kasir ini.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {outlets.map((outlet) => {
+                const isSelected = locationIds.includes(outlet.id);
+                return (
+                  <button
+                    key={outlet.id}
+                    type="button"
+                    onClick={() =>
+                      setLocationIds((current) =>
+                        current.includes(outlet.id)
+                          ? current.filter((id) => id !== outlet.id)
+                          : [...current, outlet.id]
+                      )
+                    }
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                      isSelected
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {outlet.name}
+                  </button>
+                );
+              })}
+              {outlets.length === 0 && (
+                <p className="text-xs text-slate-400">
+                  Belum ada outlet terdaftar.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
         <div className="flex items-end">
           <button
             type="submit"
@@ -500,6 +561,7 @@ export default function CashierAccountsPage() {
                         setEditNik(user.nik || "");
                         setEditEmail(user.email || "");
                         setEditPassword("");
+                        setEditLocationIds(user.locationIds ?? []);
                         setEditPermissions(
                           Object.keys(user.permissions || {}).length
                             ? { ...createEmptyPermissions(), ...user.permissions }
@@ -638,6 +700,41 @@ export default function CashierAccountsPage() {
             </p>
             <PermissionsGrid value={editPermissions} onChange={setEditPermissions} />
           </div>
+          {editingRole === "CASHIER" && (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-slate-700">
+                Akses outlet
+              </p>
+              <p className="text-xs text-slate-500">
+                Kosongkan untuk memberi akses ke semua outlet.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {outlets.map((outlet) => {
+                  const isSelected = editLocationIds.includes(outlet.id);
+                  return (
+                    <button
+                      key={outlet.id}
+                      type="button"
+                      onClick={() =>
+                        setEditLocationIds((current) =>
+                          current.includes(outlet.id)
+                            ? current.filter((id) => id !== outlet.id)
+                            : [...current, outlet.id]
+                        )
+                      }
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                        isSelected
+                          ? "border-blue-500 bg-blue-50 text-blue-700"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {outlet.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <button
               type="button"

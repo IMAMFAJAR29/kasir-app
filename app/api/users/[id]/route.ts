@@ -50,10 +50,23 @@ export async function PATCH(
     return NextResponse.json({ error: "Akun tidak ditemukan" }, { status: 404 });
   }
   if (id === ownerId) {
-    return NextResponse.json(
-      { error: "Pengguna pemilik utama tidak dapat diubah." },
-      { status: 400 }
-    );
+    const blockedFields = [
+      "role",
+      "email",
+      "nik",
+      "pin",
+      "isActive",
+      "permissions",
+    ].filter((field) => body[field] !== undefined);
+    if (blockedFields.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Akun pemilik utama hanya dapat mengubah nama dan password-nya. Akun admin dan kasir dikelola dari menu yang sama.",
+        },
+        { status: 400 }
+      );
+    }
   }
 
   if (id === session.user.id && body.role && body.role !== "ADMIN") {
@@ -90,23 +103,29 @@ export async function PATCH(
     );
   }
   const resultingRole = role || user.role;
-  if (
-    resultingRole === "ADMIN" &&
-    (!email && !user.email ||
-      email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-  ) {
+  if (email !== undefined && email !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json(
-      { error: "Akun administrator memerlukan alamat email yang valid." },
+      { error: "Format email tidak valid." },
       { status: 400 }
     );
   }
   if (
     resultingRole === "ADMIN" &&
     user.role !== "ADMIN" &&
-    !password
+    !(nik || user.nik)
   ) {
     return NextResponse.json(
-      { error: "Password baru wajib diisi saat mengubah akun menjadi administrator." },
+      { error: "Akun administrator memerlukan NIK agar dapat login." },
+      { status: 400 }
+    );
+  }
+  if (
+    resultingRole === "ADMIN" &&
+    user.role !== "ADMIN" &&
+    !(pin || user.pinHash)
+  ) {
+    return NextResponse.json(
+      { error: "Akun administrator memerlukan PIN agar dapat login." },
       { status: 400 }
     );
   }
@@ -160,33 +179,59 @@ export async function PATCH(
   }
 
   try {
-    const updated = await prisma.user.update({
-      where: { id },
-      data: {
-        ...(role ? { role } : {}),
-        ...(name !== undefined ? { name } : {}),
-        ...(nik !== undefined ? { nik } : {}),
-        ...(pinHash ? { pinHash } : {}),
-        ...(resultingRole === "ADMIN" && role === "ADMIN"
-          ? { nik: null, pinHash: null }
-          : {}),
-        ...(email !== undefined ? { email } : {}),
-        ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
-        ...(typeof body.isActive === "boolean"
-          ? { isActive: body.isActive }
-          : {}),
-        ...(permissions ? { permissions } : {}),
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        nik: true,
-        role: true,
-        permissions: true,
-        isActive: true,
-        createdAt: true,
-      },
+    const locationIds: number[] | undefined =
+      body.locationIds === undefined
+        ? undefined
+        : Array.from(
+            new Set<number>(
+              (Array.isArray(body.locationIds) ? body.locationIds : [])
+                .map((entry: unknown) => Number(entry))
+                .filter((value: number) => Number.isSafeInteger(value) && value > 0)
+            )
+          );
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.user.update({
+        where: { id },
+        data: {
+          ...(role ? { role } : {}),
+          ...(name !== undefined ? { name } : {}),
+          ...(nik !== undefined ? { nik } : {}),
+          ...(pinHash ? { pinHash } : {}),
+          ...(email !== undefined && email !== "" ? { email } : {}),
+          ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
+          ...(typeof body.isActive === "boolean"
+            ? { isActive: body.isActive }
+            : {}),
+          ...(permissions ? { permissions } : {}),
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          nik: true,
+          role: true,
+          permissions: true,
+          isActive: true,
+          createdAt: true,
+        },
+      });
+
+      if (locationIds !== undefined) {
+        await tx.userLocationAccess.deleteMany({ where: { userId: id } });
+        if (locationIds.length > 0) {
+          await tx.userLocationAccess.createMany({
+            data: locationIds.map((locationId) => ({ userId: id, locationId })),
+          });
+        }
+      }
+
+      return {
+        ...result,
+        locationIds:
+          locationIds !== undefined
+            ? locationIds
+            : undefined,
+      };
     });
     if (pinHash || nik !== undefined && nik !== user.nik) {
       if (user.nik) await clearCashierLoginFailures(user.nik);

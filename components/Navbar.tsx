@@ -24,6 +24,8 @@ import {
   BookOpen,
   Scale,
   FileSpreadsheet,
+  MonitorSmartphone,
+  ArrowLeftRight,
 } from "lucide-react";
 import {
   hasPermission,
@@ -245,6 +247,16 @@ export default function Navbar() {
                       <div className="text-xs text-slate-500">Inventaris & mutasi</div>
                     </div>
                   </Link>}
+                  {canView("inventory") && <Link
+                    href="/warehouse/transfers"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <ArrowLeftRight className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Transfer Stok</div>
+                      <div className="text-xs text-slate-500">Pindah antar gudang</div>
+                    </div>
+                  </Link>}
                   {canView("warehouses") && <Link
                     href="/warehouse/locations"
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
@@ -253,6 +265,16 @@ export default function Navbar() {
                     <div>
                       <div className="font-medium">Lokasi Gudang</div>
                       <div className="text-xs text-slate-500">Cabang & penyimpanan</div>
+                    </div>
+                  </Link>}
+                  {canView("warehouses") && <Link
+                    href="/warehouse/registers"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <MonitorSmartphone className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Mesin Kasir</div>
+                      <div className="text-xs text-slate-500">Mesin & gudang stok</div>
                     </div>
                   </Link>}
                 </div>
@@ -321,11 +343,11 @@ export default function Navbar() {
 
         <div className="flex items-center gap-3">
           {canView("pos") && <Link
-            href="/pos"
+            href="/pos/back-office"
             target="_blank"
             rel="noopener noreferrer"
             className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${
-              pathname === "/pos"
+              pathname === "/pos/back-office"
                 ? "border-blue-600 bg-blue-600 text-white"
                 : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
             }`}
@@ -423,7 +445,7 @@ export default function Navbar() {
             </Link>}
 
             {canView("pos") && <Link
-              href="/pos"
+              href="/pos/back-office"
               onClick={() => setMenuOpen(false)}
               target="_blank"
               rel="noopener noreferrer"
@@ -505,6 +527,14 @@ export default function Navbar() {
                 <Layers className="h-4 w-4 text-slate-400" />
                 <span>Stok Gudang</span>
               </Link>}
+              {canView("inventory") && <Link
+                href="/warehouse/transfers"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <ArrowLeftRight className="h-4 w-4 text-slate-400" />
+                <span>Transfer Stok</span>
+              </Link>}
               {canView("warehouses") && <Link
                 href="/warehouse/locations"
                 onClick={() => setMenuOpen(false)}
@@ -512,6 +542,14 @@ export default function Navbar() {
               >
                 <Warehouse className="h-4 w-4 text-slate-400" />
                 <span>Lokasi Gudang</span>
+              </Link>}
+              {canView("warehouses") && <Link
+                href="/warehouse/registers"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <MonitorSmartphone className="h-4 w-4 text-slate-400" />
+                <span>Mesin Kasir</span>
               </Link>}
             </div>}
 

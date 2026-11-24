@@ -1,18 +1,28 @@
+import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { authOptions } from "@/lib/authOptions";
+import { getAllowedLocationIds } from "@/lib/posAccess";
 
-// GET → Ambil semua lokasi
+// GET → Ambil semua lokasi (dibatasi untuk kasir yang punya akses outlet terbatas)
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    const allowed = session?.user?.id
+      ? await getAllowedLocationIds(prisma, session.user.id)
+      : null;
+
     const locations = await prisma.location.findMany({
+      where: allowed !== null ? { id: { in: allowed } } : undefined,
       orderBy: { id: "desc" },
     });
-    return new Response(JSON.stringify(locations), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return NextResponse.json(locations, { status: 200 });
   } catch (err) {
     console.error(err);
-    return new Response("Gagal mengambil lokasi", { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal mengambil lokasi" },
+      { status: 500 }
+    );
   }
 }
 

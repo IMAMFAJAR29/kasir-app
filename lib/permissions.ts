@@ -90,6 +90,57 @@ export function hasPermission(
   return effectivePermissions?.[module]?.[action] === true;
 }
 
+/**
+ * Daftar outlet dan stok gudang dibutuhkan dua area berbeda:
+ * - Cashier Back Office/POS (modul `pos`)
+ * - Manajemen gudang (modul `warehouses` / `inventory`)
+ *
+ * Helper ini dipakai middleware agar route tidak harus dipetakan ke satu
+ * modul saja (yang akan memblokir salah satu peran).
+ */
+export function canReadPosSupportData(
+  role: string | null | undefined,
+  permissions: UserPermissions | null | undefined,
+  pathname: string,
+  method: string
+) {
+  if (method.toUpperCase() !== "GET") return false;
+  const isOutletRead =
+    pathname === "/api/locations" || pathname.startsWith("/api/locations/");
+  const isStockRead = pathname === "/api/warehouse/stock";
+  if (!isOutletRead && !isStockRead) return false;
+
+  if (hasPermission(role, permissions, "pos", "view")) return true;
+  if (isOutletRead && hasPermission(role, permissions, "warehouses", "view")) {
+    return true;
+  }
+  if (isStockRead && hasPermission(role, permissions, "inventory", "view")) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Konfigurasi mesin kasir boleh dilakukan pemilik sistem (`systemSettings`)
+ * atau pengelola gudang (`warehouses`), karena satu mesin terikat ke satu
+ * gudang stok. Kasir hanya boleh membaca daftar mesin.
+ */
+export function canManagePosRegisters(
+  role: string | null | undefined,
+  permissions: UserPermissions | null | undefined,
+  method: string
+) {
+  if (role !== "ADMIN") return false;
+  const upper = method.toUpperCase();
+  const action: PermissionAction =
+    upper === "POST" ? "create" : upper === "DELETE" ? "delete" : "update";
+
+  return (
+    hasPermission(role, permissions, "systemSettings", action) ||
+    hasPermission(role, permissions, "warehouses", action)
+  );
+}
+
 export function getRequiredPermission(
   pathname: string,
   method: string
@@ -136,10 +187,29 @@ export function getRequiredPermission(
   if (pathname === "/api/cash-sessions" && method.toUpperCase() === "POST") {
     return { module: "pos", action: "create" };
   }
+  // Menutup shift sendiri adalah operasional kasir. Route PATCH
+  // `/api/cash-sessions/[id]` membatasi `where: { userId }`, jadi cukup
+  // `pos.view` agar kasir default dapat menutup shift-nya tanpa izin update.
+  if (
+    /^\/api\/cash-sessions\/[^/]+$/.test(pathname) &&
+    method.toUpperCase() === "PATCH"
+  ) {
+    return { module: "pos", action: "view" };
+  }
   if (pathname === "/api/sales" && method.toUpperCase() === "POST") {
     return { module: "pos", action: "create" };
   }
-  if (pathname === "/pos" || pathname.startsWith("/pos/")) {
+  // Mesin kasir: kasir boleh melihat daftar (untuk Back Office), tetapi
+  // konfigurasi mesin dan gudangnya adalah wewenang administrator.
+  if (/^\/api\/pos-registers(?:\/|$)/.test(pathname)) {
+    return { module: "pos", action: "view" };
+  }
+  if (
+    pathname === "/pos/back-office" ||
+    pathname.startsWith("/pos/back-office/") ||
+    pathname === "/pos" ||
+    pathname.startsWith("/pos/")
+  ) {
     return { module: "pos", action };
   }
 
@@ -154,8 +224,8 @@ export function getRequiredPermission(
     [/^\/(?:api\/)?purchases(?:\/|$)|^\/purchases(?:\/|$)/, "purchases"],
     [/^\/(?:api\/)?invoices(?:\/|$)|^\/invoices(?:\/|$)|^\/api\/reports\/invoices(?:\/|$)/, "invoices"],
     [/^\/api\/sales(?:\/|$)/, "sales"],
-    [/^\/api\/warehouse\/(?:stock|adjustments)(?:\/|$)|^\/warehouse\/stock(?:\/|$)/, "inventory"],
-    [/^\/api\/locations(?:\/|$)|^\/warehouse\/locations(?:\/|$)/, "warehouses"],
+    [/^\/api\/warehouse\/(?:stock|adjustments|transfers)(?:\/|$)|^\/warehouse\/(?:stock|transfers)(?:\/|$)/, "inventory"],
+    [/^\/api\/locations(?:\/|$)|^\/warehouse\/locations(?:\/|$)|^\/warehouse\/registers(?:\/|$)/, "warehouses"],
     [/^\/api\/taxes(?:\/|$)/, "taxes"],
     [/^\/(?:api\/)?accounting(?:\/|$)|^\/admin\/accounting(?:\/|$)/, "accounting"],
   ];
