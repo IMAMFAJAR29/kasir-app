@@ -45,7 +45,7 @@ export default function MinimumStockPage() {
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [locationId, setLocationId] = useState<number | null>(null);
   const [rows, setRows] = useState<StockRow[]>([]);
-  const [draft, setDraft] = useState<Record<number, number>>({});
+  const [draft, setDraft] = useState<Record<number, string>>({});
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [loading, setLoading] = useState(true);
@@ -86,7 +86,9 @@ export default function MinimumStockPage() {
       const data: StockRow[] = Array.isArray(body) ? body : [];
       setRows(data);
       setDraft(
-        Object.fromEntries(data.map((row) => [row.id, row.minStock ?? 0]))
+        Object.fromEntries(
+          data.map((row) => [row.id, String(row.minStock ?? 0)])
+        )
       );
     } catch (loadError) {
       setRows([]);
@@ -124,7 +126,7 @@ export default function MinimumStockPage() {
     let out = 0;
     for (const row of rows) {
       if (row.isBundle) continue;
-      const min = draft[row.id] ?? 0;
+      const min = Number(draft[row.id] || 0);
       if (min > 0) configured += 1;
       if (row.stock <= 0) out += 1;
       else if (min > 0 && row.stock <= min) low += 1;
@@ -135,7 +137,8 @@ export default function MinimumStockPage() {
   const updateMin = (productId: number, value: string) => {
     setDraft((current) => ({
       ...current,
-      [productId]: value === "" ? 0 : Number(value),
+      // Simpan sebagai string agar input bisa kosong saat fokus.
+      [productId]: value.replace(/[^\d]/g, ""),
     }));
   };
 
@@ -144,7 +147,8 @@ export default function MinimumStockPage() {
     const invalid = rows.find(
       (row) =>
         !row.isBundle &&
-        (!Number.isSafeInteger(draft[row.id] ?? 0) || (draft[row.id] ?? 0) < 0)
+        (!Number.isSafeInteger(Number(draft[row.id] || 0)) ||
+          Number(draft[row.id] || 0) < 0)
     );
     if (invalid) {
       await Swal.fire(
@@ -166,7 +170,7 @@ export default function MinimumStockPage() {
             .filter((row) => !row.isBundle)
             .map((row) => ({
               productId: row.productId,
-              minStock: draft[row.id] ?? 0,
+              minStock: Number(draft[row.id] || 0),
             })),
         }),
       });
@@ -305,14 +309,13 @@ export default function MinimumStockPage() {
               <tr>
                 <th className="px-4 py-3">Produk</th>
                 <th className="px-4 py-3">Kategori</th>
-                <th className="px-4 py-3 text-center">Stok Saat Ini</th>
                 <th className="px-4 py-3 text-center">Minimum Stok</th>
                 <th className="px-4 py-3 text-center">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredRows.map((row) => {
-                const min = draft[row.id] ?? 0;
+                const min = Number(draft[row.id] || 0);
                 const isLow = min > 0 && row.stock > 0 && row.stock <= min;
                 const isOut = row.stock <= 0;
                 return (
@@ -322,7 +325,8 @@ export default function MinimumStockPage() {
                         <ProductThumbnail
                           src={row.imageUrl}
                           alt={row.name}
-                          size={40}
+                          size={48}
+                          className="rounded-xl"
                         />
                         <div className="min-w-0">
                           <p className="flex items-center gap-1.5 truncate font-semibold text-slate-900">
@@ -333,17 +337,14 @@ export default function MinimumStockPage() {
                               </span>
                             )}
                           </p>
-                          <p className="font-mono text-xs text-slate-400">
-                            {row.sku}
+                          <p className="mt-0.5 font-mono text-xs text-slate-400">
+                            SKU: {row.sku}
                           </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-slate-600">
                       {row.categoryName || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-center font-semibold text-slate-700">
-                      {row.stock}
                     </td>
                     <td className="px-4 py-3 text-center">
                       {row.isBundle ? (
@@ -353,7 +354,17 @@ export default function MinimumStockPage() {
                           type="number"
                           min={0}
                           step={1}
-                          value={draft[row.id] ?? 0}
+                          value={draft[row.id] ?? ""}
+                          onFocus={() => {
+                            if ((draft[row.id] ?? "0") === "0") {
+                              updateMin(row.id, "");
+                            }
+                          }}
+                          onBlur={() => {
+                            if ((draft[row.id] ?? "") === "") {
+                              updateMin(row.id, "0");
+                            }
+                          }}
                           onChange={(event) =>
                             updateMin(row.id, event.target.value)
                           }
@@ -384,7 +395,7 @@ export default function MinimumStockPage() {
               {filteredRows.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={4}
                     className="px-4 py-12 text-center text-sm text-slate-500"
                   >
                     Tidak ada produk pada filter ini.

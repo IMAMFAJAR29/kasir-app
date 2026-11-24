@@ -15,13 +15,10 @@ export default function ProductCard({
   onPrintBarcode,
   onDelete,
 }: ProductCardProps) {
-  const isOutOfStock = product.stock <= 0;
-  const isLowStock = product.stock > 0 && product.stock <= 5;
-
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 overflow-hidden flex flex-col justify-between group">
       <div>
-        {/* Gambar & Stock Badge */}
+        {/* Gambar Produk */}
         <div className="relative w-full aspect-4/3 bg-slate-100 overflow-hidden">
           {product.imageUrl ? (
             <Image
@@ -38,26 +35,9 @@ export default function ProductCard({
             </div>
           )}
 
-          {/* Stock Badge Overlay */}
-          <div className="absolute top-2.5 left-2.5">
-            {isOutOfStock ? (
-              <span className="px-2 py-0.5 text-xs font-bold rounded-md bg-rose-600 text-white shadow-xs">
-                Habis
-              </span>
-            ) : isLowStock ? (
-              <span className="px-2 py-0.5 text-xs font-bold rounded-md bg-amber-500 text-white shadow-xs">
-                Sisa {product.stock}
-              </span>
-            ) : (
-              <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-slate-900/75 text-white backdrop-blur-xs">
-                Stok: {product.stock}
-              </span>
-            )}
-          </div>
-
           {/* Bundle Badge */}
           {product.isBundle && (
-            <div className="absolute left-2.5 top-9">
+            <div className="absolute left-2.5 top-2.5">
               <span className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white shadow-xs">
                 <Boxes size={12} />
                 Bundle
