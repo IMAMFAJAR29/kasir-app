@@ -52,6 +52,15 @@ export const DEFAULT_ACCOUNTS: DefaultAccountDef[] = [
     description: "Nilai buku persediaan barang dagang di seluruh gudang",
   },
   {
+    code: "1-1350",
+    name: "Persediaan Dalam Perjalanan",
+    type: "ASSET",
+    normalBalance: "DEBIT",
+    category: "INVENTORY",
+    description:
+      "Nilai barang yang sudah keluar dari gudang asal namun belum diterima gudang tujuan",
+  },
+  {
     code: "1-1399",
     name: "Persediaan Belum Ditagih (GRNI)",
     type: "ASSET",
@@ -117,11 +126,12 @@ export const DEFAULT_ACCOUNTS: DefaultAccountDef[] = [
   },
   {
     code: "5-1990",
-    name: "Beban Selisih Stok (Stock Opname Loss)",
+    name: "Beban Selisih Stok (Opname & Transfer)",
     type: "EXPENSE",
     normalBalance: "DEBIT",
     category: "INVENTORY_VARIANCE",
-    description: "Beban akibat selisih barang rusak atau hilang saat penyesuaian stok",
+    description:
+      "Beban akibat selisih stok opname, barang rusak/hilang, atau kekurangan saat penerimaan transfer",
   },
   {
     code: "6-1050",

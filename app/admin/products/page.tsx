@@ -52,7 +52,6 @@ export default function ProductsPage() {
     bundleComponents: [],
   });
   const [isEditing, setIsEditing] = useState(false);
-  const [stockSnapshot, setStockSnapshot] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
 
   // State modal
@@ -108,7 +107,6 @@ export default function ProductsPage() {
       bundleComponents: [],
     });
     setIsEditing(false);
-    setStockSnapshot(null);
     setShowProductFormModal(true);
     setShowDropdown(false);
   };
@@ -231,14 +229,10 @@ export default function ProductsPage() {
         categoryId: form.categoryId ?? null,
         isBundle: form.isBundle,
       };
+      // Stok tidak lagi dikirim dari Katalog. Pengelolaan stok berada di
+      // modul Persediaan (penyesuaian, penerimaan, transfer).
       if (form.isBundle) {
         payload.components = form.bundleComponents;
-      } else if (isEditing && form.id && stockSnapshot !== null && form.stock === stockSnapshot) {
-        // Jangan kirim stok lama saat edit jika user tidak mengubah field stok.
-        // Ini mencegah stok yang sudah berubah (mis. karena penjualan) tertimpa
-        // kembali ke nilai saat halaman dibuka.
-      } else {
-        payload.stock = form.stock;
       }
 
       // Update
@@ -276,7 +270,6 @@ export default function ProductsPage() {
       }
 
       setShowProductFormModal(false);
-      setStockSnapshot(null);
     } catch (error) {
       Swal.fire(
         "Error",
@@ -310,7 +303,6 @@ export default function ProductsPage() {
   // FILTER PRODUK
   // =======================
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all");
-  const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "low_stock" | "out_of_stock">("all");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -324,12 +316,7 @@ export default function ProductsPage() {
       selectedCategoryFilter === "all" ||
       String(p.category?.id) === selectedCategoryFilter;
 
-    let matchesStock = true;
-    if (stockFilter === "in_stock") matchesStock = p.stock > 5;
-    else if (stockFilter === "low_stock") matchesStock = p.stock > 0 && p.stock <= 5;
-    else if (stockFilter === "out_of_stock") matchesStock = p.stock <= 0;
-
-    return matchesSearch && matchesCategory && matchesStock;
+    return matchesSearch && matchesCategory;
   });
 
   // =======================
@@ -418,7 +405,6 @@ export default function ProductsPage() {
 
   function openEditForm(product: ProductWithCategory) {
     setForm(mapProductToForm(product));
-    setStockSnapshot(product.stock);
     setIsEditing(true);
     setShowProductFormModal(true);
   }
@@ -437,7 +423,6 @@ export default function ProductsPage() {
       isBundle: true,
       bundleComponents: [],
     });
-    setStockSnapshot(product.stock);
     setIsEditing(true);
     setShowProductFormModal(true);
   }
@@ -634,18 +619,6 @@ export default function ProductsPage() {
                   {c.name}
                 </option>
               ))}
-            </select>
-
-            {/* Stock Filter */}
-            <select
-              value={stockFilter}
-              onChange={(e) => setStockFilter(e.target.value as any)}
-              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-950 transition cursor-pointer"
-            >
-              <option value="all">Semua Status Stok</option>
-              <option value="in_stock">Tersedia (&gt;5)</option>
-              <option value="low_stock">Menipis (1-5)</option>
-              <option value="out_of_stock">Habis (0)</option>
             </select>
 
             {/* View Mode Switcher */}
@@ -867,7 +840,6 @@ export default function ProductsPage() {
               }
               onClose={() => {
                 setShowProductFormModal(false);
-                setStockSnapshot(null);
               }}
             />
           </div>

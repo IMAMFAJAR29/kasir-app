@@ -7,7 +7,9 @@ export const permissionModules = [
   { key: "invoices", label: "Faktur Penjualan" },
   { key: "customers", label: "Pelanggan & Pemasok" },
   { key: "purchases", label: "Pembelian" },
-  { key: "inventory", label: "Stok & Penyesuaian" },
+  { key: "inventory", label: "Persediaan" },
+  { key: "inventoryTransfer", label: "Transfer Stok" },
+  { key: "inventoryOpname", label: "Stock Opname" },
   { key: "warehouses", label: "Lokasi Gudang" },
   { key: "cashReconciliation", label: "Rekonsiliasi Kas" },
   { key: "taxes", label: "Pajak" },
@@ -20,6 +22,7 @@ export const permissionActions = [
   { key: "create", label: "Tambah" },
   { key: "update", label: "Edit" },
   { key: "delete", label: "Hapus" },
+  { key: "approve", label: "Setujui" },
 ] as const;
 
 export type PermissionModule = (typeof permissionModules)[number]["key"];
@@ -91,9 +94,10 @@ export function hasPermission(
 }
 
 /**
- * Daftar outlet dan stok gudang dibutuhkan dua area berbeda:
+ * Data pendukung yang boleh dibaca lintas modul:
  * - Cashier Back Office/POS (modul `pos`)
  * - Manajemen gudang (modul `warehouses` / `inventory`)
+ * - Modul Persediaan (modul `inventory`)
  *
  * Helper ini dipakai middleware agar route tidak harus dipetakan ke satu
  * modul saja (yang akan memblokir salah satu peran).
@@ -108,16 +112,32 @@ export function canReadPosSupportData(
   const isOutletRead =
     pathname === "/api/locations" || pathname.startsWith("/api/locations/");
   const isStockRead = pathname === "/api/warehouse/stock";
-  if (!isOutletRead && !isStockRead) return false;
+  const isCategoryRead =
+    pathname === "/api/categories" || pathname.startsWith("/api/categories/");
+  if (!isOutletRead && !isStockRead && !isCategoryRead) return false;
 
-  if (hasPermission(role, permissions, "pos", "view")) return true;
-  if (isOutletRead && hasPermission(role, permissions, "warehouses", "view")) {
-    return true;
+  if (isOutletRead) {
+    return (
+      hasPermission(role, permissions, "pos", "view") ||
+      hasPermission(role, permissions, "warehouses", "view") ||
+      hasPermission(role, permissions, "inventory", "view") ||
+      hasPermission(role, permissions, "inventoryTransfer", "view") ||
+      hasPermission(role, permissions, "inventoryOpname", "view")
+    );
   }
-  if (isStockRead && hasPermission(role, permissions, "inventory", "view")) {
-    return true;
+  if (isStockRead) {
+    return (
+      hasPermission(role, permissions, "pos", "view") ||
+      hasPermission(role, permissions, "inventory", "view") ||
+      hasPermission(role, permissions, "inventoryTransfer", "view") ||
+      hasPermission(role, permissions, "inventoryOpname", "view")
+    );
   }
-  return false;
+  // Kategori dibutuhkan filter produk di POS dan Persediaan.
+  return (
+    hasPermission(role, permissions, "categories", "view") ||
+    hasPermission(role, permissions, "inventory", "view")
+  );
 }
 
 /**
@@ -212,6 +232,42 @@ export function getRequiredPermission(
   ) {
     return { module: "pos", action };
   }
+  // Modul Persediaan inti: ringkasan, stok produk, penyesuaian, minimum stok.
+  if (
+    pathname === "/inventory" ||
+    (pathname.startsWith("/inventory/") &&
+      !pathname.startsWith("/inventory/opnames")) ||
+    (/^\/api\/inventory(?:\/|$)/.test(pathname) &&
+      !/^\/api\/inventory\/opnames(?:\/|$)/.test(pathname))
+  ) {
+    return { module: "inventory", action };
+  }
+  // Stock Opname. PATCH menegakkan submit/approve/reject di dalam route,
+  // termasuk permission `approve`, sehingga di middleware dipetakan ke view.
+  if (
+    pathname === "/inventory/opnames" ||
+    pathname.startsWith("/inventory/opnames/") ||
+    /^\/api\/inventory\/opnames(?:\/|$)/.test(pathname)
+  ) {
+    if (method.toUpperCase() === "PATCH") {
+      return { module: "inventoryOpname", action: "view" };
+    }
+    return { module: "inventoryOpname", action };
+  }
+  // Transfer stok. Penerimaan adalah update stok, bukan pembuatan baru.
+  if (
+    pathname === "/warehouse/transfers" ||
+    pathname.startsWith("/warehouse/transfers/") ||
+    /^\/api\/warehouse\/transfers(?:\/|$)/.test(pathname)
+  ) {
+    if (
+      /^\/api\/warehouse\/transfers\/[^/]+\/receive$/.test(pathname) &&
+      method.toUpperCase() === "POST"
+    ) {
+      return { module: "inventoryTransfer", action: "update" };
+    }
+    return { module: "inventoryTransfer", action };
+  }
 
   const rules: Array<[RegExp, PermissionModule]> = [
     [/^\/(?:admin\/settings\/reconciliation|admin\/cash-sessions)(?:\/|$)/, "cashReconciliation"],
@@ -224,7 +280,7 @@ export function getRequiredPermission(
     [/^\/(?:api\/)?purchases(?:\/|$)|^\/purchases(?:\/|$)/, "purchases"],
     [/^\/(?:api\/)?invoices(?:\/|$)|^\/invoices(?:\/|$)|^\/api\/reports\/invoices(?:\/|$)/, "invoices"],
     [/^\/api\/sales(?:\/|$)/, "sales"],
-    [/^\/api\/warehouse\/(?:stock|adjustments|transfers)(?:\/|$)|^\/warehouse\/(?:stock|transfers)(?:\/|$)/, "inventory"],
+    [/^\/api\/warehouse\/(?:stock|adjustments|transfers)(?:\/|$)|^\/warehouse\/(?:stock|transfers|adjustments)(?:\/|$)/, "inventory"],
     [/^\/api\/locations(?:\/|$)|^\/warehouse\/locations(?:\/|$)|^\/warehouse\/registers(?:\/|$)/, "warehouses"],
     [/^\/api\/taxes(?:\/|$)/, "taxes"],
     [/^\/(?:api\/)?accounting(?:\/|$)|^\/admin\/accounting(?:\/|$)/, "accounting"],

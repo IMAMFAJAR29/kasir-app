@@ -3,16 +3,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftRight,
+  CheckCircle2,
   Loader2,
   Plus,
   Search,
   Trash2,
   Warehouse,
+  XCircle,
 } from "lucide-react";
 import Swal from "sweetalert2";
+import { useSession } from "next-auth/react";
 import BrandLoader from "@/components/BrandLoader";
 import Button from "@/components/Button";
+import Modal from "@/components/Modal";
 import { Badge } from "@/components/ui/badge";
+import { hasPermission } from "@/lib/permissions";
 
 interface LocationOption {
   id: number;
@@ -28,16 +33,30 @@ interface StockProduct {
   isBundle?: boolean;
 }
 
+interface TransferItem {
+  id: number;
+  productId: number;
+  name: string;
+  sku: string;
+  qty: number;
+  receivedQty: number | null;
+  costPrice: number;
+}
+
 interface TransferRow {
   id: number;
   no: string;
   date: string;
   note: string | null;
   status: string;
+  sentAt: string | null;
+  receivedAt: string | null;
   fromLocation: { id: number; name: string };
   toLocation: { id: number; name: string };
   itemCount: number;
   totalQty: number;
+  totalReceived: number;
+  items: TransferItem[];
 }
 
 interface DraftLine {
@@ -51,6 +70,7 @@ interface DraftLine {
 const today = () => new Date().toISOString().split("T")[0];
 
 export default function StockTransfersPage() {
+  const { data: session } = useSession();
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [fromLocationId, setFromLocationId] = useState<number | null>(null);
   const [toLocationId, setToLocationId] = useState<number | null>(null);
@@ -63,7 +83,18 @@ export default function StockTransfersPage() {
   const [transfers, setTransfers] = useState<TransferRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [receiveTarget, setReceiveTarget] = useState<TransferRow | null>(null);
+  const [receiveQtys, setReceiveQtys] = useState<Record<number, number>>({});
+  const [receiving, setReceiving] = useState(false);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [error, setError] = useState("");
+
+  const canCancel = hasPermission(
+    session?.user?.role,
+    session?.user?.permissions,
+    "inventoryTransfer",
+    "delete"
+  );
 
   const loadLocations = useCallback(async () => {
     const response = await fetch("/api/locations");
@@ -255,6 +286,7 @@ export default function StockTransfersPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          requestKey: crypto.randomUUID(),
           fromLocationId,
           toLocationId,
           date,
@@ -273,7 +305,11 @@ export default function StockTransfersPage() {
       setNote("");
       await loadTransfers();
       await loadLocations();
-      await Swal.fire("Transfer berhasil", `Nomor ${body.no}.`, "success");
+      await Swal.fire(
+        "Transfer dikirim",
+        `Nomor ${body.no}. Barang berstatus Dalam Perjalanan sampai gudang tujuan menerima.`,
+        "success"
+      );
     } catch (submitError) {
       await Swal.fire(
         "Transfer gagal",
@@ -282,6 +318,143 @@ export default function StockTransfersPage() {
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openReceive = (transfer: TransferRow) => {
+    setReceiveTarget(transfer);
+    setReceiveQtys(
+      Object.fromEntries(
+        transfer.items.map((item) => [item.id, item.receivedQty ?? item.qty])
+      )
+    );
+  };
+
+  const updateReceiveQty = (itemId: number, raw: string) => {
+    const parsed = Number(raw);
+    setReceiveQtys((current) => ({
+      ...current,
+      [itemId]: Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0,
+    }));
+  };
+
+  const receiveTotals = useMemo(() => {
+    if (!receiveTarget) return { received: 0, shortage: 0, value: 0 };
+    let received = 0;
+    let shortage = 0;
+    let value = 0;
+    for (const item of receiveTarget.items) {
+      const qty = receiveQtys[item.id] ?? item.qty;
+      received += qty;
+      shortage += item.qty - qty;
+      value += item.qty * item.costPrice;
+    }
+    return { received, shortage, value };
+  }, [receiveQtys, receiveTarget]);
+
+  const submitReceive = async () => {
+    if (!receiveTarget || receiving) return;
+    const invalid = receiveTarget.items.find((item) => {
+      const qty = receiveQtys[item.id] ?? item.qty;
+      return !Number.isSafeInteger(qty) || qty < 0 || qty > item.qty;
+    });
+    if (invalid) {
+      await Swal.fire(
+        "Jumlah tidak valid",
+        `Jumlah diterima ${invalid.name} harus antara 0 dan ${invalid.qty}.`,
+        "warning"
+      );
+      return;
+    }
+
+    const confirmed = await Swal.fire({
+      title: "Terima transfer?",
+      text:
+        receiveTotals.shortage > 0
+          ? `${receiveTotals.received} unit diterima, ${receiveTotals.shortage} unit selisih akan dibebankan sebagai selisih stok.`
+          : `${receiveTotals.received} unit akan menambah stok gudang tujuan.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Terima",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#1769e0",
+    });
+    if (!confirmed.isConfirmed) return;
+
+    setReceiving(true);
+    try {
+      const response = await fetch(
+        `/api/warehouse/transfers/${receiveTarget.id}/receive`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: receiveTarget.items.map((item) => ({
+              itemId: item.id,
+              receivedQty: receiveQtys[item.id] ?? item.qty,
+            })),
+          }),
+        }
+      );
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.error || "Gagal menerima transfer.");
+      }
+      setReceiveTarget(null);
+      setReceiveQtys({});
+      await loadTransfers();
+      await Swal.fire(
+        "Transfer diterima",
+        `Stok gudang tujuan telah diperbarui (${receiveTotals.received} unit).`,
+        "success"
+      );
+    } catch (receiveError) {
+      await Swal.fire(
+        "Gagal menerima",
+        receiveError instanceof Error ? receiveError.message : "Terjadi kesalahan.",
+        "error"
+      );
+    } finally {
+      setReceiving(false);
+    }
+  };
+
+  const cancelTransfer = async (transfer: TransferRow) => {
+    if (cancellingId !== null) return;
+    const confirmed = await Swal.fire({
+      title: "Batalkan transfer?",
+      text: `Transfer ${transfer.no} akan dibatalkan dan stok dikembalikan ke gudang asal.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Batalkan Transfer",
+      cancelButtonText: "Tutup",
+      confirmButtonColor: "#dc2626",
+    });
+    if (!confirmed.isConfirmed) return;
+
+    setCancellingId(transfer.id);
+    try {
+      const response = await fetch(`/api/warehouse/transfers/${transfer.id}`, {
+        method: "DELETE",
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(body?.error || "Gagal membatalkan transfer.");
+      }
+      await loadTransfers();
+      await Swal.fire(
+        "Dibatalkan",
+        "Transfer dibatalkan dan stok kembali ke gudang asal.",
+        "success"
+      );
+    } catch (cancelError) {
+      await Swal.fire(
+        "Gagal membatalkan",
+        cancelError instanceof Error ? cancelError.message : "Terjadi kesalahan.",
+        "error"
+      );
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -295,8 +468,8 @@ export default function StockTransfersPage() {
           Transfer Stok Antar Gudang
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Pindahkan stok antar lokasi. Stok asal berkurang dan stok tujuan
-          bertambah dalam satu proses.
+          Pindahkan stok antar gudang dalam dua langkah: kirim dari gudang asal,
+          lalu terima di gudang tujuan. Selisih penerimaan dicatat otomatis.
         </p>
       </div>
 
@@ -516,7 +689,7 @@ export default function StockTransfersPage() {
           </h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-left text-sm">
+          <table className="w-full min-w-[860px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3">Nomor</th>
@@ -524,8 +697,10 @@ export default function StockTransfersPage() {
                 <th className="px-4 py-3">Dari</th>
                 <th className="px-4 py-3">Ke</th>
                 <th className="px-4 py-3 text-right">Item</th>
-                <th className="px-4 py-3 text-right">Qty</th>
+                <th className="px-4 py-3 text-right">Dikirim</th>
+                <th className="px-4 py-3 text-right">Diterima</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -549,20 +724,68 @@ export default function StockTransfersPage() {
                   <td className="px-4 py-3 text-right text-slate-600">
                     {transfer.totalQty}
                   </td>
+                  <td className="px-4 py-3 text-right text-slate-600">
+                    {transfer.status === "RECEIVED"
+                      ? transfer.totalReceived
+                      : "-"}
+                  </td>
                   <td className="px-4 py-3">
                     <Badge
-                      variant={transfer.status === "POSTED" ? "success" : "default"}
+                      variant={
+                        transfer.status === "RECEIVED"
+                          ? "success"
+                          : transfer.status === "IN_TRANSIT"
+                          ? "warning"
+                          : transfer.status === "CANCELLED"
+                          ? "danger"
+                          : "default"
+                      }
                       withDot
                     >
-                      {transfer.status}
+                      {transfer.status === "RECEIVED"
+                        ? "Diterima"
+                        : transfer.status === "IN_TRANSIT"
+                        ? "Dalam Perjalanan"
+                        : transfer.status === "CANCELLED"
+                        ? "Dibatalkan"
+                        : transfer.status}
                     </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {transfer.status === "IN_TRANSIT" ? (
+                      <div className="flex justify-end gap-1.5">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openReceive(transfer)}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Terima
+                        </Button>
+                        {canCancel && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={cancellingId === transfer.id}
+                            onClick={() => void cancelTransfer(transfer)}
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            Batalkan
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">-</span>
+                    )}
                   </td>
                 </tr>
               ))}
               {transfers.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     className="px-4 py-10 text-center text-sm text-slate-500"
                   >
                     Belum ada transfer stok.
@@ -573,6 +796,117 @@ export default function StockTransfersPage() {
           </table>
         </div>
       </section>
+
+      <Modal
+        isOpen={receiveTarget !== null}
+        onClose={() => {
+          setReceiveTarget(null);
+          setReceiveQtys({});
+        }}
+        title={receiveTarget ? `Terima Transfer ${receiveTarget.no}` : "Terima Transfer"}
+        description={
+          receiveTarget
+            ? `${receiveTarget.fromLocation.name} → ${receiveTarget.toLocation.name}`
+            : undefined
+        }
+        maxWidth="max-w-3xl"
+      >
+        {receiveTarget && (
+          <div className="space-y-4">
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[560px] text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2">Produk</th>
+                    <th className="px-3 py-2">SKU</th>
+                    <th className="px-3 py-2 text-center">Dikirim</th>
+                    <th className="px-3 py-2 text-center">Diterima</th>
+                    <th className="px-3 py-2 text-center">Selisih</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {receiveTarget.items.map((item) => {
+                    const qty = receiveQtys[item.id] ?? item.qty;
+                    const diff = item.qty - qty;
+                    return (
+                      <tr key={item.id}>
+                        <td className="px-3 py-2 font-medium text-slate-800">
+                          {item.name}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs text-slate-500">
+                          {item.sku}
+                        </td>
+                        <td className="px-3 py-2 text-center text-slate-600">
+                          {item.qty}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <input
+                            type="number"
+                            min={0}
+                            max={item.qty}
+                            value={qty}
+                            onChange={(event) =>
+                              updateReceiveQty(item.id, event.target.value)
+                            }
+                            className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-center text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          />
+                        </td>
+                        <td
+                          className={`px-3 py-2 text-center font-semibold ${
+                            diff > 0 ? "text-rose-600" : "text-slate-500"
+                          }`}
+                        >
+                          {diff > 0 ? `−${diff}` : diff < 0 ? `+${Math.abs(diff)}` : "0"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5 text-sm">
+              <span className="text-slate-600">
+                Diterima <b>{receiveTotals.received}</b> unit
+              </span>
+              {receiveTotals.shortage > 0 ? (
+                <Badge variant="warning" withDot>
+                  Selisih {receiveTotals.shortage} unit → beban 5-1990
+                </Badge>
+              ) : (
+                <Badge variant="success" withDot>
+                  Diterima penuh
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setReceiveTarget(null);
+                  setReceiveQtys({});
+                }}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void submitReceive()}
+                disabled={receiving}
+              >
+                {receiving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                {receiving ? "Memproses..." : "Terima Transfer"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

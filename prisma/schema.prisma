@@ -54,6 +54,8 @@ model Product {
   bom          Bom?                  @relation("ProductBom")
   componentOf  BomComponent[]        @relation("BomComponentProduct")
   transferItems StockTransferItem[]
+  minimumStocks ProductMinimumStock[]
+  opnameItems   StockOpnameItem[]
 }
 
 //
@@ -117,25 +119,53 @@ model Location {
   userAccess              UserLocationAccess[]
   transfersOut            StockTransfer[]      @relation("TransferFrom")
   transfersIn             StockTransfer[]      @relation("TransferTo")
+  minimumStocks           ProductMinimumStock[]
+  opnames                 StockOpname[]
+}
+
+//
+// ===========================================================
+// PRODUCT MINIMUM STOCK (Batas minimum per produk per gudang)
+// ===========================================================
+// Kebijakan disimpan terpisah dari ProductStock agar threshold bisa diatur
+// meski produk belum pernah memiliki baris stok di gudang tersebut.
+// minStock = 0 berarti tidak ada peringatan minimum.
+model ProductMinimumStock {
+  productId  Int
+  locationId Int
+  minStock   Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([productId, locationId])
+  @@index([locationId])
+  @@map("product_minimum_stock")
 }
 
 //
 // ===========================================================
 // STOCK TRANSFER (Perpindahan stok antar gudang)
 // ===========================================================
-// Mengurangi stok di gudang asal dan menambah di gudang tujuan dalam satu
-// transaksi. Produk bundle tidak dapat ditransfer langsung; pindahkan
-// komponennya.
+// Transfer dua langkah:
+// IN_TRANSIT -> stok asal berkurang, nilai pindah ke akun Persediaan Dalam
+// Perjalanan (1-1350). RECEIVED -> stok tujuan bertambah sesuai receivedQty,
+// selisih dibebankan ke 5-1990. CANCELLED tidak mengubah stok.
 model StockTransfer {
-  id             Int      @id @default(autoincrement())
-  no             String   @unique
-  date           DateTime @default(now())
+  id             Int       @id @default(autoincrement())
+  no             String    @unique
+  requestKey     String?   @unique
+  date           DateTime  @default(now())
   fromLocationId Int
   toLocationId   Int
   note           String?
-  status         String   @default("POSTED")
+  status         String    @default("IN_TRANSIT")
+  sentAt         DateTime?
+  receivedAt     DateTime?
+  receivedBy     String?
   createdBy      String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   fromLocation Location            @relation("TransferFrom", fields: [fromLocationId], references: [id], onDelete: Restrict)
   toLocation   Location            @relation("TransferTo", fields: [toLocationId], references: [id], onDelete: Restrict)
@@ -143,15 +173,17 @@ model StockTransfer {
 
   @@index([fromLocationId, date])
   @@index([toLocationId, date])
+  @@index([status])
   @@map("stock_transfers")
 }
 
 model StockTransferItem {
-  id         Int     @id @default(autoincrement())
-  transferId Int
-  productId  Int
-  qty        Int
-  costPrice  Decimal @default(0.00)
+  id          Int     @id @default(autoincrement())
+  transferId  Int
+  productId   Int
+  qty         Int
+  receivedQty Int?
+  costPrice   Decimal @default(0.00)
 
   transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
   product  Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -467,13 +499,16 @@ model StockAdjustment {
   no         String   @unique
   date       DateTime @default(now())
   locationId Int
+  opnameId   Int?
   note       String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   location Location              @relation(fields: [locationId], references: [id])
+  opname   StockOpname?          @relation(fields: [opnameId], references: [id], onDelete: SetNull)
   items    StockAdjustmentItem[]
 
+  @@index([opnameId])
   @@map("stock_adjustments")
 }
 
@@ -494,6 +529,53 @@ model StockAdjustmentItem {
   product    Product         @relation(fields: [productId], references: [id])
 
   @@map("stock_adjustment_items")
+}
+
+//
+// ===========================================================
+// STOCK OPNAME (Sesi penghitungan fisik + approval)
+// ===========================================================
+// Alur: DRAFT -> PENDING -> APPROVED / REJECTED.
+// Saat APPROVED, sistem membuat StockAdjustment dan memposting stok + jurnal
+// dalam satu transaksi. Pembuat tidak boleh menyetujui sesinya sendiri.
+model StockOpname {
+  id            Int       @id @default(autoincrement())
+  no            String    @unique
+  locationId    Int
+  status        String    @default("DRAFT")
+  note          String?
+  rejectionNote String?
+  createdBy     String
+  submittedBy   String?
+  approvedBy    String?
+  approvedAt    DateTime?
+  postedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  location    Location             @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  items       StockOpnameItem[]
+  adjustments StockAdjustment[]
+
+  @@index([locationId, status])
+  @@index([createdBy])
+  @@map("stock_opnames")
+}
+
+model StockOpnameItem {
+  id         Int @id @default(autoincrement())
+  opnameId   Int
+  productId  Int
+  systemQty  Int
+  countedQty Int
+  difference Int
+
+  opname  StockOpname @relation(fields: [opnameId], references: [id], onDelete: Cascade)
+  product Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([opnameId, productId])
+  @@index([productId])
+  @@map("stock_opname_items")
 }
 
 //

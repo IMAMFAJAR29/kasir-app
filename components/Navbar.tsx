@@ -26,6 +26,10 @@ import {
   FileSpreadsheet,
   MonitorSmartphone,
   ArrowLeftRight,
+  ClipboardList,
+  ClipboardCheck,
+  History,
+  AlertTriangle,
 } from "lucide-react";
 import {
   hasPermission,
@@ -222,7 +226,7 @@ export default function Navbar() {
               </div>
             </div>}
 
-            {(canView("inventory") || canView("warehouses")) && <div className="group relative">
+            {(canView("inventoryTransfer") || canView("warehouses")) && <div className="group relative">
               <button
                 className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
                   isActive("/warehouse")
@@ -237,17 +241,7 @@ export default function Navbar() {
 
               <div className="absolute left-0 top-full hidden pt-2 group-hover:block z-50">
                 <div className="min-w-[200px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                  {canView("inventory") && <Link
-                    href="/warehouse/stock"
-                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-                  >
-                    <Layers className="h-4 w-4 text-slate-600" />
-                    <div>
-                      <div className="font-medium">Stok Gudang</div>
-                      <div className="text-xs text-slate-500">Inventaris & mutasi</div>
-                    </div>
-                  </Link>}
-                  {canView("inventory") && <Link
+                  {canView("inventoryTransfer") && <Link
                     href="/warehouse/transfers"
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   >
@@ -275,6 +269,75 @@ export default function Navbar() {
                     <div>
                       <div className="font-medium">Mesin Kasir</div>
                       <div className="text-xs text-slate-500">Mesin & gudang stok</div>
+                    </div>
+                  </Link>}
+                </div>
+              </div>
+            </div>}
+
+            {(canView("inventory") || canView("inventoryOpname")) && <div className="group relative">
+              <button
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  isActive("/inventory")
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                <ClipboardList className="h-4 w-4" />
+                <span>Persediaan</span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+              </button>
+
+              <div className="absolute left-0 top-full hidden pt-2 group-hover:block z-50">
+                <div className="min-w-[230px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                  {canView("inventory") && <Link
+                    href="/inventory"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <LayoutDashboard className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Ringkasan Persediaan</div>
+                      <div className="text-xs text-slate-500">Kondisi stok per gudang</div>
+                    </div>
+                  </Link>}
+                  {canView("inventory") && <Link
+                    href="/inventory/stock"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <Layers className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Stok Produk</div>
+                      <div className="text-xs text-slate-500">Daftar stok & penyesuaian</div>
+                    </div>
+                  </Link>}
+                  {canView("inventoryOpname") && <Link
+                    href="/inventory/opnames"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <ClipboardCheck className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Stock Opname</div>
+                      <div className="text-xs text-slate-500">Hitung fisik & approval</div>
+                    </div>
+                  </Link>}
+                  {canView("inventory") && <Link
+                    href="/inventory/adjustments"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <History className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Riwayat Penyesuaian</div>
+                      <div className="text-xs text-slate-500">Jejak koreksi stok</div>
+                    </div>
+                  </Link>}
+                  {canView("inventory") && <Link
+                    href="/inventory/minimum-stock"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-slate-600" />
+                    <div>
+                      <div className="font-medium">Minimum Stok</div>
+                      <div className="text-xs text-slate-500">Batas & peringatan stok</div>
                     </div>
                   </Link>}
                 </div>
@@ -515,19 +578,11 @@ export default function Navbar() {
               </Link>}
             </div>}
 
-            {(canView("inventory") || canView("warehouses")) && <div className="pt-2">
+            {(canView("inventoryTransfer") || canView("warehouses")) && <div className="pt-2">
               <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
                 Gudang
               </p>
-              {canView("inventory") && <Link
-                href="/warehouse/stock"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
-              >
-                <Layers className="h-4 w-4 text-slate-400" />
-                <span>Stok Gudang</span>
-              </Link>}
-              {canView("inventory") && <Link
+              {canView("inventoryTransfer") && <Link
                 href="/warehouse/transfers"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
@@ -550,6 +605,52 @@ export default function Navbar() {
               >
                 <MonitorSmartphone className="h-4 w-4 text-slate-400" />
                 <span>Mesin Kasir</span>
+              </Link>}
+            </div>}
+
+            {(canView("inventory") || canView("inventoryOpname")) && <div className="pt-2">
+              <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+                Persediaan
+              </p>
+              {canView("inventory") && <Link
+                href="/inventory"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <LayoutDashboard className="h-4 w-4 text-slate-400" />
+                <span>Ringkasan Persediaan</span>
+              </Link>}
+              {canView("inventory") && <Link
+                href="/inventory/stock"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <Layers className="h-4 w-4 text-slate-400" />
+                <span>Stok Produk</span>
+              </Link>}
+              {canView("inventoryOpname") && <Link
+                href="/inventory/opnames"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <ClipboardCheck className="h-4 w-4 text-slate-400" />
+                <span>Stock Opname</span>
+              </Link>}
+              {canView("inventory") && <Link
+                href="/inventory/adjustments"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <History className="h-4 w-4 text-slate-400" />
+                <span>Riwayat Penyesuaian</span>
+              </Link>}
+              {canView("inventory") && <Link
+                href="/inventory/minimum-stock"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                <AlertTriangle className="h-4 w-4 text-slate-400" />
+                <span>Minimum Stok</span>
               </Link>}
             </div>}
 

@@ -356,9 +356,9 @@ export default function DashboardPage() {
             color="hover:border-blue-300"
           />
           <QuickActionLink
-            href="/warehouse/stock"
-            title="Stok Gudang"
-            desc="Pantau inventaris barang"
+            href="/inventory/stock"
+            title="Stok Produk"
+            desc="Pantau persediaan barang"
             icon={<Layers className="w-5 h-5 text-amber-600" />}
             color="hover:border-amber-300"
           />

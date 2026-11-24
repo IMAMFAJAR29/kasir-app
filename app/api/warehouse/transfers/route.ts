@@ -5,18 +5,16 @@ import { authOptions } from "@/lib/authOptions";
 import { hasPermission } from "@/lib/permissions";
 import {
   decrementStockAtLocation,
-  incrementStockAtLocation,
   InsufficientStockError,
   InvalidStockError,
 } from "@/lib/productStock";
-import { processStockTransferAccounting } from "@/lib/accounting/transferAccounting";
+import { processStockTransferSendAccounting } from "@/lib/accounting/transferAccounting";
 
 interface NormalizedItem {
   productId: number;
   qty: number;
 }
 
-/** Gabungkan baris duplikat agar satu produk hanya diproses sekali. */
 function mergeItems(items: NormalizedItem[]): NormalizedItem[] {
   const totals = new Map<number, number>();
   const order: number[] = [];
@@ -37,7 +35,7 @@ export async function GET() {
     !hasPermission(
       session.user.role,
       session.user.permissions,
-      "inventory",
+      "inventoryTransfer",
       "view"
     )
   ) {
@@ -45,12 +43,22 @@ export async function GET() {
   }
 
   const transfers = await prisma.stockTransfer.findMany({
-    orderBy: { date: "desc" },
-    take: 50,
+    orderBy: [{ date: "desc" }, { id: "desc" }],
+    take: 100,
     include: {
       fromLocation: { select: { id: true, name: true } },
       toLocation: { select: { id: true, name: true } },
-      items: { select: { productId: true, qty: true } },
+      items: {
+        orderBy: { id: "asc" },
+        select: {
+          id: true,
+          productId: true,
+          qty: true,
+          receivedQty: true,
+          costPrice: true,
+          product: { select: { name: true, sku: true } },
+        },
+      },
     },
   });
 
@@ -61,10 +69,26 @@ export async function GET() {
       date: transfer.date,
       note: transfer.note,
       status: transfer.status,
+      sentAt: transfer.sentAt,
+      receivedAt: transfer.receivedAt,
+      receivedBy: transfer.receivedBy,
       fromLocation: transfer.fromLocation,
       toLocation: transfer.toLocation,
       itemCount: transfer.items.length,
       totalQty: transfer.items.reduce((sum, item) => sum + item.qty, 0),
+      totalReceived: transfer.items.reduce(
+        (sum, item) => sum + (item.receivedQty ?? 0),
+        0
+      ),
+      items: transfer.items.map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        name: item.product?.name ?? `Produk #${item.productId}`,
+        sku: item.product?.sku ?? "-",
+        qty: item.qty,
+        receivedQty: item.receivedQty,
+        costPrice: Number(item.costPrice),
+      })),
     }))
   );
 }
@@ -76,7 +100,7 @@ export async function POST(req: NextRequest) {
     !hasPermission(
       session.user.role,
       session.user.permissions,
-      "inventory",
+      "inventoryTransfer",
       "create"
     )
   ) {
@@ -137,9 +161,40 @@ export async function POST(req: NextRequest) {
     typeof source.no === "string" && source.no.trim()
       ? source.no.trim()
       : `TRF-${Date.now()}`;
+  const requestKey =
+    typeof source.requestKey === "string" && source.requestKey.trim()
+      ? source.requestKey.trim()
+      : null;
+
+  const findExisting = async () => {
+    if (!requestKey) return null;
+    return prisma.stockTransfer.findUnique({
+      where: { requestKey },
+      include: {
+        fromLocation: { select: { id: true, name: true } },
+        toLocation: { select: { id: true, name: true } },
+      },
+    });
+  };
+
+  const existing = await findExisting();
+  if (existing) {
+    return NextResponse.json(existing, { status: 200 });
+  }
 
   try {
     const transfer = await prisma.$transaction(async (tx) => {
+      if (requestKey) {
+        const duplicate = await tx.stockTransfer.findUnique({
+          where: { requestKey },
+          include: {
+            fromLocation: { select: { id: true, name: true } },
+            toLocation: { select: { id: true, name: true } },
+          },
+        });
+        if (duplicate) return duplicate;
+      }
+
       const [fromLocation, toLocation] = await Promise.all([
         tx.location.findUnique({
           where: { id: fromLocationId },
@@ -183,20 +238,18 @@ export async function POST(req: NextRequest) {
       const created = await tx.stockTransfer.create({
         data: {
           no: transferNo,
+          requestKey,
           date: transferDate,
           fromLocationId,
           toLocationId,
           note,
-          status: "POSTED",
+          status: "IN_TRANSIT",
+          sentAt: new Date(),
           createdBy: session.user.id,
         },
       });
 
-      const accountingLines: Array<{
-        productId: number;
-        qty: number;
-        costPrice: number;
-      }> = [];
+      let totalValue = 0;
 
       for (const item of items) {
         const product = productMap.get(item.productId)!;
@@ -208,13 +261,10 @@ export async function POST(req: NextRequest) {
           productName: product.name,
           allowOtherLocations: false,
         });
-        await incrementStockAtLocation(tx, {
-          productId: item.productId,
-          locationId: toLocationId,
-          qty: item.qty,
-        });
 
         const costPrice = Number(product.costPrice || 0);
+        totalValue += costPrice * item.qty;
+
         await tx.stockTransferItem.create({
           data: {
             transferId: created.id,
@@ -223,24 +273,24 @@ export async function POST(req: NextRequest) {
             costPrice,
           },
         });
-        accountingLines.push({
-          productId: item.productId,
-          qty: item.qty,
-          costPrice,
-        });
       }
 
-      await processStockTransferAccounting(
+      await processStockTransferSendAccounting(
         created.id,
         created.no,
         created.date,
         fromLocationId,
-        toLocationId,
-        accountingLines,
+        totalValue,
         tx
       );
 
-      return created;
+      return tx.stockTransfer.findUniqueOrThrow({
+        where: { id: created.id },
+        include: {
+          fromLocation: { select: { id: true, name: true } },
+          toLocation: { select: { id: true, name: true } },
+        },
+      });
     }, TRANSACTION_OPTIONS);
 
     return NextResponse.json(transfer, { status: 201 });
@@ -257,6 +307,10 @@ export async function POST(req: NextRequest) {
       "code" in error &&
       error.code === "P2002"
     ) {
+      const duplicate = await findExisting();
+      if (duplicate) {
+        return NextResponse.json(duplicate, { status: 200 });
+      }
       return NextResponse.json(
         { error: "Nomor transfer sudah digunakan" },
         { status: 409 }

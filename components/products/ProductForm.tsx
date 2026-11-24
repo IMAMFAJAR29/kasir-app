@@ -119,21 +119,18 @@ export default function ProductForm({
             className="form-control"
           />
 
-          {/* Stok */}
-          <input
-            type="number"
-            placeholder="Stok"
-            min={0}
-            step={1}
-            value={form.stock === 0 ? "" : form.stock}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                stock: e.target.value === "" ? 0 : Number(e.target.value), // tetap number
-              })
-            }
-            className="form-control"
-          />
+          {/* Stok dikelola di modul Persediaan, bukan di Katalog */}
+          <div className="flex flex-col justify-center gap-1 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-2.5">
+            <span className="text-xs font-medium text-slate-500">
+              {isEditing ? "Stok saat ini" : "Stok awal"}
+            </span>
+            <span className="text-lg font-bold text-slate-800">
+              {isEditing ? `${form.stock} unit` : "0 unit"}
+            </span>
+            <span className="text-[11px] text-slate-400">
+              Dikelola di modul Persediaan (penyesuaian, penerimaan, transfer).
+            </span>
+          </div>
         </>
       )}
 
