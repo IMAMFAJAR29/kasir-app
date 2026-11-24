@@ -12,16 +12,11 @@ import ImportModal, {
 import CategoryModal from "@/components/products/CategoryModal";
 import BarcodeModal from "@/components/products/BarcodeModal";
 import ProductBulkToolbar from "@/components/products/ProductBulkToolbar";
+import ProductThumbnail from "@/components/products/ProductThumbnail";
 import Button from "@/components/Button";
 
 // Icon
-import {
-  ChevronDown,
-  LayoutGrid,
-  Table2,
-  Package,
-} from "lucide-react";
-import Image from "next/image";
+import { ChevronDown, LayoutGrid, Table2 } from "lucide-react";
 
 // Tipe data
 import { ProductWithCategory, Category, FormProduct } from "@/types/products";
@@ -712,14 +707,11 @@ export default function ProductsPage() {
                   <th className="p-4">SKU</th>
                   <th className="p-4">Barcode</th>
                   <th className="p-4">Kategori</th>
-                  <th className="p-4 text-center">Stok</th>
                   <th className="p-4 text-right">Harga</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredProducts.map((product) => {
-                  const isOutOfStock = product.stock <= 0;
-                  const isLowStock = product.stock > 0 && product.stock <= 5;
                   const isSelected = selectedIds.includes(product.id);
 
                   return (
@@ -740,20 +732,11 @@ export default function ProductsPage() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
-                          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
-                            {product.imageUrl ? (
-                              <Image
-                                src={product.imageUrl}
-                                alt=""
-                                width={40}
-                                height={40}
-                                unoptimized
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <Package className="h-4 w-4 text-slate-400" />
-                            )}
-                          </div>
+                          <ProductThumbnail
+                            src={product.imageUrl}
+                            alt={product.name}
+                            size={40}
+                          />
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="truncate font-semibold text-slate-900">
@@ -782,19 +765,6 @@ export default function ProductsPage() {
                       </td>
                       <td className="p-4 text-slate-600">
                         {product.category?.name || "-"}
-                      </td>
-                      <td className="p-4 text-center">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
-                            isOutOfStock
-                              ? "bg-rose-50 text-rose-700"
-                              : isLowStock
-                              ? "bg-amber-50 text-amber-700"
-                              : "bg-emerald-50 text-emerald-700"
-                          }`}
-                        >
-                          {product.stock}
-                        </span>
                       </td>
                       <td className="p-4 text-right font-bold text-slate-900">
                         Rp {Number(product.price).toLocaleString("id-ID")}

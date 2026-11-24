@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   CheckCircle2,
   Loader2,
-  Package,
   Save,
   Search,
   XCircle,
@@ -16,6 +15,7 @@ import Swal from "sweetalert2";
 import BrandLoader from "@/components/BrandLoader";
 import Button from "@/components/Button";
 import { Badge } from "@/components/ui/badge";
+import ProductThumbnail from "@/components/products/ProductThumbnail";
 
 interface LocationOption {
   id: number;
@@ -32,6 +32,7 @@ interface StockRow {
   productId: number;
   name: string;
   sku: string;
+  imageUrl?: string;
   categoryId: number | null;
   categoryName: string | null;
   isBundle: boolean;
@@ -318,9 +319,11 @@ export default function MinimumStockPage() {
                   <tr key={row.id} className="hover:bg-slate-50/70">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-400">
-                          <Package className="h-4 w-4" />
-                        </span>
+                        <ProductThumbnail
+                          src={row.imageUrl}
+                          alt={row.name}
+                          size={40}
+                        />
                         <div className="min-w-0">
                           <p className="flex items-center gap-1.5 truncate font-semibold text-slate-900">
                             {row.name}

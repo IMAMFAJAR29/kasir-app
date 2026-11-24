@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import Button from "@/components/Button";
 import { Badge } from "@/components/ui/badge";
+import ProductThumbnail from "@/components/products/ProductThumbnail";
 import StockAdjustmentModal from "@/components/StockAdjustment/StockAdjustmentModal";
 import {
   Wrench,
@@ -437,19 +437,12 @@ export default function StockPage() {
                       </td>
                       <td className="px-5 py-3 align-middle">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200/60 overflow-hidden flex items-center justify-center shrink-0">
-                            {prod.imageUrl ? (
-                              <Image
-                                src={prod.imageUrl}
-                                alt={prod.name}
-                                width={48}
-                                height={48}
-                                className="object-cover w-full h-full"
-                              />
-                            ) : (
-                              <Package className="w-5 h-5 text-slate-400" />
-                            )}
-                          </div>
+                          <ProductThumbnail
+                            src={prod.imageUrl}
+                            alt={prod.name}
+                            size={48}
+                            className="rounded-xl"
+                          />
                           <div>
                             <p className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
                               {prod.name}
