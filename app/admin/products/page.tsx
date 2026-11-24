@@ -11,10 +11,17 @@ import ImportModal, {
 } from "@/components/products/ImportModal";
 import CategoryModal from "@/components/products/CategoryModal";
 import BarcodeModal from "@/components/products/BarcodeModal";
+import ProductBulkToolbar from "@/components/products/ProductBulkToolbar";
 import Button from "@/components/Button";
 
 // Icon
-import { ChevronDown } from "lucide-react";
+import {
+  ChevronDown,
+  LayoutGrid,
+  Table2,
+  Package,
+} from "lucide-react";
+import Image from "next/image";
 
 // Tipe data
 import { ProductWithCategory, Category, FormProduct } from "@/types/products";
@@ -305,6 +312,8 @@ export default function ProductsPage() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all");
   const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "low_stock" | "out_of_stock">("all");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const filteredProducts = products.filter((p) => {
     const matchesSearch =
@@ -323,14 +332,69 @@ export default function ProductsPage() {
     return matchesSearch && matchesCategory && matchesStock;
   });
 
-  // Metrik ringkasan
-  const totalInventoryValue = products
-    .filter((p) => !p.isBundle)
-    .reduce((sum, p) => sum + Number(p.price) * p.stock, 0);
-  const lowStockCount = products.filter(
-    (p) => p.stock > 0 && p.stock <= 5
-  ).length;
-  const outOfStockCount = products.filter((p) => p.stock <= 0).length;
+  // =======================
+  // SELEKSI PRODUK (TABLE VIEW)
+  // =======================
+  const selectedProducts = products.filter((p) => selectedIds.includes(p.id));
+  const selectedCount = selectedProducts.length;
+
+  const allFilteredSelected =
+    filteredProducts.length > 0 &&
+    filteredProducts.every((p) => selectedIds.includes(p.id));
+  const someFilteredSelected =
+    !allFilteredSelected &&
+    filteredProducts.some((p) => selectedIds.includes(p.id));
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    const filteredIds = filteredProducts.map((p) => p.id);
+    setSelectedIds((prev) => {
+      if (allFilteredSelected) {
+        return prev.filter((id) => !filteredIds.includes(id));
+      }
+      return Array.from(new Set([...prev, ...filteredIds]));
+    });
+  };
+
+  /** Aksi tunggal: tolak jika lebih dari satu produk dipilih. */
+  const requireSingleSelection = async (): Promise<ProductWithCategory | null> => {
+    if (selectedCount > 1) {
+      await Swal.fire(
+        "Pilih satu produk",
+        "Aksi ini hanya dapat dijalankan untuk satu produk. Kurangi pilihan terlebih dahulu.",
+        "info"
+      );
+      return null;
+    }
+    return selectedProducts[0] ?? null;
+  };
+
+  const handleBulkEdit = async () => {
+    const product = await requireSingleSelection();
+    if (product) openEditForm(product);
+  };
+
+  const handleBulkBarcode = async () => {
+    const product = await requireSingleSelection();
+    if (!product) return;
+    setSelectedProduct(product);
+    setShowBarcodeModal(true);
+  };
+
+  const handleBulkBundle = async () => {
+    const product = await requireSingleSelection();
+    if (product) openConvertToBundleForm(product);
+  };
+
+  // Metrik stok & nilai inventaris sengaja tidak ditampilkan di sini.
+  // Informasi tersebut berada di modulnya masing-masing:
+  // - Stok: Gudang → Stok Gudang
+  // - Nilai persediaan: Akuntansi → Laporan Keuangan → Neraca
 
   // =======================
   // MAPPING PRODUK → FORM
@@ -378,6 +442,31 @@ export default function ProductsPage() {
     setShowProductFormModal(true);
   }
 
+  /**
+   * Hapus satu produk tanpa konfirmasi. Dipakai ulang oleh aksi per kartu
+   * (grid) dan bulk delete agar business logic tetap satu jalur.
+   */
+  const deleteProduct = async (
+    product: ProductWithCategory
+  ): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        return { ok: false, error: data?.error || "Gagal menghapus produk" };
+      }
+
+      setProducts((prev) => prev.filter((p) => p.id !== product.id));
+      setSelectedIds((prev) => prev.filter((id) => id !== product.id));
+      return { ok: true };
+    } catch {
+      return { ok: false, error: "Gagal menghapus produk" };
+    }
+  };
+
   const handleDeleteProduct = async (product: ProductWithCategory) => {
     const confirm = await Swal.fire({
       title: "Hapus produk?",
@@ -390,26 +479,76 @@ export default function ProductsPage() {
     });
     if (!confirm.isConfirmed) return;
 
-    try {
-      const res = await fetch(`/api/products/${product.id}`, {
-        method: "DELETE",
-      });
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        await Swal.fire(
-          "Gagal",
-          data?.error || "Gagal menghapus produk",
-          "error"
-        );
-        return;
-      }
-
-      setProducts((prev) => prev.filter((p) => p.id !== product.id));
+    const result = await deleteProduct(product);
+    if (result.ok) {
       await Swal.fire("Terhapus!", "Produk berhasil dihapus", "success");
-    } catch {
-      await Swal.fire("Gagal", "Gagal menghapus produk", "error");
+    } else {
+      await Swal.fire(
+        "Gagal",
+        result.error || "Gagal menghapus produk",
+        "error"
+      );
     }
+  };
+
+  const handleBulkDelete = async (items: ProductWithCategory[]) => {
+    if (items.length === 0) return;
+
+    const escapeHtml = (value: string) =>
+      value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    const preview = items
+      .slice(0, 5)
+      .map((product) => `• ${escapeHtml(product.name)}`)
+      .join("<br/>");
+    const more =
+      items.length > 5
+        ? `<br/>… dan ${items.length - 5} produk lain`
+        : "";
+
+    const confirm = await Swal.fire({
+      title: `Hapus ${items.length} produk?`,
+      html: `<div style="text-align:left;font-size:13px;color:#475569;max-height:220px;overflow:auto">${preview}${more}</div>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Ya, hapus",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#e11d48",
+    });
+    if (!confirm.isConfirmed) return;
+
+    setBulkDeleting(true);
+    const failures: string[] = [];
+    let deleted = 0;
+    for (const product of items) {
+      const result = await deleteProduct(product);
+      if (result.ok) {
+        deleted += 1;
+      } else {
+        failures.push(`${product.name}: ${result.error}`);
+      }
+    }
+    setBulkDeleting(false);
+
+    if (failures.length === 0) {
+      await Swal.fire(
+        "Terhapus!",
+        `${deleted} produk berhasil dihapus`,
+        "success"
+      );
+      return;
+    }
+
+    await Swal.fire({
+      icon: "warning",
+      title: `${deleted} terhapus, ${failures.length} gagal`,
+      html: `<div style="text-align:left;font-size:12px;max-height:240px;overflow:auto">${failures
+        .slice(0, 10)
+        .map((failure) => `• ${escapeHtml(failure)}`)
+        .join("<br/>")}</div>`,
+    });
   };
 
   // =======================
@@ -468,28 +607,6 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Metric Mini Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs">
-          <span className="text-xs text-slate-400 font-medium">Total Item</span>
-          <p className="text-xl font-bold text-slate-900 mt-1">{products.length}</p>
-        </div>
-        <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs">
-          <span className="text-xs text-slate-400 font-medium">Nilai Inventaris</span>
-          <p className="text-xl font-bold text-slate-900 mt-1 truncate">
-            Rp {totalInventoryValue.toLocaleString("id-ID")}
-          </p>
-        </div>
-        <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs">
-          <span className="text-xs text-amber-600 font-medium">Stok Menipis</span>
-          <p className="text-xl font-bold text-amber-600 mt-1">{lowStockCount}</p>
-        </div>
-        <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs">
-          <span className="text-xs text-rose-600 font-medium">Stok Habis</span>
-          <p className="text-xl font-bold text-rose-600 mt-1">{outOfStockCount}</p>
-        </div>
-      </div>
-
       {/* Toolbar Filter & Search */}
       <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs space-y-3">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -532,33 +649,56 @@ export default function ProductsPage() {
             </select>
 
             {/* View Mode Switcher */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <div
+              className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200"
+              role="group"
+              aria-label="Mode tampilan produk"
+            >
               <button
                 type="button"
                 onClick={() => setViewMode("grid")}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                title="Tampilan Grid"
+                aria-label="Tampilan Grid"
+                aria-pressed={viewMode === "grid"}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition cursor-pointer ${
                   viewMode === "grid"
-                    ? "bg-white text-slate-900 shadow-xs"
+                    ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200"
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                Grid
+                <LayoutGrid className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode("table")}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                title="Tampilan Tabel"
+                aria-label="Tampilan Tabel"
+                aria-pressed={viewMode === "table"}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition cursor-pointer ${
                   viewMode === "table"
-                    ? "bg-white text-slate-900 shadow-xs"
+                    ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200"
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                Tabel
+                <Table2 className="h-4 w-4" />
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Bulk Action Toolbar — hanya muncul saat ada produk dipilih */}
+      {selectedCount > 0 && (
+        <ProductBulkToolbar
+          count={selectedCount}
+          deleting={bulkDeleting}
+          onClear={() => setSelectedIds([])}
+          onEdit={() => void handleBulkEdit()}
+          onBarcode={() => void handleBulkBarcode()}
+          onBundle={() => void handleBulkBundle()}
+          onDelete={() => void handleBulkDelete(selectedProducts)}
+        />
+      )}
 
       {/* Grid atau Table Produk */}
       {viewMode === "grid" ? (
@@ -580,33 +720,85 @@ export default function ProductsPage() {
         /* Table View */
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            <table className="w-full min-w-[860px] text-sm text-left">
               <thead className="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200/80">
                 <tr>
+                  <th className="w-12 p-4">
+                    <input
+                      type="checkbox"
+                      aria-label="Pilih semua produk yang tampil"
+                      checked={allFilteredSelected}
+                      onChange={toggleSelectAll}
+                      ref={(element) => {
+                        if (element) element.indeterminate = someFilteredSelected;
+                      }}
+                      className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
                   <th className="p-4">Produk</th>
                   <th className="p-4">SKU</th>
                   <th className="p-4">Barcode</th>
                   <th className="p-4">Kategori</th>
                   <th className="p-4 text-center">Stok</th>
                   <th className="p-4 text-right">Harga</th>
-                  <th className="p-4 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredProducts.map((product) => {
                   const isOutOfStock = product.stock <= 0;
                   const isLowStock = product.stock > 0 && product.stock <= 5;
+                  const isSelected = selectedIds.includes(product.id);
 
                   return (
-                    <tr key={product.id} className="hover:bg-slate-50/70 transition">
-                      <td className="p-4 font-semibold text-slate-900">
-                        <div className="flex items-center gap-2">
-                          <span>{product.name}</span>
-                          {product.isBundle && (
-                            <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
-                              Bundle
-                            </span>
-                          )}
+                    <tr
+                      key={product.id}
+                      className={`transition hover:bg-slate-50/70 ${
+                        isSelected ? "bg-blue-50/50" : ""
+                      }`}
+                    >
+                      <td className="p-4 align-middle">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(product.id)}
+                          aria-label={`Pilih ${product.name}`}
+                          className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                            {product.imageUrl ? (
+                              <Image
+                                src={product.imageUrl}
+                                alt=""
+                                width={40}
+                                height={40}
+                                unoptimized
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <Package className="h-4 w-4 text-slate-400" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate font-semibold text-slate-900">
+                                {product.name}
+                              </span>
+                              {product.isBundle && (
+                                <span className="inline-flex shrink-0 items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                                  Bundle
+                                </span>
+                              )}
+                            </div>
+                            {product.isBundle &&
+                              product.bundleComponents?.length ? (
+                              <p className="mt-0.5 text-xs text-slate-400">
+                                {product.bundleComponents.length} komponen
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                       </td>
                       <td className="p-4 text-xs font-mono text-slate-500">
@@ -633,45 +825,6 @@ export default function ProductsPage() {
                       </td>
                       <td className="p-4 text-right font-bold text-slate-900">
                         Rp {Number(product.price).toLocaleString("id-ID")}
-                      </td>
-                      <td className="p-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => openEditForm(product)}
-                            className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg bg-slate-100 px-2.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-200"
-                          >
-                            Edit
-                          </button>
-                          {!product.isBundle && (
-                            <button
-                              type="button"
-                              onClick={() => openConvertToBundleForm(product)}
-                              className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg bg-indigo-50 px-2.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                            >
-                              Ubah ke Bundle
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedProduct(product);
-                              setShowBarcodeModal(true);
-                            }}
-                            className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-                            title="Barcode"
-                          >
-                            Barcode
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDeleteProduct(product)}
-                            className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg px-2.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
-                            title="Hapus"
-                          >
-                            Hapus
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   );
